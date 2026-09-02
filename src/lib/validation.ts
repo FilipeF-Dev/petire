@@ -189,6 +189,71 @@ export const storeSchema = z.object({
 });
 
 // -----------------------------------------------------------------------------
+// Admin
+// -----------------------------------------------------------------------------
+
+/**
+ * "Lanchonete do Zé" → "lanchonete-do-ze".
+ *
+ * O slug entra na URL pública e é o que o Google indexa, então nunca muda
+ * sozinho depois de criado — só o admin troca, de propósito.
+ */
+export function slugify(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // NFD separa o acento; aqui ele cai fora
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+export const newStoreSchema = z.object({
+  name: requiredText("Nome da loja"),
+  slug: z
+    .string()
+    .trim()
+    .transform((value) => (value === "" ? null : slugify(value)))
+    .refine(
+      (value) => value === null || /^[a-z0-9]+(-[a-z0-9]+)*$/.test(value),
+      "Endereço inválido.",
+    ),
+  city: requiredText("Cidade", 80),
+  neighborhood: requiredText("Bairro", 80),
+  whatsapp: z.string().transform((value, ctx) => {
+    const normalized = normalizeWhatsapp(value);
+    if (!normalized) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Informe DDD + número. Ex.: (11) 98765-4321",
+      });
+      return z.NEVER;
+    }
+    return normalized;
+  }),
+  kind: z.enum(["food", "drinks", "both"]),
+  managerEmail: z.email("E-mail inválido."),
+  trialDays: z.coerce
+    .number()
+    .int()
+    .min(0, "Não pode ser negativo.")
+    .max(365, "Máximo de 365 dias."),
+});
+
+export const subscriptionSchema = z.object({
+  storeId: uuid,
+  status: z.enum(["trial", "active", "past_due", "suspended"]),
+  until: z
+    .string()
+    .trim()
+    .transform((value) => (value === "" ? null : value))
+    .refine(
+      (value) => value === null || /^\d{4}-\d{2}-\d{2}$/.test(value),
+      "Data inválida.",
+    ),
+});
+
+// -----------------------------------------------------------------------------
 // Horário
 // -----------------------------------------------------------------------------
 

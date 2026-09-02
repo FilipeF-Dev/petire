@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui";
 import { requireManager } from "@/lib/auth";
@@ -26,19 +27,9 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 export default async function GerentePage() {
   const session = await requireManager();
 
+  // Admin não tem loja, então não há painel de lojista para mostrar.
   if (!session.storeId) {
-    return (
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Painel do Petire</h1>
-        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-          Você está logado como admin. A gestão de lojas e assinaturas fica em{" "}
-          <code className="rounded bg-neutral-100 px-1 py-0.5 dark:bg-neutral-900">
-            /admin
-          </code>
-          .
-        </p>
-      </div>
-    );
+    redirect("/admin");
   }
 
   const supabase = await createClient();

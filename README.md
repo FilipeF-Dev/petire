@@ -76,6 +76,7 @@ teste) em <http://127.0.0.1:54324>.
 | `npm run db:diff` | gera migration a partir de mudanças no Studio |
 | `npm run db:push` | aplica migrations no projeto remoto |
 | `npm run db:types` | regenera `src/lib/supabase/database.types.ts` |
+| `node scripts/make-icons.mjs` | regera os ícones do PWA |
 
 Rode `npm run db:types` sempre que mexer no schema — os tipos do banco não são
 inferidos em tempo de build.
@@ -107,6 +108,10 @@ Regras que valem a pena ter na cabeça:
   `stores_public`, que resolve "está aberta?" e omite essas colunas.
 - **Dinheiro é sempre `integer` em centavos**, do Postgres até a tela. As
   conversões ficam em `src/lib/money.ts`.
+- **Tirar uma loja do ar invalida a página dela na hora.** Sem isso a versão
+  estática seguiria servindo até o backstop de uma hora, e uma loja suspensa
+  continuaria recebendo pedido. Ver `refreshStorefront()` em
+  `src/app/admin/actions.ts`.
 
 Bug de RLS não quebra nada — só faz uma loja enxergar o cardápio da outra. Por
 isso `npm run check:rls` existe: ele exercita os caminhos que *precisam* falhar.
@@ -126,11 +131,14 @@ src/
       lojas/              lista com filtros
       loja/[slug]/        cardápio — a página de SEO
       carrinho/           carrinho multi-loja e envio
+    admin/                cadastro de lojas e assinaturas
     entrar/               login do lojista
     gerente/              painel (protegido)
       cardapio/           categorias, itens, opções, fotos
       loja/               dados, horários, abrir/fechar
     api/events/           gravação de métricas
+    offline/              fallback do service worker
+    manifest.ts           manifesto do PWA
     sitemap.ts robots.ts
   components/ui.tsx       primitivas visuais do painel
   lib/
@@ -145,8 +153,12 @@ src/
     weekdays.ts           dias da semana e horário
     supabase/             os quatro clientes + tipos gerados
   proxy.ts                refresh de sessão e redirect otimista
+public/
+  sw.js                   service worker
+  icon-*.png              ícones do PWA (gerados)
 scripts/
   check-rls.mjs           testes das políticas de acesso
+  make-icons.mjs          desenha os ícones
 ```
 
 ## Como a vitrine se mantém fresca
@@ -196,6 +208,64 @@ Os `remotePatterns` de `next.config.ts` são literais de propósito. Derivá-los
 que atende `/_next/image`, e o sintoma é um `400 "url" parameter is not allowed`
 sem nenhuma pista da causa.
 
+## Instalável
+
+`src/app/manifest.ts` e `public/sw.js` fazem o Petire virar app instalável.
+Os ícones são gerados por `node scripts/make-icons.mjs`, que desenha a marca
+geometricamente — sem dependência de imagem e com resultado igual em qualquer
+máquina.
+
+O service worker **nunca serve HTML do cache**. Um app de delivery com cardápio
+velho é pior do que um app que não abre: o cliente pediria um item que acabou
+há duas horas e só descobriria quando a loja respondesse. Navegação é sempre
+rede; sem rede, aparece `/offline`. O cache guarda só o que não envelhece — os
+assets do Next, que têm hash no nome.
+
+Em desenvolvimento o service worker não é registrado: ele interceptaria os
+assets do Turbopack e o hot reload passaria a servir versão velha.
+
+## Publicando
+
+### Supabase
+
+1. Crie o projeto em <https://supabase.com/dashboard>.
+2. Ligue o repositório local ao projeto e suba o schema:
+
+```bash
+npx supabase link --project-ref <project-ref>
+npm run db:push
+```
+
+`db:push` aplica as migrations. **Não rode o seed em produção** — ele cria
+usuários com senha conhecida.
+
+3. Crie o primeiro admin. Pelo painel do Supabase, em Authentication, adicione
+   um usuário e depois, no SQL Editor:
+
+```sql
+insert into public.managers (id, store_id, role, email)
+values ('<uuid-do-usuario>', null, 'admin', '<seu-email>');
+```
+
+A partir daí, as lojas são cadastradas por `/admin`.
+
+### Vercel
+
+Importe o repositório e configure as variáveis:
+
+| Variável | Valor |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://<project-ref>.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | chave anon do projeto |
+| `SUPABASE_SERVICE_ROLE_KEY` | chave service_role — **só em Production/Preview, nunca exposta** |
+| `NEXT_PUBLIC_SITE_URL` | `https://<seu-dominio>` |
+
+`NEXT_PUBLIC_SITE_URL` alimenta canonical, sitemap e JSON-LD. Deixar o valor
+padrão de `localhost` em produção faz o Google indexar URLs que não existem.
+
+O `next.config.ts` só libera `*.supabase.co` para o otimizador de imagem em
+produção — os padrões de `127.0.0.1` ficam de fora do build de produção.
+
 ## Onde o MVP está
 
 | Fase | Status |
@@ -204,4 +274,4 @@ sem nenhuma pista da causa.
 | 1 — painel do gerente (cardápio, opções, fotos, horários) | pronta |
 | 2 — vitrine pública, SEO, métricas | pronta |
 | 3 — carrinho, opções e checkout no WhatsApp | pronta |
-| 4 — PWA, painel admin, deploy | a fazer |
+| 4 — PWA, painel admin, deploy | pronta |
