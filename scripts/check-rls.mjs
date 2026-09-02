@@ -103,6 +103,26 @@ await check("NÃO cria produto", async () => {
   return error.code;
 });
 
+await check("NÃO lê a situação da assinatura das lojas", async () => {
+  const { error } = await anon
+    .from("stores")
+    .select("subscription_status, subscription_until");
+  assert(error, "anon leu dados de assinatura");
+  return error.code;
+});
+
+await check("lê a vitrine com o status de aberto resolvido", async () => {
+  const { data, error } = await anon
+    .from("stores_public")
+    .select("slug, name, is_open_now");
+  assert(!error, error?.message ?? "");
+  assert(data.length === 2, `esperava 2 lojas, veio ${data.length}`);
+  assert(
+    data.every((s) => typeof s.is_open_now === "boolean"),
+    "is_open_now não veio como booleano",
+  );
+});
+
 console.log("\nGerente da Lanchonete do Zé");
 
 const ze = await managerClient("gerente@petire.local");

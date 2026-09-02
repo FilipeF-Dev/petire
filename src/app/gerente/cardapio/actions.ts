@@ -26,10 +26,18 @@ import { removeStoreImage } from "./storage";
  *     assim a operação vira "nenhuma linha afetada" em vez de erro de banco.
  */
 
-function refreshMenu(productId?: string) {
+/**
+ * A página pública da loja é estática — sem isto, marcar um item como esgotado
+ * só apareceria para o cliente no próximo rebuild, que é exatamente o defeito
+ * que o Petire não pode ter.
+ */
+function refreshMenu(storeSlug: string | null, productId?: string) {
   revalidatePath("/gerente/cardapio");
   if (productId) {
     revalidatePath(`/gerente/cardapio/produto/${productId}`);
+  }
+  if (storeSlug) {
+    revalidatePath(`/loja/${storeSlug}`);
   }
 }
 
@@ -73,7 +81,7 @@ export async function saveCategory(
     if (error) return { error: categoryErrorMessage(error.code) };
   }
 
-  refreshMenu();
+  refreshMenu(session.storeSlug);
   redirect("/gerente/cardapio");
 }
 
@@ -101,7 +109,7 @@ export async function deleteCategory(formData: FormData): Promise<void> {
     .eq("id", id.data)
     .eq("store_id", session.storeId);
 
-  refreshMenu();
+  refreshMenu(session.storeSlug);
 }
 
 // -----------------------------------------------------------------------------
@@ -157,7 +165,7 @@ export async function saveProduct(
       await removeStoreImage(supabase, session.storeId, current.image_url);
     }
 
-    refreshMenu(productId);
+    refreshMenu(session.storeSlug, productId);
     redirect("/gerente/cardapio");
   }
 
@@ -174,7 +182,7 @@ export async function saveProduct(
 
   if (error || !data) return { error: productErrorMessage(error?.code) };
 
-  refreshMenu();
+  refreshMenu(session.storeSlug);
   // Direto para a edição: é lá que ficam tamanho e adicionais, e um produto
   // recém-criado quase sempre precisa deles.
   redirect(`/gerente/cardapio/produto/${data.id}`);
@@ -213,7 +221,7 @@ export async function deleteProduct(formData: FormData): Promise<void> {
     await removeStoreImage(supabase, session.storeId, current.image_url);
   }
 
-  refreshMenu();
+  refreshMenu(session.storeSlug);
   redirect("/gerente/cardapio");
 }
 
@@ -235,7 +243,7 @@ export async function setProductAvailability(formData: FormData): Promise<void> 
     .eq("id", id.data)
     .eq("store_id", session.storeId);
 
-  refreshMenu();
+  refreshMenu(session.storeSlug);
 }
 
 // -----------------------------------------------------------------------------
@@ -320,7 +328,7 @@ export async function moveItem(formData: FormData): Promise<void> {
     ),
   );
 
-  refreshMenu();
+  refreshMenu(session.storeSlug);
 }
 
 // -----------------------------------------------------------------------------
@@ -376,7 +384,7 @@ export async function saveOptionGroup(
     if (error) return { error: "Não foi possível criar o grupo." };
   }
 
-  refreshMenu(productId.data);
+  refreshMenu(session.storeSlug, productId.data);
   return { error: null, savedAt: Date.now() };
 }
 
@@ -395,7 +403,10 @@ export async function deleteOptionGroup(formData: FormData): Promise<void> {
     .eq("id", id.data)
     .eq("store_id", session.storeId);
 
-  refreshMenu(typeof productId === "string" ? productId : undefined);
+  refreshMenu(
+    session.storeSlug,
+    typeof productId === "string" ? productId : undefined,
+  );
 }
 
 // -----------------------------------------------------------------------------
@@ -436,7 +447,10 @@ export async function saveOption(
 
   if (error) return { error: "Não foi possível adicionar a opção." };
 
-  refreshMenu(typeof productId === "string" ? productId : undefined);
+  refreshMenu(
+    session.storeSlug,
+    typeof productId === "string" ? productId : undefined,
+  );
   return { error: null, savedAt: Date.now() };
 }
 
@@ -455,7 +469,10 @@ export async function deleteOption(formData: FormData): Promise<void> {
     .eq("id", id.data)
     .eq("store_id", session.storeId);
 
-  refreshMenu(typeof productId === "string" ? productId : undefined);
+  refreshMenu(
+    session.storeSlug,
+    typeof productId === "string" ? productId : undefined,
+  );
 }
 
 export async function setOptionAvailability(formData: FormData): Promise<void> {
@@ -473,5 +490,8 @@ export async function setOptionAvailability(formData: FormData): Promise<void> {
     .eq("id", id.data)
     .eq("store_id", session.storeId);
 
-  refreshMenu(typeof productId === "string" ? productId : undefined);
+  refreshMenu(
+    session.storeSlug,
+    typeof productId === "string" ? productId : undefined,
+  );
 }

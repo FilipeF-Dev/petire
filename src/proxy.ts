@@ -75,9 +75,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    // Tudo, menos os assets estáticos — rodar o proxy neles gasta uma chamada
-    // de auth por imagem.
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|txt|xml|webmanifest)$).*)",
-  ],
+  // Só as rotas onde existe sessão. A vitrine é anônima e estática — rodar o
+  // proxy nela custaria uma ida ao Supabase por página vista, para descobrir
+  // toda vez que não há ninguém logado.
+  matcher: ["/gerente/:path*", "/admin/:path*", "/entrar"],
 };

@@ -4,19 +4,10 @@ import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 
 import { Button, Card, FormError, inputClass } from "@/components/ui";
+import { hhmm, WEEKDAYS } from "@/lib/weekdays";
 import { emptyFormState } from "@/lib/validation";
 
 import { addStoreHour, deleteStoreHour } from "./actions";
-
-export const WEEKDAYS = [
-  "Domingo",
-  "Segunda",
-  "Terça",
-  "Quarta",
-  "Quinta",
-  "Sexta",
-  "Sábado",
-];
 
 type StoreHour = {
   id: string;
@@ -24,11 +15,6 @@ type StoreHour = {
   opens_at: string;
   closes_at: string;
 };
-
-/** "18:00:00" → "18:00" */
-function hhmm(time: string): string {
-  return time.slice(0, 5);
-}
 
 function Submit() {
   const { pending } = useFormStatus();

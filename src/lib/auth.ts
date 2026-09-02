@@ -8,6 +8,8 @@ export type ManagerSession = {
   role: "manager" | "admin";
   /** null quando role === "admin" — o admin não é dono de nenhuma loja. */
   storeId: string | null;
+  /** Slug da loja. Serve para revalidar /loja/[slug] depois de editar o cardápio. */
+  storeSlug: string | null;
 };
 
 /**
@@ -30,7 +32,7 @@ export async function requireManager(): Promise<ManagerSession> {
   // RLS em managers já limita a linha do próprio usuário.
   const { data: manager } = await supabase
     .from("managers")
-    .select("store_id, role, email")
+    .select("store_id, role, email, stores(slug)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -45,6 +47,7 @@ export async function requireManager(): Promise<ManagerSession> {
     email: manager.email,
     role: manager.role,
     storeId: manager.store_id,
+    storeSlug: manager.stores?.slug ?? null,
   };
 }
 

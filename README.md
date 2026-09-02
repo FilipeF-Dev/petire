@@ -81,13 +81,14 @@ inferidos em tempo de build.
 
 ## Como o acesso é controlado
 
-Três clientes Supabase, três níveis de poder:
+Quatro clientes Supabase, quatro níveis de poder:
 
 | Arquivo | Papel no banco | Onde usar |
 |---|---|---|
 | `src/lib/supabase/client.ts` | `anon` / `authenticated` | Client Components |
 | `src/lib/supabase/server.ts` | `anon` / `authenticated` | Server Components, actions, route handlers |
 | `src/lib/supabase/admin.ts` | `service_role` — **ignora RLS** | só `/admin` e `/api/events` |
+| `src/lib/supabase/public.ts` | `anon`, sem cookies | vitrine pública, sitemap, build |
 
 Regras que valem a pena ter na cabeça:
 
@@ -100,6 +101,9 @@ Regras que valem a pena ter na cabeça:
 - **`src/proxy.ts` é filtro otimista**, só renova a sessão e redireciona. A
   autorização real é `requireManager()` em `src/lib/auth.ts`, chamada pelos
   layouts.
+- **O visitante não enxerga a assinatura de ninguém.** `subscription_status` e
+  `subscription_until` saíram do `GRANT SELECT` de `anon`; a vitrine lê a view
+  `stores_public`, que resolve "está aberta?" e omite essas colunas.
 - **Dinheiro é sempre `integer` em centavos**, do Postgres até a tela. As
   conversões ficam em `src/lib/money.ts`.
 
@@ -112,26 +116,49 @@ Rode depois de mexer em qualquer policy.
 ```
 docs/                     conceito e especificação do MVP
 supabase/
-  migrations/             schema, RLS, storage
+  migrations/             schema, RLS, storage, views públicas
   seed.sql                dados de desenvolvimento
 src/
   app/
+    (site)/               vitrine pública
+      page.tsx            home, seletor de bairro
+      lojas/              lista com filtros
+      loja/[slug]/        cardápio — a página de SEO
     entrar/               login do lojista
     gerente/              painel (protegido)
       cardapio/           categorias, itens, opções, fotos
       loja/               dados, horários, abrir/fechar
-    sem-acesso/           conta sem loja vinculada
+    api/events/           gravação de métricas
+    sitemap.ts robots.ts
   components/ui.tsx       primitivas visuais do painel
   lib/
     auth.ts               requireManager / requireAdmin
     env.ts                leitura das variáveis de ambiente
     money.ts              centavos ↔ texto
+    promotions.ts         preço com desconto aplicado
+    storefront.ts         tipos das views públicas
     validation.ts         schemas zod dos formulários
-    supabase/             os três clientes + tipos gerados
+    weekdays.ts           dias da semana e horário
+    supabase/             os quatro clientes + tipos gerados
   proxy.ts                refresh de sessão e redirect otimista
 scripts/
   check-rls.mjs           testes das políticas de acesso
 ```
+
+## Como a vitrine se mantém fresca
+
+`/loja/[slug]` é gerada estaticamente. Um cardápio desatualizado é o que mais
+rápido queima a confiança do cliente, então a página não espera o `revalidate`
+de uma hora: toda ação do painel que muda o cardápio chama
+`revalidatePath('/loja/<slug>')`. Ver `refreshMenu()` em
+`src/app/gerente/cardapio/actions.ts`.
+
+Por isso `requireManager()` devolve `storeSlug` — a action precisa saber qual
+página pública invalidar.
+
+O `src/proxy.ts` roda só em `/gerente`, `/admin` e `/entrar`. A vitrine é
+anônima: rodar o proxy nela custaria uma ida ao Supabase por página vista só
+para descobrir, toda vez, que não há ninguém logado.
 
 ## Fotos do cardápio
 
@@ -150,6 +177,6 @@ sem nenhuma pista da causa.
 |---|---|
 | 0 — schema, RLS, auth, seed | pronta |
 | 1 — painel do gerente (cardápio, opções, fotos, horários) | pronta |
-| 2 — vitrine pública | a fazer |
+| 2 — vitrine pública, SEO, métricas | pronta |
 | 3 — carrinho e checkout no WhatsApp | a fazer |
-| 4 — PWA, SEO, admin, deploy | a fazer |
+| 4 — PWA, painel admin, deploy | a fazer |

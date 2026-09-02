@@ -12,9 +12,14 @@ import {
   type FormState,
 } from "@/lib/validation";
 
-function refreshStore() {
+function refreshStore(storeSlug: string | null) {
   revalidatePath("/gerente/loja");
   revalidatePath("/gerente");
+  // Horário, taxa e status aberto/fechado aparecem na página pública.
+  if (storeSlug) {
+    revalidatePath(`/loja/${storeSlug}`);
+    revalidatePath("/lojas");
+  }
 }
 
 export async function saveStore(
@@ -62,7 +67,7 @@ export async function saveStore(
     return { error: "Não foi possível salvar. Confira o número do WhatsApp." };
   }
 
-  refreshStore();
+  refreshStore(session.storeSlug);
   return { error: null, savedAt: Date.now() };
 }
 
@@ -87,7 +92,7 @@ export async function setOpenOverride(formData: FormData): Promise<void> {
     .update({ is_open_manual: value })
     .eq("id", session.storeId);
 
-  refreshStore();
+  refreshStore(session.storeSlug);
 }
 
 export async function addStoreHour(
@@ -114,7 +119,7 @@ export async function addStoreHour(
 
   if (error) return { error: "Não foi possível salvar o horário." };
 
-  refreshStore();
+  refreshStore(session.storeSlug);
   return { error: null, savedAt: Date.now() };
 }
 
@@ -132,5 +137,5 @@ export async function deleteStoreHour(formData: FormData): Promise<void> {
     .eq("id", id.data)
     .eq("store_id", session.storeId);
 
-  refreshStore();
+  refreshStore(session.storeSlug);
 }
