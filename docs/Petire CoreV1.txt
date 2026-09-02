@@ -1,0 +1,15 @@
+Petire, do latin pedir.
+
+A ideia é ser uma web page instalável.
+
+O petire é um ambiente onde você (como profissional) pode cadastrar sua lanchonete, distribuidora e etc, similar aos app de delivery de hoje em dia, para mostrar seu cardápio de produtos.
+Você (como cliente) tem acesso as lanchonetes e similares próximas a você, você pode filtar por comida, ou bebida, tipo de comida e etc, encontrar a lanchonete e escolher os itens que deseja, todos eles sendo adicionados ao carrinho, sendo cque você pode adicionar ao carrinho itens de lojas diferentes.
+Você terá no carrinho o valor que ficará, e neste momento, quando clcicar em "fazer pedido", você será redirecionado para o contato do WhatsApp da lanchonete em questão, já com o corpo do pedido pronto para enviar, e a partir dali você trata pagamento e entrega diretamente com a lanchonete.
+
+Será um site clean e intuitivo, onde com poucos cliques você será capaz de pedir sua comida.
+
+Em que o Petire se destaca em relação aos demais apps de delivery?
+1. O Petire não cobra taxas sobre os pedidos, reduzindo significativamente o valor dos produtos em comparação com os concorrentes.
+2. É um site instalável sem burocracia, não precisa de login e dados de pagamento, sem propagandas.
+3. Você paga apenas um valor mensal, vamos suporte de 30 reais e já estará na lista de lojas do site, possuindo um logim de gerente para edição de cardápio e promoções.
+4. Com o tempo, ao aumentar o volume de lojas e clientes, o próprio site se torna um ambiente de publicidade, como é o caso do Ifood por exemplo.
