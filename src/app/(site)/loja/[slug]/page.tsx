@@ -9,7 +9,9 @@ import { viewRows } from "@/lib/storefront";
 import { createPublicClient } from "@/lib/supabase/public";
 import { hhmm, SCHEMA_WEEKDAYS, WEEKDAYS } from "@/lib/weekdays";
 
+import { CartBar } from "./cart-bar";
 import { getStorePage, type StorePage } from "./data";
+import { MenuItem } from "./menu-item";
 import { TrackStoreView } from "./track-view";
 
 // Rede de segurança. O caminho normal é o painel chamar revalidatePath assim
@@ -206,73 +208,32 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
                     promotions as Promotion[],
                   );
 
-                  // Grupo obrigatório com opção paga significa que o preço da
-                  // vitrine é um piso, não o total.
-                  const startsFrom = product.option_groups.some(
-                    (group) =>
-                      group.min_select >= 1 &&
-                      group.options.every(
-                        (option) =>
-                          !option.is_available || option.price_delta_cents > 0,
-                      ),
-                  );
-
                   return (
-                    <li
-                      key={product.id}
-                      className={`flex gap-4 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800 ${
-                        product.is_available ? "" : "opacity-55"
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-medium">{product.name}</h3>
-                          {product.is_available ? null : (
-                            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
-                              esgotado
-                            </span>
-                          )}
-                          {price.label ? (
-                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950 dark:text-green-300">
-                              {price.label}
-                            </span>
-                          ) : null}
-                        </div>
-
-                        {product.description ? (
-                          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-                            {product.description}
-                          </p>
-                        ) : null}
-
-                        <p className="mt-2 flex flex-wrap items-baseline gap-2">
-                          {startsFrom ? (
-                            <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                              a partir de
-                            </span>
-                          ) : null}
-                          <span className="font-medium tabular-nums">
-                            {formatCents(price.cents)}
-                          </span>
-                          {price.originalCents !== null ? (
-                            <span className="text-sm text-neutral-400 line-through tabular-nums">
-                              {formatCents(price.originalCents)}
-                            </span>
-                          ) : null}
-                        </p>
-                      </div>
-
-                      {product.image_url ? (
-                        <div className="relative size-20 shrink-0 overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
-                          <Image
-                            src={product.image_url}
-                            alt=""
-                            fill
-                            sizes="80px"
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : null}
+                    <li key={product.id}>
+                      <MenuItem
+                        storeId={store.id}
+                        storeIsOpen={store.is_open_now}
+                        product={{
+                          id: product.id,
+                          name: product.name,
+                          description: product.description,
+                          image_url: product.image_url,
+                          is_available: product.is_available,
+                          priceCents: price.cents,
+                          originalPriceCents: price.originalCents,
+                          promotionLabel: price.label,
+                          // O PostgREST não ordena relações aninhadas junto
+                          // com a principal.
+                          option_groups: [...product.option_groups]
+                            .sort((a, b) => a.sort_order - b.sort_order)
+                            .map((group) => ({
+                              ...group,
+                              options: [...group.options].sort(
+                                (a, b) => a.sort_order - b.sort_order,
+                              ),
+                            })),
+                        }}
+                      />
                     </li>
                   );
                 })}
@@ -305,9 +266,7 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
         </ul>
       </section>
 
-      <p className="text-sm text-neutral-500 dark:text-neutral-400">
-        O carrinho e o envio do pedido pelo WhatsApp chegam na próxima fase.
-      </p>
+      <CartBar />
     </div>
   );
 }

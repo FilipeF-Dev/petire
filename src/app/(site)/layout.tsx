@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { CartLink } from "@/components/cart-link";
+
 export default function SiteLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-full flex-col">
@@ -8,12 +10,15 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
           <Link href="/" className="text-lg font-semibold tracking-tight">
             Petire
           </Link>
-          <Link
-            href="/lojas"
-            className="text-sm text-neutral-500 underline-offset-4 hover:underline dark:text-neutral-400"
-          >
-            Ver lojas
-          </Link>
+          <div className="flex items-center gap-5">
+            <Link
+              href="/lojas"
+              className="text-sm text-neutral-500 underline-offset-4 hover:underline dark:text-neutral-400"
+            >
+              Lojas
+            </Link>
+            <CartLink />
+          </div>
         </div>
       </header>
 

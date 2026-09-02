@@ -69,6 +69,7 @@ teste) em <http://127.0.0.1:54324>.
 | `npm run build` | build de produção |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
+| `npm test` | testes da lógica pura (dinheiro, promoções, mensagem do pedido) |
 | `npm run check:rls` | exercita as políticas de RLS contra o banco local |
 | `npm run db:start` / `db:stop` | sobe/derruba o Supabase local |
 | `npm run db:reset` | recria o banco, aplica migrations e seed |
@@ -124,6 +125,7 @@ src/
       page.tsx            home, seletor de bairro
       lojas/              lista com filtros
       loja/[slug]/        cardápio — a página de SEO
+      carrinho/           carrinho multi-loja e envio
     entrar/               login do lojista
     gerente/              painel (protegido)
       cardapio/           categorias, itens, opções, fotos
@@ -134,7 +136,9 @@ src/
   lib/
     auth.ts               requireManager / requireAdmin
     env.ts                leitura das variáveis de ambiente
+    cart.ts               carrinho no localStorage
     money.ts              centavos ↔ texto
+    order-message.ts      texto do pedido e link do wa.me
     promotions.ts         preço com desconto aplicado
     storefront.ts         tipos das views públicas
     validation.ts         schemas zod dos formulários
@@ -160,6 +164,27 @@ O `src/proxy.ts` roda só em `/gerente`, `/admin` e `/entrar`. A vitrine é
 anônima: rodar o proxy nela custaria uma ida ao Supabase por página vista só
 para descobrir, toda vez, que não há ninguém logado.
 
+## O carrinho e o pedido
+
+O carrinho vive no `localStorage` — o Petire não tem cadastro, então não há
+onde guardar isso no servidor nem por quê. Mas ele guarda só a **identidade**
+do pedido: qual produto, quais opções, quantas unidades. Nunca preço, nome de
+loja ou número de WhatsApp.
+
+Preço, disponibilidade, taxa de entrega e telefone são relidos do banco em
+`resolveCart()` toda vez que o carrinho é aberto. Um carrinho de ontem não pode
+cobrar o preço de ontem, e muito menos mandar o pedido para um número que a
+loja já trocou. Item que saiu do cardápio ou esgotou é removido, com aviso.
+
+Cada loja é um envio separado, porque cada uma tem o próprio WhatsApp. Enviar o
+pedido da lanchonete não pode levar junto o da distribuidora.
+
+O `wa.me` carrega a mensagem na query string, e estourar o limite de URL **não
+dá erro** — o WhatsApp simplesmente abre com o texto cortado e a loja recebe
+meio pedido. Por isso `buildOrderMessage()` monta o texto em três níveis de
+detalhe e usa o mais rico que couber em 1500 caracteres. É o que
+`src/lib/order-message.test.ts` cobre.
+
 ## Fotos do cardápio
 
 O browser envia direto para o Storage — a policy do bucket já limita o gerente
@@ -178,5 +203,5 @@ sem nenhuma pista da causa.
 | 0 — schema, RLS, auth, seed | pronta |
 | 1 — painel do gerente (cardápio, opções, fotos, horários) | pronta |
 | 2 — vitrine pública, SEO, métricas | pronta |
-| 3 — carrinho e checkout no WhatsApp | a fazer |
+| 3 — carrinho, opções e checkout no WhatsApp | pronta |
 | 4 — PWA, painel admin, deploy | a fazer |

@@ -34,7 +34,7 @@ export const getStorePage = cache(async (slug: string) => {
       supabase
         .from("products")
         .select(
-          "id, name, description, price_cents, image_url, is_available, category_id, option_groups(id, min_select, options(id, price_delta_cents, is_available))",
+          "id, name, description, price_cents, image_url, is_available, category_id, option_groups(id, name, min_select, max_select, sort_order, options(id, name, price_delta_cents, is_available, sort_order))",
         )
         .eq("store_id", store.id)
         .order("sort_order")
