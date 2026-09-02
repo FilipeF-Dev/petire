@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
+import { Button } from "@/components/ui";
 import { requireManager } from "@/lib/auth";
 import { formatCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
@@ -116,9 +118,14 @@ export default async function GerentePage() {
         </p>
       </div>
 
-      <p className="text-sm text-neutral-500 dark:text-neutral-400">
-        A edição do cardápio chega na fase 1.
-      </p>
+      <div className="flex flex-wrap gap-2">
+        <Link href="/gerente/cardapio">
+          <Button>Editar cardápio</Button>
+        </Link>
+        <Link href="/gerente/loja">
+          <Button variant="secondary">Dados da loja</Button>
+        </Link>
+      </div>
     </div>
   );
 }

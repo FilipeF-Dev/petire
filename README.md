@@ -118,23 +118,38 @@ src/
   app/
     entrar/               login do lojista
     gerente/              painel (protegido)
+      cardapio/           categorias, itens, opções, fotos
+      loja/               dados, horários, abrir/fechar
     sem-acesso/           conta sem loja vinculada
+  components/ui.tsx       primitivas visuais do painel
   lib/
     auth.ts               requireManager / requireAdmin
     env.ts                leitura das variáveis de ambiente
     money.ts              centavos ↔ texto
+    validation.ts         schemas zod dos formulários
     supabase/             os três clientes + tipos gerados
   proxy.ts                refresh de sessão e redirect otimista
 scripts/
   check-rls.mjs           testes das políticas de acesso
 ```
 
+## Fotos do cardápio
+
+O browser envia direto para o Storage — a policy do bucket já limita o gerente
+à pasta `<store_id>/`, então os bytes não precisam passar pelo servidor do Next.
+O formulário carrega só a URL.
+
+Os `remotePatterns` de `next.config.ts` são literais de propósito. Derivá-los de
+`NEXT_PUBLIC_SUPABASE_URL` funciona no build, mas o valor não chega ao processo
+que atende `/_next/image`, e o sintoma é um `400 "url" parameter is not allowed`
+sem nenhuma pista da causa.
+
 ## Onde o MVP está
 
 | Fase | Status |
 |---|---|
 | 0 — schema, RLS, auth, seed | pronta |
-| 1 — painel do gerente (CRUD de cardápio) | a fazer |
+| 1 — painel do gerente (cardápio, opções, fotos, horários) | pronta |
 | 2 — vitrine pública | a fazer |
 | 3 — carrinho e checkout no WhatsApp | a fazer |
 | 4 — PWA, SEO, admin, deploy | a fazer |

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { signOut } from "@/app/entrar/actions";
 import { requireManager } from "@/lib/auth";
 
+import { GerenteNav } from "./nav";
+
 /**
  * Todo o /gerente passa por aqui. O proxy já redireciona quem não tem sessão,
  * mas a checagem que vale é esta — o proxy é otimista por natureza.
@@ -39,7 +41,13 @@ export default async function GerenteLayout({
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">{children}</div>
+      <div className="border-b border-neutral-200 dark:border-neutral-800">
+        <GerenteNav />
+      </div>
+
+      <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
+        {children}
+      </div>
     </div>
   );
 }

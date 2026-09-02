@@ -220,6 +220,78 @@ await check("store_metrics devolve zeros para a loja do vizinho", async () => {
   );
 });
 
+console.log("\nBucket de imagens");
+
+// PNG 1x1 válido — o bucket só aceita mime de imagem.
+const PIXEL = Uint8Array.from(
+  atob(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  ),
+  (c) => c.charCodeAt(0),
+);
+
+function png() {
+  return new Blob([PIXEL], { type: "image/png" });
+}
+
+const uploadedPaths = [];
+
+await check("gerente envia foto para a pasta da própria loja", async () => {
+  const path = `${STORE_ZE}/produtos/check-rls-${Date.now()}.png`;
+  const { error } = await ze.storage
+    .from("store-images")
+    .upload(path, png(), { contentType: "image/png" });
+
+  assert(!error, error?.message ?? "");
+  uploadedPaths.push(path);
+});
+
+await check("NÃO envia foto para a pasta da loja do vizinho", async () => {
+  const { error } = await ze.storage
+    .from("store-images")
+    .upload(`${STORE_DIST}/produtos/invasor.png`, png(), {
+      contentType: "image/png",
+    });
+
+  assert(error, "gerente gravou na pasta de outra loja");
+  return "bloqueado";
+});
+
+await check("NÃO envia foto para a raiz do bucket", async () => {
+  // Sem prefixo de loja, storage_store_id() devolve null e a policy nega.
+  const { error } = await ze.storage
+    .from("store-images")
+    .upload(`solto-${Date.now()}.png`, png(), { contentType: "image/png" });
+
+  assert(error, "gerente gravou fora de qualquer pasta de loja");
+  return "bloqueado";
+});
+
+await check("visitante lê a foto sem login", async () => {
+  const { data, error } = await anon.storage
+    .from("store-images")
+    .download(uploadedPaths[0]);
+
+  assert(!error, error?.message ?? "");
+  assert(data.size > 0, "arquivo veio vazio");
+});
+
+await check("visitante NÃO envia foto", async () => {
+  const { error } = await anon.storage
+    .from("store-images")
+    .upload(`${STORE_ZE}/produtos/anon.png`, png(), {
+      contentType: "image/png",
+    });
+
+  assert(error, "anon gravou no bucket");
+  return "bloqueado";
+});
+
+// Limpeza dos arquivos criados por este script.
+if (uploadedPaths.length > 0) {
+  await ze.storage.from("store-images").remove(uploadedPaths);
+}
+
 console.log("\nHorário de funcionamento");
 
 await check("store_is_open responde para as duas lojas", async () => {
