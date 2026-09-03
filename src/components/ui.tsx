@@ -6,7 +6,7 @@ import type { ComponentProps, ReactNode } from "react";
  */
 
 export const inputClass =
-  "w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2.5 text-base outline-none transition focus:border-neutral-900 disabled:opacity-60 dark:border-neutral-700 dark:focus:border-neutral-300";
+  "w-full rounded-lg border border-neutral-300 bg-surface px-3 py-2.5 text-base outline-none transition focus:border-neutral-900 disabled:opacity-60 dark:border-neutral-700 dark:focus:border-neutral-300";
 
 export function Field({
   label,
@@ -71,7 +71,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-xl border border-neutral-200 dark:border-neutral-800 ${className}`}
+      className={`rounded-xl border border-neutral-200 bg-surface dark:border-neutral-800 ${className}`}
     >
       {children}
     </div>

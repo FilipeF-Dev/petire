@@ -158,7 +158,7 @@ export default async function CardapioPage() {
       {sections.length === 0 ? (
         <EmptyState
           title="Seu cardápio está vazio"
-          description="Comece criando uma categoria — Lanches, Bebidas, Porções — e depois adicione os itens dentro dela."
+          description="Crie uma categoria — Lanches, Bebidas, Porções — e adicione os itens nela."
           action={
             <Link href="/gerente/cardapio/categoria/nova">
               <Button>Criar primeira categoria</Button>

@@ -89,7 +89,7 @@ export default async function PromocoesPage() {
     <div>
       <PageHeader
         title="Promoções"
-        description="Desconto no cardápio inteiro ou em um item, com dia para começar e acabar."
+        description="Desconto por item ou no cardápio todo, com prazo."
         action={
           <Link href="/gerente/promocoes/nova">
             <Button>Nova promoção</Button>
@@ -100,7 +100,7 @@ export default async function PromocoesPage() {
       {promotions.length === 0 ? (
         <EmptyState
           title="Nenhuma promoção"
-          description="Um desconto aparece como selo no cardápio e já sai com o preço abatido na mensagem do pedido."
+          description="O desconto vira selo no cardápio e já sai abatido no pedido."
           action={
             <Link href="/gerente/promocoes/nova">
               <Button>Criar primeira promoção</Button>
@@ -166,9 +166,8 @@ export default async function PromocoesPage() {
       )}
 
       <p className="mt-4 max-w-lg text-xs text-neutral-500 dark:text-neutral-400">
-        Quando duas promoções valem ao mesmo tempo, a do item ganha da do
-        cardápio inteiro — os descontos nunca se somam. É o que evita zerar a
-        margem sem perceber.
+        Promoção de item ganha da do cardápio inteiro. Os descontos nunca se
+        somam.
       </p>
     </div>
   );

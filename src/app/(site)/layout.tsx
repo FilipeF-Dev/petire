@@ -1,12 +1,13 @@
 import Link from "next/link";
 
 import { CartLink } from "@/components/cart-link";
+import { PageTransition } from "@/components/page-transition";
 import { LocationBar } from "@/components/location-bar";
 
 export default function SiteLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-full flex-col">
-      <header className="border-b border-neutral-200 dark:border-neutral-800">
+      <header className="border-b border-neutral-200 bg-surface dark:border-neutral-800">
         <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-4 sm:px-6">
           <Link href="/" className="text-lg font-semibold tracking-tight">
             Petire
@@ -28,7 +29,7 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
-        {children}
+        <PageTransition>{children}</PageTransition>
       </main>
 
       <footer className="border-t border-neutral-200 dark:border-neutral-800">

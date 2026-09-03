@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { AddressFields } from "@/components/address-fields";
+import { CuisinePicker } from "@/components/cuisine-picker";
 import { Button, Field, FormError, inputClass } from "@/components/ui";
 import { siteHost } from "@/lib/site";
 import { emptyFormState } from "@/lib/validation";
@@ -89,7 +90,7 @@ export function EditStoreForm({ store }: { store: Store }) {
             onChange={(event) => setSlug(event.target.value)}
             required
             maxLength={60}
-            className="min-w-0 flex-1 bg-transparent py-2.5 text-base outline-none"
+            className="min-w-0 flex-1 bg-surface py-2.5 text-base outline-none"
           />
         </div>
       </Field>
@@ -158,16 +159,15 @@ export function EditStoreForm({ store }: { store: Store }) {
         </Field>
 
         <Field
-          label="Tags"
-          hint="Separadas por vírgula. Servem para o cliente filtrar."
+          label="Tipo de culinária"
           error={state.fieldErrors?.cuisineTags}
         >
-          <input
+          <CuisinePicker
             name="cuisineTags"
+            ariaLabel="Tipo de culinária"
             defaultValue={
               state.values?.cuisineTags ?? store.cuisine_tags.join(", ")
             }
-            className={inputClass}
           />
         </Field>
       </div>

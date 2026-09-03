@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { LoginForm } from "./login-form";
 
@@ -25,9 +26,15 @@ export default async function EntrarPage({
       <LoginForm next={next} />
 
       <p className="mt-8 text-xs text-neutral-500 dark:text-neutral-400">
-        Ainda não tem loja no Petire? Fale com a gente pelo WhatsApp para
-        cadastrar a sua.
+        Ainda não tem loja aqui? Fale com a gente pelo WhatsApp.
       </p>
+
+      <Link
+        href="/"
+        className="mt-6 text-sm text-neutral-500 underline-offset-4 hover:underline dark:text-neutral-400"
+      >
+        ← Voltar para as lojas
+      </Link>
     </main>
   );
 }

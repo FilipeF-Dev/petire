@@ -43,7 +43,7 @@ function choiceClass(active: boolean) {
   return `flex flex-1 cursor-pointer items-start gap-2 rounded-lg border px-3 py-2.5 transition ${
     active
       ? "border-neutral-900 dark:border-neutral-200"
-      : "border-neutral-200 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900"
+      : "border-neutral-200 bg-surface hover:bg-surface-hover dark:border-neutral-800"
   }`;
 }
 

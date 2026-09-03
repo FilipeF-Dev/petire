@@ -147,9 +147,9 @@ export function MenuItem({
         type="button"
         onClick={() => setIsOpen(true)}
         disabled={!product.is_available}
-        className={`flex w-full gap-4 rounded-xl border border-neutral-200 p-4 text-left transition dark:border-neutral-800 ${
+        className={`flex w-full gap-4 rounded-xl border border-neutral-200 bg-surface p-4 text-left transition dark:border-neutral-800 ${
           product.is_available
-            ? "hover:bg-neutral-50 dark:hover:bg-neutral-900"
+            ? "hover:bg-surface-hover"
             : "cursor-not-allowed opacity-55"
         }`}
       >
@@ -214,7 +214,7 @@ export function MenuItem({
             aria-modal="true"
             aria-label={product.name}
             onClick={(event) => event.stopPropagation()}
-            className="flex max-h-[90dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white dark:bg-neutral-950 sm:rounded-2xl"
+            className="flex max-h-[90dvh] w-full max-w-lg flex-col rounded-t-2xl bg-surface sm:rounded-2xl"
           >
             <div className="flex items-start justify-between gap-4 border-b border-neutral-200 p-5 dark:border-neutral-800">
               <div>
@@ -322,7 +322,7 @@ export function MenuItem({
                     rows={2}
                     maxLength={200}
                     placeholder="Ponto da carne, troco, ponto de referência…"
-                    className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2.5 text-base outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
+                    className="w-full rounded-lg border border-neutral-300 bg-surface px-3 py-2.5 text-base outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
                   />
                 </label>
               </div>
@@ -364,8 +364,7 @@ export function MenuItem({
 
             {!storeIsOpen ? (
               <p className="border-t border-neutral-200 px-5 py-3 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
-                A loja está fechada agora. Você pode montar o pedido e enviar
-                quando ela abrir.
+                Loja fechada. Monte o pedido e envie quando ela abrir.
               </p>
             ) : null}
           </div>

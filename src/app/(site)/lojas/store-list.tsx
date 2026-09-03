@@ -27,9 +27,12 @@ import type { PublicStoreCard } from "@/lib/storefront";
 export function StoreList({
   stores,
   nearSlug,
+  matchedProducts,
 }: {
   stores: PublicStoreCard[];
   nearSlug: string | null;
+  /** Itens que casaram com a busca, por loja. Vazio quando não houve busca. */
+  matchedProducts: Record<string, string[]>;
 }) {
   const location = useCustomerLocation();
 
@@ -62,16 +65,14 @@ export function StoreList({
       {customer ? (
         <p className="text-sm text-neutral-500 dark:text-neutral-400">
           Da mais perto para a mais distante do CEP {formatCep(customer.cep)}. A
-          distância é uma estimativa pela numeração do CEP — confirme a entrega
-          com a loja no WhatsApp.
+          distância é estimada pelo CEP — confirme a entrega com a loja.
         </p>
       ) : nearName && nearCount > 0 ? (
         <p className="text-sm text-neutral-500 dark:text-neutral-400">
           {nearCount === 1
             ? `1 loja no ${nearName}, mostrada primeiro.`
             : `${nearCount} lojas no ${nearName}, mostradas primeiro.`}{" "}
-          As outras entregam na cidade toda ou em parte dela — confirme com a
-          loja no WhatsApp.
+          As outras também podem entregar aí.
         </p>
       ) : null}
 
@@ -85,7 +86,7 @@ export function StoreList({
             <li key={store.id}>
               <Link
                 href={`/loja/${store.slug}`}
-                className="flex gap-4 rounded-xl border border-neutral-200 p-4 transition hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900"
+                className="flex gap-4 rounded-xl border border-neutral-200 bg-surface p-4 transition hover:bg-surface-hover dark:border-neutral-800"
               >
                 <div className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
                   {store.logo_url ? (
@@ -116,6 +117,15 @@ export function StoreList({
                   {store.description ? (
                     <p className="mt-0.5 line-clamp-2 text-sm text-neutral-600 dark:text-neutral-400">
                       {store.description}
+                    </p>
+                  ) : null}
+
+                  {matchedProducts[store.id]?.length ? (
+                    <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+                      <span className="text-neutral-500 dark:text-neutral-500">
+                        tem{" "}
+                      </span>
+                      {matchedProducts[store.id].join(", ")}
                     </p>
                   ) : null}
 

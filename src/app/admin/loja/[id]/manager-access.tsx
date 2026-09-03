@@ -45,7 +45,7 @@ export function ManagerAccess({
   >(resetManagerPassword, { error: null });
 
   return (
-    <section className="max-w-lg rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+    <section className="max-w-lg rounded-xl border border-neutral-200 bg-surface p-5 dark:border-neutral-800">
       <h2 className="font-medium">Acesso do lojista</h2>
       <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
         Com o que ele entra em <code>/entrar</code> para montar o cardápio.

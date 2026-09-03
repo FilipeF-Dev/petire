@@ -54,8 +54,7 @@ export function OptionsEditor({
       <div>
         <h2 className="text-base font-semibold">Opções do item</h2>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          Tamanho, adicionais, o que o cliente pode tirar. Aparecem na tela do
-          item e entram na mensagem do pedido.
+          Tamanho, adicionais, o que dá para tirar.
         </p>
       </div>
 

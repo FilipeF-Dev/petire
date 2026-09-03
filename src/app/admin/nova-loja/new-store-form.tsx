@@ -109,7 +109,7 @@ export function NewStoreForm() {
             onChange={(event) => setSlug(event.target.value)}
             maxLength={60}
             placeholder={slugify(name) || "lanchonete-do-ze"}
-            className="min-w-0 flex-1 bg-transparent py-2.5 text-base outline-none"
+            className="min-w-0 flex-1 bg-surface py-2.5 text-base outline-none"
           />
         </div>
       </Field>

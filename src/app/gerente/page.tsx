@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+    <div className="rounded-xl border border-neutral-200 bg-surface p-4 dark:border-neutral-800">
       <p className="text-xs text-neutral-500 dark:text-neutral-400">{label}</p>
       <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
       {hint ? (
@@ -99,7 +99,7 @@ export default async function GerentePage() {
         />
       </div>
 
-      <div className="rounded-xl border border-neutral-200 p-4 text-sm dark:border-neutral-800">
+      <div className="rounded-xl border border-neutral-200 bg-surface p-4 text-sm dark:border-neutral-800">
         <p className="font-medium">Assinatura</p>
         <p className="mt-1 text-neutral-500 dark:text-neutral-400">
           {store.data.subscription_status}
