@@ -1,4 +1,4 @@
-import { formatCents } from "./money";
+import { formatCents, formatDeliveryFee } from "./money";
 
 export type OrderOption = {
   groupName: string;
@@ -75,9 +75,7 @@ function render(order: Order, detail: Detail): string {
 
   const totals = [
     `Subtotal: ${formatCents(order.subtotalCents)}`,
-    order.deliveryFeeCents > 0
-      ? `Entrega: ${formatCents(order.deliveryFeeCents)}`
-      : "Entrega: a combinar",
+    `Entrega: ${formatDeliveryFee(order.deliveryFeeCents)}`,
     `*Total: ${formatCents(order.totalCents)}*`,
   ];
 

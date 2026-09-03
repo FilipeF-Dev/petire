@@ -6,7 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useCustomerLocation } from "@/components/location-bar";
 import { useCart } from "@/components/use-cart";
 import { clearStore, removeLine, setQuantity } from "@/lib/cart";
-import { formatCents } from "@/lib/money";
+import { formatCents, formatDeliveryFee } from "@/lib/money";
 import {
   buildOrderMessage,
   whatsappUrl,
@@ -174,9 +174,7 @@ function StoreOrder({
         <div className="flex justify-between">
           <span className="text-neutral-500 dark:text-neutral-400">Entrega</span>
           <span className="tabular-nums">
-            {store.deliveryFeeCents === 0
-              ? "a combinar"
-              : formatCents(store.deliveryFeeCents)}
+            {formatDeliveryFee(store.deliveryFeeCents)}
           </span>
         </div>
         <div className="mt-1 flex justify-between font-medium">

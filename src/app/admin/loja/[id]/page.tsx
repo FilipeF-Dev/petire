@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import { DeleteStore } from "./delete-store";
 import { EditStoreForm } from "./edit-store-form";
+import { ManagerAccess } from "./manager-access";
 
 export const metadata: Metadata = {
   title: "Editar loja",
@@ -23,8 +24,13 @@ export default async function EditarLojaPage({
 
   // Leitura pelo RLS normal: manages_store() é true em qualquer loja para o
   // papel de admin. Só a escrita precisa de service_role.
-  const [storeResult, historyResult, productsResult, ordersResult] =
-    await Promise.all([
+  const [
+    storeResult,
+    historyResult,
+    productsResult,
+    ordersResult,
+    managerResult,
+  ] = await Promise.all([
       supabase
         .from("stores")
         .select(
@@ -46,12 +52,19 @@ export default async function EditarLojaPage({
         .select("id", { count: "exact", head: true })
         .eq("store_id", id)
         .eq("kind", "whatsapp_click"),
+      supabase
+        .from("managers")
+        .select("id, email")
+        .eq("store_id", id)
+        .eq("role", "manager")
+        .maybeSingle(),
     ]);
 
   const store = storeResult.data;
   if (!store) notFound();
 
   const history = historyResult.data ?? [];
+  const manager = managerResult.data;
 
   return (
     <div className="flex flex-col gap-8">
@@ -62,6 +75,15 @@ export default async function EditarLojaPage({
         />
         <EditStoreForm store={store} />
       </div>
+
+      {manager ? (
+        <ManagerAccess managerId={manager.id} email={manager.email} />
+      ) : (
+        <p className="max-w-lg rounded-xl border border-amber-300 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:text-amber-300">
+          Esta loja não tem gerente vinculado, então ninguém consegue montar o
+          cardápio dela.
+        </p>
+      )}
 
       {history.length > 0 ? (
         <section className="max-w-lg">

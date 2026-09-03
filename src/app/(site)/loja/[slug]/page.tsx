@@ -3,7 +3,7 @@ import Image from "next/image";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { siteUrl } from "@/lib/env";
-import { formatCents } from "@/lib/money";
+import { formatCents, formatDeliveryFee } from "@/lib/money";
 import { priceOf, type Promotion } from "@/lib/promotions";
 import { viewRows } from "@/lib/storefront";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -182,10 +182,7 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
             </p>
 
             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-              Entrega{" "}
-              {store.delivery_fee_cents === 0
-                ? "grátis"
-                : formatCents(store.delivery_fee_cents)}
+              Entrega {formatDeliveryFee(store.delivery_fee_cents)}
               {store.min_order_cents > 0
                 ? ` · pedido mínimo ${formatCents(store.min_order_cents)}`
                 : null}
