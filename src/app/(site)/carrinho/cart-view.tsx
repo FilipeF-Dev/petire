@@ -73,7 +73,7 @@ function StoreOrder({
   }
 
   return (
-    <section className="rounded-xl border border-neutral-200 dark:border-neutral-800">
+    <section className="rounded-xl border border-neutral-200 bg-surface dark:border-neutral-800">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 p-4 dark:border-neutral-800">
         <div className="flex items-center gap-2">
           <Link href={`/loja/${store.slug}`} className="font-medium">

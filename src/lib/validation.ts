@@ -94,6 +94,23 @@ const money = (label: string) =>
     return cents;
   });
 
+/**
+ * Tipos de culinária, separados por vírgula.
+ *
+ * Passa pelo mesmo `slugify()` das colunas geradas do banco: sem isso
+ * "Frutos do mar" viraria "frutos do mar" e nunca casaria com o "frutos-do-mar"
+ * do catálogo — a loja ficaria cadastrada num tipo que o filtro não encontra.
+ */
+const cuisineTagsField = z
+  .string()
+  .transform((value) =>
+    value
+      .split(",")
+      .map((tag) => slugify(tag))
+      .filter(Boolean)
+      .slice(0, 10),
+  );
+
 /** Só dígitos. Vazio vira null — loja cadastrada antes do CEP existir. */
 const cepField = z
   .string()
@@ -311,15 +328,7 @@ export const storeSchema = z.object({
   ibgeCode: ibgeField,
   city: requiredText("Cidade", 80),
   neighborhood: requiredText("Bairro", 80),
-  cuisineTags: z
-    .string()
-    .transform((value) =>
-      value
-        .split(",")
-        .map((tag) => tag.trim().toLowerCase())
-        .filter(Boolean)
-        .slice(0, 10),
-    ),
+  cuisineTags: cuisineTagsField,
   kind: z.enum(["food", "drinks", "both"]),
   deliveryFee: money("Taxa de entrega"),
   minOrder: money("Pedido mínimo"),
@@ -397,15 +406,7 @@ export const editStoreSchema = newStoreSchema
       "Informe o apelido da loja.",
     ),
     description: optionalText(500),
-    cuisineTags: z
-      .string()
-      .transform((value) =>
-        value
-          .split(",")
-          .map((tag) => tag.trim().toLowerCase())
-          .filter(Boolean)
-          .slice(0, 10),
-      ),
+    cuisineTags: cuisineTagsField,
     deliveryFee: money("Taxa de entrega"),
     minOrder: money("Pedido mínimo"),
   });

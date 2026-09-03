@@ -121,9 +121,8 @@ export function HoursEditor({ hours }: { hours: StoreHour[] }) {
         </div>
 
         <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          Fechamento antes da abertura significa que a faixa vira o dia — 18:00
-          às 02:00 mantém a loja aberta na madrugada. Para almoço e jantar,
-          cadastre duas faixas no mesmo dia.
+          Fechar antes de abrir vira o dia: 18:00 às 02:00 fica aberta na
+          madrugada. Almoço e jantar são duas faixas.
         </p>
 
         {state.fieldErrors?.closesAt ? (

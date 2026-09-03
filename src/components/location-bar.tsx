@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 
+import { HouseIcon } from "@/components/house-icon";
 import { cepDigits, formatCep as maskCep, lookupCep } from "@/lib/cep";
 import {
   formatCep,
@@ -78,7 +79,7 @@ export function LocationBar() {
         onClick={() => setIsEditing(true)}
         className="flex min-w-0 items-center gap-1.5 text-sm text-neutral-600 underline-offset-4 hover:underline dark:text-neutral-400"
       >
-        <span aria-hidden>📍</span>
+        <HouseIcon />
         <span className="truncate">
           {location?.neighborhood || location?.city}
           <span className="text-neutral-400">
@@ -96,7 +97,7 @@ export function LocationBar() {
         htmlFor="cep-do-cliente"
         className="flex items-center gap-1.5 text-sm text-neutral-600 dark:text-neutral-400"
       >
-        <span aria-hidden>📍</span>
+        <HouseIcon />
         Informe seu CEP
       </label>
 
@@ -113,7 +114,7 @@ export function LocationBar() {
         // chegada, a caixa puxaria o teclado do celular por cima do site.
         autoFocus={isEditing}
         placeholder="00000-000"
-        className="w-32 rounded-lg border border-neutral-300 bg-transparent px-2.5 py-1.5 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
+        className="w-32 rounded-lg border border-neutral-300 bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
       />
       <button
         type="submit"

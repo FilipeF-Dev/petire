@@ -24,8 +24,8 @@ export default async function HomePage() {
           Peça direto da loja do seu bairro.
         </h1>
         <p className="mt-3 text-neutral-600 dark:text-neutral-400">
-          Você monta o pedido aqui e fecha no WhatsApp da loja. Sem taxa de
-          serviço, sem cadastro, sem cartão.
+          Monte seu pedido e feche no WhatsApp da loja. Sem taxa de serviço,
+          cadastro, propaganda ou burocracia.
         </p>
       </section>
 
@@ -46,7 +46,7 @@ export default async function HomePage() {
                       bairro: place.neighborhood_slug,
                     },
                   }}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 px-4 py-3.5 transition hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-surface px-4 py-3.5 transition hover:bg-surface-hover dark:border-neutral-800"
                 >
                   <span>
                     <span className="font-medium">{place.neighborhood}</span>
@@ -70,11 +70,11 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+      <section className="rounded-xl border border-neutral-200 bg-surface p-5 dark:border-neutral-800">
         <h2 className="font-medium">Tem uma lanchonete ou distribuidora?</h2>
         <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-          No Petire você não paga comissão por pedido. É uma mensalidade fixa, e
-          o cliente fala direto com você.
+          Sem comissão por pedido: mensalidade fixa, e o cliente fala direto
+          com você.
         </p>
         <Link
           href="/entrar"

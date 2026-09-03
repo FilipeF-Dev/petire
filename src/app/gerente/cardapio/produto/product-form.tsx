@@ -66,7 +66,7 @@ export function ProductForm({
 
         <Field
           label="Descrição"
-          hint="O que vem no item. É o que convence o cliente a pedir."
+          hint="O que vem no item."
           error={state.fieldErrors?.description}
         >
           <textarea
@@ -125,7 +125,7 @@ export function ProductForm({
           <span className="text-sm">
             Disponível para pedido
             <span className="block text-xs text-neutral-500 dark:text-neutral-400">
-              Desmarque para deixar o item como esgotado sem apagá-lo.
+              Desmarque para marcar como esgotado.
             </span>
           </span>
         </label>
@@ -149,8 +149,8 @@ export function ProductForm({
         >
           <input type="hidden" name="productId" value={product.id} />
           <p className="mb-3 text-sm text-neutral-500 dark:text-neutral-400">
-            Apagar remove o item, os grupos de opções e a foto. Se for só uma
-            falta temporária, marque como esgotado.
+            Apaga também as opções e a foto. Se for falta temporária, marque
+            como esgotado.
           </p>
           <Button type="submit" variant="danger">
             Apagar item

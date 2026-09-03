@@ -35,7 +35,7 @@ export function LoginForm({ next }: { next: string }) {
           type="email"
           autoComplete="username"
           required
-          className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2.5 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
+          className="rounded-lg border border-neutral-300 bg-surface px-3 py-2.5 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
         />
       </label>
 
@@ -46,7 +46,7 @@ export function LoginForm({ next }: { next: string }) {
           type="password"
           autoComplete="current-password"
           required
-          className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2.5 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
+          className="rounded-lg border border-neutral-300 bg-surface px-3 py-2.5 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
         />
       </label>
 

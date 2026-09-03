@@ -32,7 +32,7 @@ function kindClass(active: boolean) {
   return `flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition ${
     active
       ? "border-neutral-900 dark:border-neutral-200"
-      : "border-neutral-200 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900"
+      : "border-neutral-200 bg-surface hover:bg-surface-hover dark:border-neutral-800"
   }`;
 }
 
@@ -64,7 +64,7 @@ export function PromotionForm({
 
         <Field
           label="O desconto vale para"
-          hint="Promoção de item ganha da promoção do cardápio inteiro — elas não somam."
+          hint="Promoção de item ganha da do cardápio inteiro. Não somam."
           error={state.fieldErrors?.productId}
         >
           <select
@@ -167,9 +167,8 @@ export function PromotionForm({
         </div>
 
         <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          O dia final conta inteiro: uma promoção até dia 30 ainda vale no
-          jantar do dia 30. Marcada para começar depois, ela pode levar até uma
-          hora para aparecer no cardápio.
+          O dia final conta inteiro. Promoção agendada pode levar até uma hora
+          para aparecer no cardápio.
         </p>
 
         <FormError message={state.error} />
@@ -191,8 +190,7 @@ export function PromotionForm({
         >
           <input type="hidden" name="promotionId" value={promotion.id} />
           <p className="mb-3 text-sm text-neutral-500 dark:text-neutral-400">
-            Se ela volta depois — a promoção de sexta, o combo do fim de mês —
-            pause em vez de apagar.
+            Se ela volta depois, pause em vez de apagar.
           </p>
           <Button type="submit" variant="danger">
             Apagar promoção

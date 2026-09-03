@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { sortByPopularity } from "@/lib/cuisines";
 import { humanizePlace, slugify } from "@/lib/slug";
 import {
   CARD_SELECT,
@@ -63,9 +64,30 @@ export default async function LojasPage({
   if (kind === "food") query = query.in("kind", ["food", "both"]);
   if (kind === "drinks") query = query.in("kind", ["drinks", "both"]);
 
-  if (search) {
-    const clean = sanitizeSearch(search);
-    if (clean) query = query.ilike("name", `%${clean}%`);
+  // A busca também acha a loja pelo que ela vende. Quem procura "coxinha" não
+  // sabe o nome da lanchonete que faz coxinha — é justamente por isso que está
+  // procurando. Os produtos vêm primeiro, numa consulta separada, porque o
+  // PostgREST não filtra a tabela principal por uma condição da tabela
+  // aninhada: o embed traria a loja inteira com a lista de produtos vazia.
+  const clean = search ? sanitizeSearch(search) : "";
+  let productMatches: { store_id: string; name: string }[] = [];
+
+  if (clean) {
+    const { data: hits } = await supabase
+      .from("products")
+      .select("store_id, name")
+      .ilike("name", `%${clean}%`)
+      .limit(200);
+
+    // O RLS de products já limita a lojas públicas, então o que volta aqui é o
+    // mesmo universo da vitrine.
+    productMatches = hits ?? [];
+
+    const storeIds = [...new Set(productMatches.map((hit) => hit.store_id))];
+
+    query = storeIds.length
+      ? query.or(`name.ilike.%${clean}%,id.in.(${storeIds.join(",")})`)
+      : query.ilike("name", `%${clean}%`);
   }
 
   // Loja fechada continua na lista — o cliente quer ver o cardápio e o
@@ -93,11 +115,23 @@ export default async function LojasPage({
       })
     : allStores;
 
-  const tags = [
+  // Só os tipos que existem entre as lojas encontradas — um chip que não
+  // devolve nada é uma promessa quebrada. A ordem é a do catálogo, que é a de
+  // quanto cada tipo aparece num bairro: no celular a fila é horizontal, e o
+  // que fica no fim dela quase não é visto.
+  const tags = sortByPopularity([
     ...new Set(stores.flatMap((store) => store.cuisine_tags ?? [])),
-  ]
-    .sort()
-    .slice(0, 12);
+  ]).slice(0, 18);
+
+  // Por que esta loja apareceu, se o nome dela não tem nada a ver com a busca?
+  // Sem dizer qual item casou, o resultado parece defeito.
+  const matchedProducts = new Map<string, string[]>();
+  for (const hit of productMatches) {
+    const names = matchedProducts.get(hit.store_id) ?? [];
+    if (names.length < 3 && !names.includes(hit.name)) {
+      matchedProducts.set(hit.store_id, [...names, hit.name]);
+    }
+  }
 
   // O rótulo vem das lojas encontradas, não do que veio na URL: assim o título
   // mostra a grafia oficial mesmo se o link trouxer "vila madalena". Sem loja
@@ -125,7 +159,11 @@ export default async function LojasPage({
 
       <StoreFilters tags={tags} />
 
-      <StoreList stores={stores} nearSlug={nearSlug} />
+      <StoreList
+        stores={stores}
+        nearSlug={nearSlug}
+        matchedProducts={Object.fromEntries(matchedProducts)}
+      />
     </div>
   );
 }

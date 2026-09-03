@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { signOut } from "@/app/entrar/actions";
+import { PageTransition } from "@/components/page-transition";
 import { requireAdmin } from "@/lib/auth";
 
 export default async function AdminLayout({
@@ -10,7 +11,7 @@ export default async function AdminLayout({
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="border-b border-neutral-200 dark:border-neutral-800">
+      <header className="border-b border-neutral-200 bg-surface dark:border-neutral-800">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <Link href="/admin" className="font-semibold tracking-tight">
             Petire
@@ -36,7 +37,7 @@ export default async function AdminLayout({
       </header>
 
       <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
-        {children}
+        <PageTransition>{children}</PageTransition>
       </div>
     </div>
   );

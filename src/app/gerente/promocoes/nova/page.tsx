@@ -28,7 +28,7 @@ export default async function NovaPromocaoPage() {
     <div>
       <PageHeader
         title="Nova promoção"
-        description="O desconto vira selo no cardápio e já sai abatido na mensagem do pedido."
+        description="Vira selo no cardápio e já sai abatido no pedido."
       />
       <PromotionForm products={products ?? []} />
     </div>

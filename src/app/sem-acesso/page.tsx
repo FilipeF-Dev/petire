@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { signOut } from "@/app/entrar/actions";
 
@@ -18,9 +19,16 @@ export default function SemAcessoPage() {
         Esta conta não tem loja
       </h1>
       <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-        Seu login funcionou, mas ele não está vinculado a nenhuma loja do Petire.
-        Fale com a gente para concluir o cadastro.
+        O login funcionou, mas não está vinculado a nenhuma loja. Fale com a
+        gente para concluir o cadastro.
       </p>
+
+      <Link
+        href="/"
+        className="mt-4 text-sm text-neutral-500 underline-offset-4 hover:underline dark:text-neutral-400"
+      >
+        ← Voltar para as lojas
+      </Link>
 
       <form action={signOut} className="mt-6">
         <button

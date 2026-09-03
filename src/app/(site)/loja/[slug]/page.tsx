@@ -250,7 +250,7 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
         <h2 className="mb-3 text-sm font-semibold tracking-wide uppercase">
           Horário
         </h2>
-        <ul className="rounded-xl border border-neutral-200 dark:border-neutral-800">
+        <ul className="rounded-xl border border-neutral-200 bg-surface dark:border-neutral-800">
           {hoursByWeekday.map(({ label, ranges }) => (
             <li
               key={label}

@@ -3,6 +3,8 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 
+import { cuisineLabel } from "@/lib/cuisines";
+
 const KINDS = [
   { value: "food", label: "Comida" },
   { value: "drinks", label: "Bebida" },
@@ -11,7 +13,7 @@ const KINDS = [
 function chipClass(active: boolean) {
   return active
     ? "shrink-0 rounded-full border border-neutral-900 bg-neutral-900 px-3.5 py-1.5 text-sm text-white dark:border-white dark:bg-white dark:text-neutral-900"
-    : "shrink-0 rounded-full border border-neutral-300 px-3.5 py-1.5 text-sm transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900";
+    : "shrink-0 rounded-full border border-neutral-300 bg-surface px-3.5 py-1.5 text-sm transition hover:bg-surface-hover dark:border-neutral-700";
 }
 
 /**
@@ -48,10 +50,10 @@ export function StoreFilters({ tags }: { tags: string[] }) {
       <input
         type="search"
         defaultValue={params.get("q") ?? ""}
-        placeholder="Buscar loja pelo nome"
-        aria-label="Buscar loja pelo nome"
+        placeholder="Buscar loja ou item do cardápio"
+        aria-label="Buscar loja ou item do cardápio"
         onChange={(event) => update("q", event.target.value || null)}
-        className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2.5 text-base outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
+        className="w-full rounded-lg border border-neutral-300 bg-surface px-3 py-2.5 text-base outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
       />
 
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
@@ -84,7 +86,7 @@ export function StoreFilters({ tags }: { tags: string[] }) {
             aria-pressed={params.get("tag") === tag}
             className={chipClass(params.get("tag") === tag)}
           >
-            {tag}
+            {cuisineLabel(tag)}
           </button>
         ))}
       </div>

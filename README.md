@@ -8,6 +8,7 @@ sem dados de pagamento. A loja paga uma mensalidade fixa para estar no catálogo
 
 - Conceito: [docs/Petire CoreV1.txt](docs/Petire%20CoreV1.txt)
 - Escopo e modelo de dados do MVP: [docs/MVP.md](docs/MVP.md)
+- Como colocar uma loja real no ar: [docs/onboarding.md](docs/onboarding.md)
 
 ## Stack
 
@@ -69,7 +70,7 @@ teste) em <http://127.0.0.1:54324>.
 | `npm run build` | build de produção |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
-| `npm test` | testes da lógica pura (dinheiro, promoções, mensagem do pedido) |
+| `npm test` | testes da lógica pura (dinheiro, promoções, proximidade, importação, mensagem do pedido) |
 | `npm run check:rls` | exercita as políticas de RLS contra o banco local |
 | `npm run db:start` / `db:stop` | sobe/derruba o Supabase local |
 | `npm run db:reset` | recria o banco, aplica migrations e seed |
@@ -135,7 +136,9 @@ src/
     entrar/               login do lojista
     gerente/              painel (protegido)
       cardapio/           categorias, itens, opções, fotos
+        importar/         cardápio colado como texto
       promocoes/          descontos por item ou no cardápio todo
+      divulgar/           link, mensagem pronta e cartaz com QR
       loja/               dados, horários, abrir/fechar
     api/events/           gravação de métricas
     offline/              fallback do service worker
@@ -154,8 +157,10 @@ src/
     slug.ts               normalização, gêmea da do banco
     money.ts              centavos ↔ texto
     order-message.ts      texto do pedido e link do wa.me
+    menu-import.ts        lê o cardápio colado como texto
     promotions.ts         preço com desconto e janela de vigência
     proximity.ts          distância estimada pelo CEP
+    qr.ts                 QR code da loja, em SVG
     storefront.ts         tipos das views públicas
     validation.ts         schemas zod dos formulários
     weekdays.ts           dias da semana e horário
@@ -432,7 +437,8 @@ produção — os padrões de `127.0.0.1` ficam de fora do build de produção.
 | Fase | Status |
 |---|---|
 | 0 — schema, RLS, auth, seed | pronta |
-| 1 — painel do gerente (cardápio, opções, fotos, horários) | pronta |
+| 1 — painel do gerente (cardápio, opções, promoções, fotos, horários) | pronta |
 | 2 — vitrine pública, SEO, métricas | pronta |
 | 3 — carrinho, opções e checkout no WhatsApp | pronta |
 | 4 — PWA, painel admin, deploy | pronta |
+| 5 — onboarding das primeiras lojas | em andamento |

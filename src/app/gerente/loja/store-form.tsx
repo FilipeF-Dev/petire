@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { AddressFields } from "@/components/address-fields";
+import { CuisinePicker } from "@/components/cuisine-picker";
 import { Button, Field, FormError, inputClass } from "@/components/ui";
 import { emptyFormState } from "@/lib/validation";
 
@@ -120,15 +121,15 @@ export function StoreForm({ store }: { store: Store }) {
         </Field>
 
         <Field
-          label="Tags"
-          hint="Separadas por vírgula. Servem para o cliente filtrar."
+          label="Tipo de culinária"
           error={state.fieldErrors?.cuisineTags}
         >
-          <input
+          <CuisinePicker
             name="cuisineTags"
-            defaultValue={state.values?.cuisineTags ?? store.cuisine_tags.join(", ")}
-            placeholder="lanches, hamburguer, porcoes"
-            className={inputClass}
+            ariaLabel="Tipo de culinária"
+            defaultValue={
+              state.values?.cuisineTags ?? store.cuisine_tags.join(", ")
+            }
           />
         </Field>
       </div>
