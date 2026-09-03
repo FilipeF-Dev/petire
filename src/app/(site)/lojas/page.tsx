@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { formatCents } from "@/lib/money";
-import { slugify } from "@/lib/validation";
+import { humanizePlace, slugify } from "@/lib/slug";
 import {
   CARD_SELECT,
   viewRows,
@@ -104,11 +104,13 @@ export default async function LojasPage({
     .sort()
     .slice(0, 12);
 
-  // O rótulo vem das lojas encontradas, não do que veio na URL: assim o
-  // título mostra a grafia oficial mesmo se o link trouxer "vila madalena".
+  // O rótulo vem das lojas encontradas, não do que veio na URL: assim o título
+  // mostra a grafia oficial mesmo se o link trouxer "vila madalena". Sem loja
+  // no resultado não há grafia oficial para usar, e aí o slug da URL é
+  // remontado — senão o título viraria "Lojas em juiz-de-fora".
   const place = neighborhood
-    ? (stores[0]?.neighborhood ?? neighborhood)
-    : (stores[0]?.city ?? city);
+    ? (stores[0]?.neighborhood ?? humanizePlace(slugify(neighborhood)))
+    : (stores[0]?.city ?? (city ? humanizePlace(slugify(city)) : null));
 
   return (
     <div className="flex flex-col gap-6">

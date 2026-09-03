@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeWhatsapp, slugify } from "./validation";
+import { humanizePlace, slugify } from "./slug";
+import { normalizeWhatsapp } from "./validation";
 
 describe("slugify", () => {
   it("tira acento e caixa", () => {
@@ -21,6 +22,25 @@ describe("slugify", () => {
     ]) {
       expect(slugify(name)).toMatch(pattern);
     }
+  });
+});
+
+describe("humanizePlace", () => {
+  it("remonta o nome a partir do slug", () => {
+    expect(humanizePlace("juiz-de-fora")).toBe("Juiz de Fora");
+    expect(humanizePlace("vila-madalena")).toBe("Vila Madalena");
+    expect(humanizePlace("centro")).toBe("Centro");
+  });
+
+  it("mantém as preposições minúsculas, menos na primeira palavra", () => {
+    expect(humanizePlace("sao-joao-da-boa-vista")).toBe("Sao Joao da Boa Vista");
+    expect(humanizePlace("do-carmo")).toBe("Do Carmo");
+  });
+
+  it("é o que evita o título 'Lojas em juiz-de-fora'", () => {
+    // Só entra em cena quando não há loja no resultado — que é o estado de
+    // toda cidade antes da primeira loja entrar.
+    expect(humanizePlace(slugify("Juiz de Fora"))).toBe("Juiz de Fora");
   });
 });
 
