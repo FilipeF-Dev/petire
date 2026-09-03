@@ -144,7 +144,10 @@ export default async function CardapioPage() {
         title="Cardápio"
         description={`${products.length} ${products.length === 1 ? "item" : "itens"} em ${categories.length} ${categories.length === 1 ? "categoria" : "categorias"}`}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Link href="/gerente/cardapio/importar">
+              <Button variant="secondary">Colar cardápio</Button>
+            </Link>
             <Link href="/gerente/cardapio/categoria/nova">
               <Button variant="secondary">Nova categoria</Button>
             </Link>
@@ -158,11 +161,16 @@ export default async function CardapioPage() {
       {sections.length === 0 ? (
         <EmptyState
           title="Seu cardápio está vazio"
-          description="Crie uma categoria — Lanches, Bebidas, Porções — e adicione os itens nela."
+          description="Já tem o cardápio escrito em algum lugar? Cole aqui de uma vez."
           action={
-            <Link href="/gerente/cardapio/categoria/nova">
-              <Button>Criar primeira categoria</Button>
-            </Link>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Link href="/gerente/cardapio/importar">
+                <Button>Colar cardápio</Button>
+              </Link>
+              <Link href="/gerente/cardapio/categoria/nova">
+                <Button variant="secondary">Criar categoria</Button>
+              </Link>
+            </div>
           }
         />
       ) : (

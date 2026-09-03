@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/gerente/cardapio", label: "Cardápio" },
   { href: "/gerente/promocoes", label: "Promoções" },
   { href: "/gerente/loja", label: "Minha loja" },
+  { href: "/gerente/divulgar", label: "Divulgar" },
 ] as const;
 
 export function GerenteNav() {

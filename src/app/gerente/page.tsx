@@ -7,6 +7,8 @@ import { requireManager } from "@/lib/auth";
 import { formatCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 
+import { FirstSteps, type Step } from "./first-steps";
+
 export const metadata: Metadata = {
   title: "Painel",
   robots: { index: false, follow: false },
@@ -34,20 +36,31 @@ export default async function GerentePage() {
 
   const supabase = await createClient();
 
-  const [store, products, metrics, isOpen] = await Promise.all([
-    supabase
-      .from("stores")
-      .select("name, slug, neighborhood, city, delivery_fee_cents, subscription_status, subscription_until, is_active")
-      .eq("id", session.storeId)
-      .single(),
-    supabase
-      .from("products")
-      .select("id", { count: "exact", head: true })
-      .eq("store_id", session.storeId)
-      .eq("is_available", true),
-    supabase.rpc("store_metrics", { target: session.storeId }),
-    supabase.rpc("store_is_open", { target: session.storeId }),
-  ]);
+  const [store, products, allProducts, hours, metrics, isOpen] =
+    await Promise.all([
+      supabase
+        .from("stores")
+        .select(
+          "name, slug, neighborhood, city, logo_url, cuisine_tags, delivery_fee_cents, subscription_status, subscription_until, is_active",
+        )
+        .eq("id", session.storeId)
+        .single(),
+      supabase
+        .from("products")
+        .select("id", { count: "exact", head: true })
+        .eq("store_id", session.storeId)
+        .eq("is_available", true),
+      supabase
+        .from("products")
+        .select("id", { count: "exact", head: true })
+        .eq("store_id", session.storeId),
+      supabase
+        .from("store_hours")
+        .select("id", { count: "exact", head: true })
+        .eq("store_id", session.storeId),
+      supabase.rpc("store_metrics", { target: session.storeId }),
+      supabase.rpc("store_is_open", { target: session.storeId }),
+    ]);
 
   const counts = metrics.data?.[0];
 
@@ -58,6 +71,41 @@ export default async function GerentePage() {
       </p>
     );
   }
+
+  // O lojista não consegue se colocar no ar — isso é privilégio de coluna, não
+  // esquecimento. O passo aparece assim mesmo para ele saber por que a loja
+  // ainda não aparece na vitrine, e que a bola está do outro lado.
+  const steps: Step[] = [
+    {
+      done: (allProducts.count ?? 0) > 0,
+      label: "Montar o cardápio",
+      hint: "Sem itens não há o que pedir. Dá para colar o cardápio pronto.",
+      href: "/gerente/cardapio",
+    },
+    {
+      done: (hours.count ?? 0) > 0,
+      label: "Cadastrar os horários",
+      hint: "É o que abre e fecha a loja sozinho, todo dia.",
+      href: "/gerente/loja",
+    },
+    {
+      done: (store.data.cuisine_tags ?? []).length > 0,
+      label: "Marcar o tipo de culinária",
+      hint: "É por ele que o cliente filtra na lista de lojas.",
+      href: "/gerente/loja",
+    },
+    {
+      done: store.data.logo_url !== null,
+      label: "Colocar a logo",
+      hint: "Sem ela a loja aparece como uma letra na lista.",
+      href: "/gerente/loja",
+    },
+    {
+      done: store.data.is_active,
+      label: "Loja no ar",
+      hint: "O Petire libera assim que o cardápio estiver de pé.",
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-8">
@@ -80,6 +128,8 @@ export default async function GerentePage() {
           {store.data.neighborhood}, {store.data.city} · /loja/{store.data.slug}
         </p>
       </div>
+
+      <FirstSteps steps={steps} />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat

@@ -72,3 +72,25 @@ body {
     animation: none;
   }
 }
+
+/**
+ * Impressão.
+ *
+ * A única coisa que alguém imprime aqui é o cartaz do balcão. Cabeçalho,
+ * navegação e rodapé não ajudam no papel — e gastam tinta.
+ */
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  header,
+  nav,
+  footer {
+    display: none !important;
+  }
+
+  .page-enter {
+    animation: none;
+  }
+}
