@@ -57,9 +57,14 @@ export function FirstSteps({ steps }: { steps: Step[] }) {
             <Check done={step.done} />
 
             <div className="min-w-0">
-              <p className={step.done ? "text-sm line-through opacity-60" : "text-sm"}>
+              {/* Sem risco no texto: o check verde e o esmaecido já dizem que
+                  está feito, e riscar sugere cancelado em vez de concluído. */}
+              <p className={step.done ? "text-sm opacity-60" : "text-sm"}>
                 {step.href && !step.done ? (
-                  <Link href={step.href} className="underline underline-offset-4">
+                  <Link
+                    href={step.href}
+                    className="underline-offset-4 hover:underline"
+                  >
                     {step.label}
                   </Link>
                 ) : (

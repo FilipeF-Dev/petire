@@ -462,6 +462,7 @@ export type Database = {
           created_at: string
           cuisine_tags: string[]
           delivery_fee_cents: number
+          delivery_minutes: number | null
           description: string | null
           ibge_code: string | null
           id: string
@@ -491,6 +492,7 @@ export type Database = {
           created_at?: string
           cuisine_tags?: string[]
           delivery_fee_cents?: number
+          delivery_minutes?: number | null
           description?: string | null
           ibge_code?: string | null
           id?: string
@@ -520,6 +522,7 @@ export type Database = {
           created_at?: string
           cuisine_tags?: string[]
           delivery_fee_cents?: number
+          delivery_minutes?: number | null
           description?: string | null
           ibge_code?: string | null
           id?: string
@@ -564,6 +567,7 @@ export type Database = {
           cover_url: string | null
           cuisine_tags: string[] | null
           delivery_fee_cents: number | null
+          delivery_minutes: number | null
           description: string | null
           id: string | null
           is_open_now: boolean | null
@@ -587,6 +591,7 @@ export type Database = {
           cover_url?: string | null
           cuisine_tags?: string[] | null
           delivery_fee_cents?: number | null
+          delivery_minutes?: number | null
           description?: string | null
           id?: string | null
           is_open_now?: never
@@ -610,6 +615,7 @@ export type Database = {
           cover_url?: string | null
           cuisine_tags?: string[] | null
           delivery_fee_cents?: number | null
+          delivery_minutes?: number | null
           description?: string | null
           id?: string | null
           is_open_now?: never

@@ -19,7 +19,7 @@ set search_path = public, extensions;
 insert into public.stores (
   id, slug, name, description, whatsapp_e164,
   address, cep, state_uf, ibge_code, city, neighborhood, lat, lng,
-  cuisine_tags, kind, delivery_fee_cents, min_order_cents,
+  cuisine_tags, kind, delivery_fee_cents, delivery_minutes, min_order_cents,
   is_active, subscription_status, subscription_until
 ) values
 (
@@ -36,6 +36,7 @@ insert into public.stores (
   array['lanches', 'hamburguer', 'porcoes'],
   'food',
   700,
+  40,
   2000,
   true,
   'trial',
@@ -55,6 +56,7 @@ insert into public.stores (
   array['bebidas', 'conveniencia'],
   'drinks',
   500,
+  25,
   1500,
   true,
   'active',

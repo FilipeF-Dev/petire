@@ -22,12 +22,18 @@ export type OrderLine = {
  * precisa entregar.
  */
 export type Delivery = {
-  /** Só dígitos. */
+  /** Só dígitos. Vazio quando o cliente não informou o CEP. */
   cep: string;
   street: string;
   neighborhood: string;
   city: string;
   uf: string;
+  /** Quem vai receber, informado na hora de fechar o pedido. */
+  recipient: string;
+  /** Número da residência. */
+  number: string;
+  /** Apartamento, bloco, referência. Pode ser vazio. */
+  complement: string;
 };
 
 export type Order = {
@@ -87,38 +93,53 @@ function render(order: Order, detail: Detail): string {
     totals.join("\n"),
     "",
     ...deliveryBlock(order.delivery),
-    "Pagamento:",
   ].join("\n");
 }
 
 /**
- * O que o cliente ainda precisa completar no WhatsApp.
+ * Para onde vai e para quem.
  *
- * Com o CEP informado, a rua e o bairro já vão escritos e sobra o número e o
- * complemento — que é justamente o que ninguém quer digitar no celular, e o
- * que mais faz entrega dar errado quando vem errado.
+ * Nada fica em aberto: o cliente responde nome, número e complemento na tela
+ * antes de sair, e o resto vem do CEP. Uma linha "Endereço:" vazia obrigava a
+ * loja a perguntar e o cliente a digitar no meio da conversa, que é onde o
+ * pedido esfria.
+ *
+ * Pagamento não entra: quem cobra é a loja, e ela pergunta do jeito dela — o
+ * Petire não vê dinheiro nenhum e não deveria dar a entender que vê.
  */
 function deliveryBlock(delivery: Delivery | null | undefined): string[] {
   if (!delivery) {
     return ["Nome:", "Endereço:", "Complemento:"];
   }
 
-  const cep =
-    delivery.cep.length === 8
-      ? `${delivery.cep.slice(0, 5)}-${delivery.cep.slice(5)}`
-      : delivery.cep;
+  const lines: string[] = [];
 
-  const place = [delivery.neighborhood, `${delivery.city}/${delivery.uf}`]
+  lines.push(delivery.recipient ? `Nome: ${delivery.recipient}` : "Nome:");
+
+  // Sem logradouro em cidade de CEP único; aí só o número é o que se tem.
+  const street = [delivery.street, delivery.number && `nº ${delivery.number}`]
     .filter(Boolean)
-    .join(" · ");
+    .join(", ");
+  lines.push(street ? `Endereço: ${street}` : "Endereço:");
 
-  return [
-    "Nome:",
-    // Sem logradouro em cidade de CEP único; aí a linha fica aberta.
-    delivery.street ? `Endereço: ${delivery.street}, nº ` : "Endereço: ",
-    "Complemento:",
-    `Bairro: ${place} · CEP ${cep}`,
-  ];
+  if (delivery.complement) {
+    lines.push(`Complemento: ${delivery.complement}`);
+  }
+
+  if (delivery.cep) {
+    const cep =
+      delivery.cep.length === 8
+        ? `${delivery.cep.slice(0, 5)}-${delivery.cep.slice(5)}`
+        : delivery.cep;
+
+    const place = [delivery.neighborhood, `${delivery.city}/${delivery.uf}`]
+      .filter(Boolean)
+      .join(" · ");
+
+    lines.push(`Bairro: ${place} · CEP ${cep}`);
+  }
+
+  return lines;
 }
 
 export function buildOrderMessage(order: Order): string {

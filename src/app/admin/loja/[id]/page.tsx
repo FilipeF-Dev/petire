@@ -34,7 +34,7 @@ export default async function EditarLojaPage({
       supabase
         .from("stores")
         .select(
-          "id, slug, name, description, whatsapp_e164, cep, address, city, neighborhood, state_uf, ibge_code, cuisine_tags, kind, delivery_fee_cents, min_order_cents, is_active",
+          "id, slug, name, description, whatsapp_e164, cep, address, city, neighborhood, state_uf, ibge_code, cuisine_tags, kind, delivery_fee_cents, delivery_minutes, min_order_cents, is_active",
         )
         .eq("id", id)
         .maybeSingle(),

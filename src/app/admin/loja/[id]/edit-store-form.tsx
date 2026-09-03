@@ -27,6 +27,7 @@ type Store = {
   cuisine_tags: string[];
   kind: "food" | "drinks" | "both";
   delivery_fee_cents: number;
+  delivery_minutes: number | null;
   min_order_cents: number;
   is_active: boolean;
 };
@@ -184,6 +185,24 @@ export function EditStoreForm({ store }: { store: Store }) {
               state.values?.deliveryFee ?? centsToInput(store.delivery_fee_cents)
             }
             inputMode="decimal"
+            className={inputClass}
+          />
+        </Field>
+
+
+        <Field
+          label="Tempo médio de entrega"
+          hint="Em minutos, depois que você confirma o pedido. Em branco não mostra nada."
+          error={state.fieldErrors?.deliveryMinutes}
+        >
+          <input
+            name="deliveryMinutes"
+            inputMode="numeric"
+            placeholder="40"
+            defaultValue={
+              state.values?.deliveryMinutes ??
+              (store.delivery_minutes === null ? "" : String(store.delivery_minutes))
+            }
             className={inputClass}
           />
         </Field>

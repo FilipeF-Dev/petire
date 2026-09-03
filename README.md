@@ -153,7 +153,9 @@ src/
     env.ts                leitura das variáveis de ambiente
     cart.ts               carrinho no localStorage
     cep.ts                consulta ao ViaCEP
+    customer-contact.ts   nome e número de quem recebe, só no browser dele
     customer-location.ts  CEP do cliente, só no browser dele
+    delivery.ts           tempo de entrega, do jeito que o cliente lê
     slug.ts               normalização, gêmea da do banco
     money.ts              centavos ↔ texto
     order-message.ts      texto do pedido e link do wa.me
@@ -191,7 +193,16 @@ para descobrir, toda vez, que não há ninguém logado.
 
 ## O CEP do cliente
 
-A barra no topo do site pede o CEP. Ele resolve duas coisas de uma vez:
+A home pede o CEP num campo em destaque, e a barra no topo o acompanha pelo
+resto do site — ela se cala na home enquanto o CEP não veio, porque dois campos
+pedindo a mesma coisa na mesma tela só criam a dúvida de qual dos dois vale.
+
+Antes a home pedia o **bairro**, numa lista. Bairro sem CEP resolve metade do
+problema: encontra a loja, mas não preenche o endereço da entrega, e o cliente
+teria de informar o CEP no passo seguinte de qualquer jeito. A lista continua
+lá, mais discreta, por dois motivos — quem não quer digitar o CEP tem por onde
+entrar, e são esses links que dão ao Google um caminho para cada cidade e
+bairro atendidos. Ele resolve duas coisas de uma vez:
 encontrar as lojas e preencher o endereço de entrega.
 
 A caixa do CEP nasce **aberta** para quem ainda não informou. Um link
@@ -221,9 +232,15 @@ para o servidor, ou pior para a query string, que é compartilhável e
 indexável, transformaria em dado de cadastro o que hoje não sai do aparelho.
 
 **Preencher o endereço.** Rua, bairro, cidade e CEP já vão escritos na
-mensagem do WhatsApp. Sobra o número e o complemento, que o cliente digita no
-próprio chat — é o que ninguém quer preencher no celular e o que mais faz
-entrega dar errado quando vem errado.
+mensagem do WhatsApp. O que nenhum CEP sabe — quem recebe, o número e o
+complemento — é perguntado numa tela antes do envio, e não no meio da conversa
+com a loja esperando, que é onde o pedido esfria. Essas três respostas ficam no
+aparelho do cliente (`src/lib/customer-contact.ts`), então o segundo pedido
+custa um toque.
+
+**Pagamento não entra na mensagem.** Quem cobra é a loja, e ela pergunta do
+jeito dela. O Petire não vê dinheiro nenhum e não deveria dar a entender que
+vê.
 
 O CEP fica **só no browser do cliente** (`src/lib/customer-location.ts`).
 Endereço residencial é dado pessoal, o Petire não tem cadastro e não tem por
