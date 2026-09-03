@@ -34,6 +34,9 @@ const CARD_COLUMNS = [
   "city",
   "city_slug",
   "state_uf",
+  // O CEP da loja ordena a lista pela distância até o CEP do cliente.
+  // Ver src/lib/proximity.ts.
+  "cep",
   "cuisine_tags",
   "delivery_fee_cents",
   "min_order_cents",
@@ -44,7 +47,6 @@ const DETAIL_COLUMNS = [
   "cover_url",
   "whatsapp_e164",
   "address",
-  "cep",
 ] as const;
 
 /** Loja na listagem de `/lojas`. */
