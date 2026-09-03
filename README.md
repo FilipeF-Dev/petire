@@ -69,7 +69,7 @@ teste) em <http://127.0.0.1:54324>.
 | `npm run build` | build de produção |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
-| `npm test` | testes da lógica pura (dinheiro, promoções, mensagem do pedido) |
+| `npm test` | testes da lógica pura (dinheiro, promoções, proximidade, mensagem do pedido) |
 | `npm run check:rls` | exercita as políticas de RLS contra o banco local |
 | `npm run db:start` / `db:stop` | sobe/derruba o Supabase local |
 | `npm run db:reset` | recria o banco, aplica migrations e seed |
@@ -432,7 +432,7 @@ produção — os padrões de `127.0.0.1` ficam de fora do build de produção.
 | Fase | Status |
 |---|---|
 | 0 — schema, RLS, auth, seed | pronta |
-| 1 — painel do gerente (cardápio, opções, fotos, horários) | pronta |
+| 1 — painel do gerente (cardápio, opções, promoções, fotos, horários) | pronta |
 | 2 — vitrine pública, SEO, métricas | pronta |
 | 3 — carrinho, opções e checkout no WhatsApp | pronta |
 | 4 — PWA, painel admin, deploy | pronta |

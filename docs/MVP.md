@@ -104,7 +104,7 @@ products
   price_cents, image_url, is_available bool, sort_order
 
 option_groups
-  id, product_id, name, min_select, max_select, required bool, sort_order
+  id, product_id, name, min_select, max_select, sort_order
 
 options
   id, group_id, name, price_delta_cents, is_available bool, sort_order
@@ -126,6 +126,8 @@ events
 
 - Todo dinheiro em **centavos inteiros**. Nunca `float`.
 - `whatsapp_e164` normalizado na escrita: `5511987654321`, sem `+`, sem máscara.
+- Obrigatório é o mesmo que `min_select >= 1` — não existe coluna `required`,
+  porque as duas poderiam divergir. Escolha única é `max_select = 1`.
 - RLS: leitura pública de lojas com `is_active = true` e assinatura não suspensa;
   escrita apenas pelo gerente da própria loja; `events` aceita insert anônimo.
 - `events` é o que prova valor na renovação: *"você recebeu 84 pedidos pelo Petire
@@ -170,9 +172,10 @@ Pagamento:
 | `/lojas` | SSR | Lista filtrável |
 | `/loja/[slug]` | ISR | Cardápio público — **página de SEO** |
 | `/carrinho` | Client | Carrinho multi-loja |
-| `/gerente/login` | Client | Auth |
+| `/entrar` | Client | Auth |
 | `/gerente` | SSR | Dashboard |
 | `/gerente/cardapio` | SSR | CRUD |
+| `/gerente/promocoes` | SSR | Descontos por item ou no cardápio todo |
 | `/gerente/loja` | SSR | Dados da loja e horários |
 | `/admin` | SSR | Gestão de lojas e assinaturas |
 | `/sitemap.xml` | Dynamic | Todas as lojas ativas |
