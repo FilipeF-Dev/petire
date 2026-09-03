@@ -269,6 +269,12 @@ export function MenuItem({
                             group.max_select > 1 &&
                             chosen.length >= group.max_select;
 
+                          const isSingle = group.max_select === 1;
+                          // Radio já marcado não dispara `change`. Sem tratar o
+                          // clique, um grupo opcional de escolha única seria
+                          // irreversível: marcou o tamanho grande, não volta.
+                          const canClear = isSingle && group.min_select === 0;
+
                           return (
                             <label
                               key={option.id}
@@ -279,11 +285,18 @@ export function MenuItem({
                               } ${isFull ? "opacity-50" : "cursor-pointer"}`}
                             >
                               <input
-                                type={group.max_select === 1 ? "radio" : "checkbox"}
+                                type={isSingle ? "radio" : "checkbox"}
                                 name={group.id}
                                 checked={isChosen}
                                 disabled={isFull}
-                                onChange={() => toggleOption(group, option.id)}
+                                onChange={() => {
+                                  if (!isSingle) toggleOption(group, option.id);
+                                }}
+                                onClick={() => {
+                                  if (!isSingle) return;
+                                  if (isChosen && !canClear) return;
+                                  toggleOption(group, option.id);
+                                }}
                                 className="size-4"
                               />
                               <span className="flex-1 text-sm">{option.name}</span>

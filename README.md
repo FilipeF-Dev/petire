@@ -135,6 +135,7 @@ src/
     entrar/               login do lojista
     gerente/              painel (protegido)
       cardapio/           categorias, itens, opções, fotos
+      promocoes/          descontos por item ou no cardápio todo
       loja/               dados, horários, abrir/fechar
     api/events/           gravação de métricas
     offline/              fallback do service worker
@@ -153,7 +154,8 @@ src/
     slug.ts               normalização, gêmea da do banco
     money.ts              centavos ↔ texto
     order-message.ts      texto do pedido e link do wa.me
-    promotions.ts         preço com desconto aplicado
+    promotions.ts         preço com desconto e janela de vigência
+    proximity.ts          distância estimada pelo CEP
     storefront.ts         tipos das views públicas
     validation.ts         schemas zod dos formulários
     weekdays.ts           dias da semana e horário
@@ -187,12 +189,31 @@ para descobrir, toda vez, que não há ninguém logado.
 A barra no topo do site pede o CEP. Ele resolve duas coisas de uma vez:
 encontrar as lojas e preencher o endereço de entrega.
 
+A caixa do CEP nasce **aberta** para quem ainda não informou. Um link
+"Informe seu CEP" cobrava um toque a mais para chegar ao mesmo campo — e é o
+primeiro toque de quem acabou de chegar no site. Ela só encolhe depois, quando
+já existe um CEP para mostrar.
+
 **Encontrar as lojas.** O CEP dá o município, e é por ele que a lista filtra —
 não pelo bairro. Numa cidade média a lanchonete do Centro entrega no bairro
 vizinho sem pensar duas vezes; casar bairro com bairro mostraria "nenhuma
-loja" numa cidade que tem lojas, e o cliente não voltaria. O bairro vai na URL
-como `perto` e só **ordena**: as de perto primeiro, com uma linha dizendo que
-as outras também podem entregar.
+loja" numa cidade que tem lojas, e o cliente não voltaria. Dentro da cidade, o
+bairro e o CEP só **ordenam**.
+
+**Da mais perto para a mais longe.** Não há coordenada de ninguém: o ViaCEP
+devolve endereço, não latitude, e cidade pequena — o mercado do Petire — é a
+que os geocodificadores conhecem pior. O que existe nos dois cadastros é o CEP,
+e no Brasil ele é hierárquico: os cinco primeiros dígitos vão de região a
+divisor de subsetor. Compartilhar mais dígitos iniciais é estar em área mais
+aninhada, logo mais perto (`src/lib/proximity.ts`). O bairro igual ganha do
+CEP, porque é a única afirmação direta de lugar; o resto é inferência sobre a
+numeração dos Correios, e a tela diz isso ao cliente.
+
+A ordenação roda **no browser**, em `StoreList`. O servidor entrega uma ordem
+que já serve sozinha — abertas antes de fechadas, e as do bairro do `perto`
+primeiro — e é ela que vale na primeira pintura e sem JavaScript. Mandar o CEP
+para o servidor, ou pior para a query string, que é compartilhável e
+indexável, transformaria em dado de cadastro o que hoje não sai do aparelho.
 
 **Preencher o endereço.** Rua, bairro, cidade e CEP já vão escritos na
 mensagem do WhatsApp. Sobra o número e o complemento, que o cliente digita no
@@ -279,6 +300,52 @@ exclusão seria só parcial:
 As duas são apagadas explicitamente em `deleteStore()`. Os gerentes precisam
 ser lidos **antes** do delete: depois dele a linha em `managers` já não existe
 e não haveria como achar o usuário de auth.
+
+## Opções de item: uma ou várias
+
+O banco guarda a regra do grupo de opções como `min_select`/`max_select`, mas
+ninguém atrás de um balcão pensa assim. O painel pergunta duas coisas — o
+cliente marca **uma** opção ou **várias**? é obrigatório? — e
+`optionGroupSchema` converte para os dois números. "Obrigatório" não tem coluna
+própria de propósito: é `min_select >= 1`, e uma coluna `required` acabaria
+divergindo dela.
+
+Escolha única é `max_select = 1`, e é o que impede o cliente de pedir a batata
+pequena *e* a grande no mesmo item. Na vitrine ela vira `radio`; múltipla, com
+o limite, vira `checkbox`.
+
+Dois detalhes que o formulário de dois campos numéricos escondia:
+
+- **A regra é editável.** Sem isso, corrigir um "Tamanho" cadastrado como
+  múltipla escolha exigiria apagar o grupo — e com ele todas as opções já
+  digitadas.
+- **Grupo opcional de escolha única dá para desmarcar.** Um `radio` já marcado
+  não dispara `change`, então o clique é tratado à parte em `menu-item.tsx`.
+  Sem isso, marcar o tamanho grande num grupo opcional seria irreversível.
+
+## Promoções
+
+`/gerente/promocoes`. Desconto em percentual ou valor fixo, no cardápio inteiro
+ou em um item, com dia para começar e acabar.
+
+Três decisões que estão no código:
+
+- **Promoção de item ganha da promoção da loja, e elas não somam** (`priceOf`).
+  Duas promoções empilhando é como se zera uma margem sem perceber, e o lojista
+  não tem como auditar isso pelo painel.
+- **O dia final conta inteiro.** O lojista lê "até dia 30" como o dia 30 todo,
+  mas `ends_at` é exclusivo — então a data vira a meia-noite do dia seguinte,
+  no fuso de Brasília, o mesmo que `store_is_open()` usa. Sem fixar o fuso,
+  `new Date("2026-09-30")` seria meia-noite em UTC e a promoção começaria às
+  21h do dia 29.
+- **Pausar em vez de apagar.** A promoção de sexta volta na sexta seguinte, e
+  refazer a mesma janela toda semana é o tipo de trabalho que o lojista
+  abandona.
+
+Salvar revalida `/loja/<slug>` na hora. O que a revalidação não alcança é a
+promoção **agendada**: ela entra sozinha quando a hora chega, e até lá nada
+dispara um novo render — por isso o formulário avisa que ela pode levar até uma
+hora (o `revalidate` de `/loja/[slug]`) para aparecer.
 
 ## Formulários e o reset do React 19
 

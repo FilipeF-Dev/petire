@@ -7,7 +7,11 @@ import {
   setOptionAvailability,
 } from "../actions";
 import { AvailabilityToggle } from "../availability-toggle";
-import { NewOptionForm, NewOptionGroupForm } from "./option-forms";
+import {
+  NewOptionForm,
+  NewOptionGroupForm,
+  OptionGroupRuleForm,
+} from "./option-forms";
 
 type Option = {
   id: string;
@@ -24,17 +28,13 @@ type Group = {
   options: Option[];
 };
 
+/** A mesma regra que o cliente vê no cardápio, dita para o lojista. */
 function ruleLabel(group: Group): string {
-  if (group.min_select === 0 && group.max_select === 1) {
-    return "opcional, escolhe 1";
-  }
-  if (group.min_select === 1 && group.max_select === 1) {
-    return "obrigatório, escolhe 1";
-  }
-  if (group.min_select === 0) {
-    return `opcional, até ${group.max_select}`;
-  }
-  return `escolhe de ${group.min_select} a ${group.max_select}`;
+  const required = group.min_select >= 1 ? "obrigatório" : "opcional";
+
+  return group.max_select === 1
+    ? `${required}, escolhe só uma`
+    : `${required}, marca até ${group.max_select}`;
 }
 
 function priceLabel(cents: number): string {
@@ -61,13 +61,12 @@ export function OptionsEditor({
 
       {groups.map((group) => (
         <Card key={group.id}>
-          <div className="flex items-center gap-3 px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{group.name}</p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                {ruleLabel(group)}
-              </p>
-            </div>
+          <div className="flex items-start gap-3 px-4 py-3">
+            <OptionGroupRuleForm
+              group={group}
+              productId={productId}
+              ruleLabel={ruleLabel(group)}
+            />
 
             <form action={deleteOptionGroup}>
               <input type="hidden" name="groupId" value={group.id} />

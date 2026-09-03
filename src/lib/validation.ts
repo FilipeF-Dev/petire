@@ -152,24 +152,43 @@ export const productSchema = z.object({
 // Grupo de opções
 // -----------------------------------------------------------------------------
 
+/**
+ * O banco guarda a regra como `min_select`/`max_select`, mas ninguém atrás de
+ * um balcão pensa assim. O lojista responde duas perguntas — o cliente marca
+ * uma opção ou várias? é obrigatório? — e a conversão para os dois números
+ * acontece aqui.
+ *
+ * "Escolha única" é `max_select = 1`, e é o que impede o cliente de pedir a
+ * batata pequena e a grande no mesmo item.
+ */
 export const optionGroupSchema = z
   .object({
     name: requiredText("Nome do grupo", 60),
-    minSelect: z.coerce
-      .number()
-      .int("Use um número inteiro.")
-      .min(0, "Mínimo não pode ser negativo.")
-      .max(20, "Mínimo alto demais."),
+    selection: z.enum(["single", "multiple"], "Escolha como o cliente marca."),
+    isRequired: z
+      .string()
+      .nullable()
+      .transform((value) => value === "on"),
     maxSelect: z.coerce
       .number()
       .int("Use um número inteiro.")
-      .min(1, "Máximo precisa ser ao menos 1.")
-      .max(20, "Máximo alto demais."),
+      .min(1, "O limite precisa ser ao menos 1.")
+      .max(20, "Limite alto demais."),
   })
-  .refine((value) => value.maxSelect >= value.minSelect, {
-    message: "O máximo não pode ser menor que o mínimo.",
-    path: ["maxSelect"],
-  });
+  .refine(
+    (value) => value.selection === "single" || value.maxSelect >= 2,
+    {
+      message: "Com múltipla escolha o limite precisa ser 2 ou mais.",
+      path: ["maxSelect"],
+    },
+  )
+  .transform((value) => ({
+    name: value.name,
+    // Obrigatório é o mesmo que "escolhe ao menos 1" — não existe coluna
+    // `required` no banco justamente para os dois não divergirem.
+    minSelect: value.isRequired ? 1 : 0,
+    maxSelect: value.selection === "single" ? 1 : value.maxSelect,
+  }));
 
 /** Acréscimo pode ser negativo — "sem queijo, -R$ 2,00". */
 export const optionSchema = z.object({
@@ -186,6 +205,75 @@ export const optionSchema = z.object({
     return cents;
   }),
 });
+
+// -----------------------------------------------------------------------------
+// Promoção
+// -----------------------------------------------------------------------------
+
+/** Data solta do `<input type="date">`. Vazio é uma resposta válida. */
+const dayField = z
+  .string()
+  .trim()
+  .transform((value) => (value === "" ? null : value))
+  .refine(
+    (value) => value === null || /^\d{4}-\d{2}-\d{2}$/.test(value),
+    "Data inválida.",
+  );
+
+/**
+ * Um desconto, dois significados: em `percent` o valor é 1–100, em `fixed` são
+ * centavos. Os dois moram na mesma coluna `value` do banco, então é aqui que a
+ * leitura do campo se decide pelo tipo escolhido.
+ */
+export const promotionSchema = z
+  .object({
+    productId: optionalUuid,
+    kind: z.enum(["percent", "fixed"], "Escolha o tipo de desconto."),
+    value: z.string(),
+    startsOn: dayField,
+    endsOn: dayField,
+  })
+  .transform((input, ctx) => {
+    const value =
+      input.kind === "percent"
+        ? Number.parseInt(input.value.replace(/\D/g, ""), 10)
+        : (parseToCents(input.value) ?? Number.NaN);
+
+    if (!Number.isFinite(value) || value <= 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["value"],
+        message: "Informe o desconto.",
+      });
+      return z.NEVER;
+    }
+
+    if (input.kind === "percent" && value > 100) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["value"],
+        message: "O desconto vai de 1% a 100%.",
+      });
+      return z.NEVER;
+    }
+
+    if (input.startsOn && input.endsOn && input.endsOn < input.startsOn) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["endsOn"],
+        message: "O fim não pode ser antes do começo.",
+      });
+      return z.NEVER;
+    }
+
+    return {
+      productId: input.productId,
+      kind: input.kind,
+      value,
+      startsOn: input.startsOn,
+      endsOn: input.endsOn,
+    };
+  });
 
 // -----------------------------------------------------------------------------
 // Loja

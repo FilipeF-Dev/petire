@@ -348,7 +348,9 @@ export async function saveOptionGroup(
 
   const parsed = optionGroupSchema.safeParse({
     name: formData.get("name"),
-    minSelect: formData.get("minSelect") ?? "0",
+    selection: formData.get("selection") ?? "single",
+    isRequired: formData.get("isRequired"),
+    // O campo de limite só existe na tela quando a escolha é múltipla.
     maxSelect: formData.get("maxSelect") ?? "1",
   });
   if (!parsed.success) return toFormState(parsed.error, formValues(formData));
