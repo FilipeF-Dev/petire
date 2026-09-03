@@ -14,12 +14,29 @@ export type OrderLine = {
   note: string | null;
 };
 
+/**
+ * Endereço do cliente, vindo do CEP que ele informou.
+ *
+ * Vem do localStorage dele e é montado no browser — não passa pelo servidor
+ * do Petire em momento nenhum. O destino é o WhatsApp da loja, que é quem
+ * precisa entregar.
+ */
+export type Delivery = {
+  /** Só dígitos. */
+  cep: string;
+  street: string;
+  neighborhood: string;
+  city: string;
+  uf: string;
+};
+
 export type Order = {
   storeName: string;
   lines: OrderLine[];
   subtotalCents: number;
   deliveryFeeCents: number;
   totalCents: number;
+  delivery?: Delivery | null;
 };
 
 /**
@@ -71,10 +88,39 @@ function render(order: Order, detail: Detail): string {
     "",
     totals.join("\n"),
     "",
-    "Nome:",
-    "Endereço:",
+    ...deliveryBlock(order.delivery),
     "Pagamento:",
   ].join("\n");
+}
+
+/**
+ * O que o cliente ainda precisa completar no WhatsApp.
+ *
+ * Com o CEP informado, a rua e o bairro já vão escritos e sobra o número e o
+ * complemento — que é justamente o que ninguém quer digitar no celular, e o
+ * que mais faz entrega dar errado quando vem errado.
+ */
+function deliveryBlock(delivery: Delivery | null | undefined): string[] {
+  if (!delivery) {
+    return ["Nome:", "Endereço:", "Complemento:"];
+  }
+
+  const cep =
+    delivery.cep.length === 8
+      ? `${delivery.cep.slice(0, 5)}-${delivery.cep.slice(5)}`
+      : delivery.cep;
+
+  const place = [delivery.neighborhood, `${delivery.city}/${delivery.uf}`]
+    .filter(Boolean)
+    .join(" · ");
+
+  return [
+    "Nome:",
+    // Sem logradouro em cidade de CEP único; aí a linha fica aberta.
+    delivery.street ? `Endereço: ${delivery.street}, nº ` : "Endereço: ",
+    "Complemento:",
+    `Bairro: ${place} · CEP ${cep}`,
+  ];
 }
 
 export function buildOrderMessage(order: Order): string {

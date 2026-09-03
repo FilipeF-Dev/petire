@@ -75,7 +75,28 @@ export default async function LojasPage({
     .order("is_open_now", { ascending: false })
     .order("name");
 
-  const stores = viewRows<PublicStoreCard>(data);
+  const allStores = viewRows<PublicStoreCard>(data);
+
+  // `perto` vem do CEP do cliente e só **ordena** — filtrar por bairro exato
+  // esconderia a lanchonete do Centro que entrega no bairro inteiro, e o
+  // cliente veria "nenhuma loja" numa cidade que tem lojas.
+  const near = first(params.perto);
+  const nearSlug = near ? slugify(near) : null;
+
+  const stores = nearSlug
+    ? [...allStores].sort((a, b) => {
+        const rank = (store: PublicStoreCard) =>
+          store.neighborhood_slug === nearSlug ? 0 : 1;
+        return rank(a) - rank(b);
+      })
+    : allStores;
+
+  const nearCount = nearSlug
+    ? stores.filter((store) => store.neighborhood_slug === nearSlug).length
+    : 0;
+  const nearName = nearSlug
+    ? stores.find((store) => store.neighborhood_slug === nearSlug)?.neighborhood
+    : null;
 
   const tags = [
     ...new Set(stores.flatMap((store) => store.cuisine_tags ?? [])),
@@ -85,8 +106,9 @@ export default async function LojasPage({
 
   // O rótulo vem das lojas encontradas, não do que veio na URL: assim o
   // título mostra a grafia oficial mesmo se o link trouxer "vila madalena".
-  const place =
-    stores[0]?.neighborhood ?? stores[0]?.city ?? neighborhood ?? city;
+  const place = neighborhood
+    ? (stores[0]?.neighborhood ?? neighborhood)
+    : (stores[0]?.city ?? city);
 
   return (
     <div className="flex flex-col gap-6">
@@ -94,6 +116,16 @@ export default async function LojasPage({
         <h1 className="text-2xl font-semibold tracking-tight">
           {place ? `Lojas em ${place}` : "Lojas"}
         </h1>
+        {nearName && nearCount > 0 ? (
+          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+            {nearCount === 1
+              ? `1 loja no ${nearName}, mostrada primeiro.`
+              : `${nearCount} lojas no ${nearName}, mostradas primeiro.`}{" "}
+            As outras entregam na cidade toda ou em parte dela — confirme com a
+            loja no WhatsApp.
+          </p>
+        ) : null}
+
         {place ? (
           <Link
             href="/lojas"

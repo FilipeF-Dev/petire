@@ -3,9 +3,15 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 
+import { useCustomerLocation } from "@/components/location-bar";
 import { useCart } from "@/components/use-cart";
 import { clearStore, removeLine, setQuantity } from "@/lib/cart";
 import { formatCents } from "@/lib/money";
+import {
+  buildOrderMessage,
+  whatsappUrl,
+  type Delivery,
+} from "@/lib/order-message";
 
 import { resolveCart, type ResolvedCart, type ResolvedStore } from "./actions";
 
@@ -29,7 +35,13 @@ function reportWhatsappClick(storeId: string) {
   }).catch(() => {});
 }
 
-function StoreOrder({ store }: { store: ResolvedStore }) {
+function StoreOrder({
+  store,
+  delivery,
+}: {
+  store: ResolvedStore;
+  delivery: Delivery | null;
+}) {
   const [sent, setSent] = useState(false);
 
   const missing = store.minOrderCents - store.subtotalCents;
@@ -38,9 +50,26 @@ function StoreOrder({ store }: { store: ResolvedStore }) {
     reportWhatsappClick(store.storeId);
     setSent(true);
 
+    // A mensagem é montada aqui, e não no servidor, porque leva o endereço do
+    // cliente. Ele sai do browser dele direto para o WhatsApp da loja.
+    const message = buildOrderMessage({
+      storeName: store.name,
+      lines: store.lines.map((line) => ({
+        name: line.name,
+        quantity: line.quantity,
+        totalCents: line.totalCents,
+        options: line.options,
+        note: line.note,
+      })),
+      subtotalCents: store.subtotalCents,
+      deliveryFeeCents: store.deliveryFeeCents,
+      totalCents: store.totalCents,
+      delivery,
+    });
+
     // location.href e não window.open: o Safari no iOS bloqueia popup aberto
     // fora de um gesto direto, e o pedido simplesmente não sairia.
-    window.location.href = store.whatsappUrl;
+    window.location.href = whatsappUrl(store.whatsappE164, message);
   }
 
   return (
@@ -191,6 +220,17 @@ function StoreOrder({ store }: { store: ResolvedStore }) {
 
 export function CartView() {
   const lines = useCart();
+  const location = useCustomerLocation();
+
+  const delivery: Delivery | null = location
+    ? {
+        cep: location.cep,
+        street: location.street,
+        neighborhood: location.neighborhood,
+        city: location.city,
+        uf: location.uf,
+      }
+    : null;
   const [cart, setCart] = useState<ResolvedCart | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -255,8 +295,15 @@ export function CartView() {
         </p>
       ) : null}
 
+      {delivery ? null : (
+        <p className="rounded-lg border border-dashed border-neutral-300 px-3 py-2.5 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-400">
+          Informe seu CEP no topo da página e o endereço de entrega já vai
+          escrito na mensagem — você só completa o número e o complemento.
+        </p>
+      )}
+
       {cart.stores.map((store) => (
-        <StoreOrder key={store.storeId} store={store} />
+        <StoreOrder key={store.storeId} store={store} delivery={delivery} />
       ))}
     </div>
   );

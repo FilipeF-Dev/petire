@@ -108,6 +108,60 @@ describe("buildOrderMessage", () => {
   });
 });
 
+describe("endereço de entrega", () => {
+  const delivery = {
+    cep: "36030330",
+    street: "Rua Laura de Oliveira Ribeiro",
+    neighborhood: "Cruzeiro do Sul",
+    city: "Juiz de Fora",
+    uf: "MG",
+  };
+
+  it("sem CEP informado, deixa as linhas em branco", () => {
+    const text = normalize(buildOrderMessage(order()));
+
+    expect(text).toContain("Endereço:");
+    expect(text).not.toContain("CEP");
+  });
+
+  it("com CEP, escreve a rua e deixa o número para o cliente", () => {
+    const text = normalize(buildOrderMessage(order({ delivery })));
+
+    expect(text).toContain("Endereço: Rua Laura de Oliveira Ribeiro, nº");
+    expect(text).toContain("Complemento:");
+    expect(text).toContain("Bairro: Cruzeiro do Sul · Juiz de Fora/MG");
+    expect(text).toContain("CEP 36030-330");
+  });
+
+  it("cidade de CEP único vem sem rua, e a linha fica aberta", () => {
+    // O ViaCEP devolve logradouro vazio quando o CEP atende a cidade toda.
+    const text = normalize(
+      buildOrderMessage(
+        order({
+          delivery: { ...delivery, street: "", neighborhood: "" },
+        }),
+      ),
+    );
+
+    expect(text).toContain("Endereço:");
+    expect(text).not.toContain("nº");
+    expect(text).toContain("Juiz de Fora/MG");
+  });
+
+  it("o endereço sobrevive ao corte de um pedido grande", () => {
+    // Truncar o endereço seria pior do que truncar itens: a loja não teria
+    // para onde entregar.
+    const many = Array.from({ length: 60 }, (_, index) =>
+      line({ name: `Item número ${index + 1} do cardápio` }),
+    );
+    const text = normalize(buildOrderMessage(order({ lines: many, delivery })));
+
+    expect(text.length).toBeLessThanOrEqual(1500);
+    expect(text).toContain("Rua Laura de Oliveira Ribeiro");
+    expect(text).toContain("CEP 36030-330");
+  });
+});
+
 describe("whatsappUrl", () => {
   it("monta o deep link com a mensagem escapada", () => {
     const url = whatsappUrl("5511987654321", "Pedido: 2x X-Salada & batata");

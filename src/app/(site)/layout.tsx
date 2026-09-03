@@ -1,12 +1,13 @@
 import Link from "next/link";
 
 import { CartLink } from "@/components/cart-link";
+import { LocationBar } from "@/components/location-bar";
 
 export default function SiteLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-full flex-col">
       <header className="border-b border-neutral-200 dark:border-neutral-800">
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+        <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-4 sm:px-6">
           <Link href="/" className="text-lg font-semibold tracking-tight">
             Petire
           </Link>
@@ -18,6 +19,10 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
               Lojas
             </Link>
             <CartLink />
+          </div>
+          {/* Ocupa a linha inteira no celular: é a porta de entrada do site. */}
+          <div className="order-last min-w-0 basis-full">
+            <LocationBar />
           </div>
         </div>
       </header>

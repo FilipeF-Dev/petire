@@ -142,12 +142,15 @@ src/
     sitemap.ts robots.ts
   components/
     address-fields.tsx    endereço com busca por CEP
+    location-bar.tsx      barra de CEP do cliente
     ui.tsx                primitivas visuais do painel
   lib/
     auth.ts               requireManager / requireAdmin
     env.ts                leitura das variáveis de ambiente
     cart.ts               carrinho no localStorage
     cep.ts                consulta ao ViaCEP
+    customer-location.ts  CEP do cliente, só no browser dele
+    slug.ts               normalização, gêmea da do banco
     money.ts              centavos ↔ texto
     order-message.ts      texto do pedido e link do wa.me
     promotions.ts         preço com desconto aplicado
@@ -178,6 +181,33 @@ página pública invalidar.
 O `src/proxy.ts` roda só em `/gerente`, `/admin` e `/entrar`. A vitrine é
 anônima: rodar o proxy nela custaria uma ida ao Supabase por página vista só
 para descobrir, toda vez, que não há ninguém logado.
+
+## O CEP do cliente
+
+A barra no topo do site pede o CEP. Ele resolve duas coisas de uma vez:
+encontrar as lojas e preencher o endereço de entrega.
+
+**Encontrar as lojas.** O CEP dá o município, e é por ele que a lista filtra —
+não pelo bairro. Numa cidade média a lanchonete do Centro entrega no bairro
+vizinho sem pensar duas vezes; casar bairro com bairro mostraria "nenhuma
+loja" numa cidade que tem lojas, e o cliente não voltaria. O bairro vai na URL
+como `perto` e só **ordena**: as de perto primeiro, com uma linha dizendo que
+as outras também podem entregar.
+
+**Preencher o endereço.** Rua, bairro, cidade e CEP já vão escritos na
+mensagem do WhatsApp. Sobra o número e o complemento, que o cliente digita no
+próprio chat — é o que ninguém quer preencher no celular e o que mais faz
+entrega dar errado quando vem errado.
+
+O CEP fica **só no browser do cliente** (`src/lib/customer-location.ts`).
+Endereço residencial é dado pessoal, o Petire não tem cadastro e não tem por
+que guardar isso. Por isso `resolveCart()` devolve o número do WhatsApp em vez
+do link pronto: a mensagem é montada no cliente e vai do aparelho dele direto
+para a loja.
+
+`slugify()` existe em duas cópias, `src/lib/slug.ts` e `public.slugify()` no
+banco, e elas **precisam** concordar — é o que faz o CEP do cliente encontrar
+as lojas da cidade dele.
 
 ## O carrinho e o pedido
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { parseToCents } from "./money";
+import { slugify } from "./slug";
 
 /**
  * Estado que toda Server Action de formulário devolve para o `useActionState`.
@@ -240,21 +241,6 @@ export const storeSchema = z.object({
 // Admin
 // -----------------------------------------------------------------------------
 
-/**
- * "Lanchonete do Zé" → "lanchonete-do-ze".
- *
- * O slug entra na URL pública e é o que o Google indexa, então nunca muda
- * sozinho depois de criado — só o admin troca, de propósito.
- */
-export function slugify(input: string): string {
-  return input
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // NFD separa o acento; aqui ele cai fora
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
-}
 
 export const newStoreSchema = z.object({
   name: requiredText("Nome da loja"),
@@ -368,4 +354,4 @@ export const storeHourSchema = z
     path: ["closesAt"],
   });
 
-export { uuid };
+export { slugify, uuid };

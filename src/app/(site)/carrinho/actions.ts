@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 
-import { buildOrderMessage, whatsappUrl, type OrderLine } from "@/lib/order-message";
 import { priceOf, type Promotion } from "@/lib/promotions";
 import { CARD_SELECT, viewRows, type PublicStoreCard } from "@/lib/storefront";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -54,8 +53,14 @@ export type ResolvedStore = {
   subtotalCents: number;
   totalCents: number;
   meetsMinimum: boolean;
-  message: string;
-  whatsappUrl: string;
+  /**
+   * O número, não o link pronto.
+   *
+   * A mensagem é montada no browser porque leva o endereço do cliente, e esse
+   * endereço não tem por que passar pelo servidor do Petire — o destino dele é
+   * o WhatsApp da loja.
+   */
+  whatsappE164: string;
 };
 
 export type ResolvedCart = {
@@ -176,22 +181,6 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
     );
     const totalCents = subtotalCents + store.delivery_fee_cents;
 
-    const orderLines: OrderLine[] = storeLines.map((line) => ({
-      name: line.name,
-      quantity: line.quantity,
-      totalCents: line.totalCents,
-      options: line.options,
-      note: line.note,
-    }));
-
-    const message = buildOrderMessage({
-      storeName: store.name,
-      lines: orderLines,
-      subtotalCents,
-      deliveryFeeCents: store.delivery_fee_cents,
-      totalCents,
-    });
-
     resolved.push({
       storeId,
       slug: store.slug,
@@ -203,8 +192,7 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
       subtotalCents,
       totalCents,
       meetsMinimum: subtotalCents >= store.min_order_cents,
-      message,
-      whatsappUrl: whatsappUrl(store.whatsapp_e164, message),
+      whatsappE164: store.whatsapp_e164,
     });
   }
 
