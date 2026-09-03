@@ -6,12 +6,15 @@ import { useEffect, useState, useTransition } from "react";
 import { useCustomerLocation } from "@/components/location-bar";
 import { useCart } from "@/components/use-cart";
 import { clearStore, removeLine, setQuantity } from "@/lib/cart";
+import type { CustomerContact } from "@/lib/customer-contact";
 import { formatCents, formatDeliveryFee } from "@/lib/money";
 import {
   buildOrderMessage,
   whatsappUrl,
   type Delivery,
 } from "@/lib/order-message";
+
+import { CheckoutDialog } from "./checkout-dialog";
 
 import { resolveCart, type ResolvedCart, type ResolvedStore } from "./actions";
 
@@ -35,19 +38,25 @@ function reportWhatsappClick(storeId: string) {
   }).catch(() => {});
 }
 
+type Address = Omit<Delivery, "recipient" | "number" | "complement">;
+
 function StoreOrder({
   store,
-  delivery,
+  address,
 }: {
   store: ResolvedStore;
-  delivery: Delivery | null;
+  address: Address | null;
 }) {
   const [sent, setSent] = useState(false);
+  const [isAsking, setIsAsking] = useState(false);
 
   const missing = store.minOrderCents - store.subtotalCents;
 
-  function send() {
+  // `send` roda no clique de "Enviar no WhatsApp" dentro do diálogo, que é um
+  // gesto direto do cliente — é o que o iOS exige para não barrar a saída.
+  function send(contact: CustomerContact) {
     reportWhatsappClick(store.storeId);
+    setIsAsking(false);
     setSent(true);
 
     // A mensagem é montada aqui, e não no servidor, porque leva o endereço do
@@ -64,7 +73,14 @@ function StoreOrder({
       subtotalCents: store.subtotalCents,
       deliveryFeeCents: store.deliveryFeeCents,
       totalCents: store.totalCents,
-      delivery,
+      delivery: {
+        cep: address?.cep ?? "",
+        street: address?.street ?? "",
+        neighborhood: address?.neighborhood ?? "",
+        city: address?.city ?? "",
+        uf: address?.uf ?? "",
+        ...contact,
+      },
     });
 
     // location.href e não window.open: o Safari no iOS bloqueia popup aberto
@@ -187,7 +203,7 @@ function StoreOrder({
         {store.meetsMinimum ? (
           <button
             type="button"
-            onClick={send}
+            onClick={() => setIsAsking(true)}
             className="w-full rounded-lg bg-green-600 px-4 py-3.5 text-sm font-medium text-white transition hover:bg-green-700"
           >
             {sent ? "Abrindo o WhatsApp…" : `Fazer pedido — ${store.name}`}
@@ -212,6 +228,15 @@ function StoreOrder({
           combina direto com ela.
         </p>
       </div>
+
+      {isAsking ? (
+        <CheckoutDialog
+          storeName={store.name}
+          address={address}
+          onCancel={() => setIsAsking(false)}
+          onConfirm={send}
+        />
+      ) : null}
     </section>
   );
 }
@@ -220,7 +245,7 @@ export function CartView() {
   const lines = useCart();
   const location = useCustomerLocation();
 
-  const delivery: Delivery | null = location
+  const address: Address | null = location
     ? {
         cep: location.cep,
         street: location.street,
@@ -293,15 +318,14 @@ export function CartView() {
         </p>
       ) : null}
 
-      {delivery ? null : (
+      {address ? null : (
         <p className="rounded-lg border border-dashed border-neutral-300 px-3 py-2.5 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-400">
-          Informe seu CEP no topo da página e o endereço de entrega já vai
-          escrito na mensagem — você só completa o número e o complemento.
+          Informe seu CEP no topo da página e a rua já vai escrita na mensagem.
         </p>
       )}
 
       {cart.stores.map((store) => (
-        <StoreOrder key={store.storeId} store={store} delivery={delivery} />
+        <StoreOrder key={store.storeId} store={store} address={address} />
       ))}
     </div>
   );

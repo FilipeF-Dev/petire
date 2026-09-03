@@ -58,12 +58,19 @@ describe("buildOrderMessage", () => {
     expect(text).toContain("*Total: R$ 66,80*");
   });
 
-  it("deixa os campos que o cliente completa no WhatsApp", () => {
+  it("deixa os campos em aberto quando não há nada informado", () => {
     const text = normalize(buildOrderMessage(order()));
 
     expect(text).toContain("Nome:");
     expect(text).toContain("Endereço:");
-    expect(text).toContain("Pagamento:");
+  });
+
+  it("não fala de pagamento", () => {
+    // Quem cobra é a loja, do jeito dela. O Petire não vê dinheiro nenhum e
+    // não deve dar a entender que vê.
+    const text = normalize(buildOrderMessage(order()));
+
+    expect(text).not.toContain("Pagamento");
   });
 
   it("diz 'a combinar' quando não há taxa de entrega cadastrada", () => {
@@ -115,6 +122,9 @@ describe("endereço de entrega", () => {
     neighborhood: "Cruzeiro do Sul",
     city: "Juiz de Fora",
     uf: "MG",
+    recipient: "Filipe",
+    number: "120",
+    complement: "apto 42",
   };
 
   it("sem CEP informado, deixa as linhas em branco", () => {
@@ -124,13 +134,23 @@ describe("endereço de entrega", () => {
     expect(text).not.toContain("CEP");
   });
 
-  it("com CEP, escreve a rua e deixa o número para o cliente", () => {
+  it("escreve o endereço inteiro, sem sobrar linha para o cliente", () => {
     const text = normalize(buildOrderMessage(order({ delivery })));
 
-    expect(text).toContain("Endereço: Rua Laura de Oliveira Ribeiro, nº");
-    expect(text).toContain("Complemento:");
+    expect(text).toContain("Nome: Filipe");
+    expect(text).toContain("Endereço: Rua Laura de Oliveira Ribeiro, nº 120");
+    expect(text).toContain("Complemento: apto 42");
     expect(text).toContain("Bairro: Cruzeiro do Sul · Juiz de Fora/MG");
     expect(text).toContain("CEP 36030-330");
+  });
+
+  it("omite o complemento quando não há", () => {
+    const text = normalize(
+      buildOrderMessage(order({ delivery: { ...delivery, complement: "" } })),
+    );
+
+    expect(text).not.toContain("Complemento");
+    expect(text).toContain("Nome: Filipe");
   });
 
   it("cidade de CEP único vem sem rua, e a linha fica aberta", () => {
@@ -143,8 +163,7 @@ describe("endereço de entrega", () => {
       ),
     );
 
-    expect(text).toContain("Endereço:");
-    expect(text).not.toContain("nº");
+    expect(text).toContain("Endereço: nº 120");
     expect(text).toContain("Juiz de Fora/MG");
   });
 
