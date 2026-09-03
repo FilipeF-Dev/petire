@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 
 import { HouseIcon } from "@/components/house-icon";
@@ -20,24 +20,15 @@ export function useCustomerLocation(): CustomerLocation | null {
 }
 
 /**
- * Barra de CEP no topo do site.
- *
- * É a porta de entrada: o cliente informa o CEP uma vez, encontra as lojas da
- * cidade dele com as do bairro primeiro, e o endereço de entrega já vai
- * preenchido na mensagem do WhatsApp.
+ * O CEP é a porta de entrada do site: encontra as lojas da cidade e preenche o
+ * endereço de entrega na mensagem do WhatsApp. A mesma lógica serve os dois
+ * lugares que perguntam — o campo grande da home e a barra do topo — e por
+ * isso mora aqui uma vez só.
  */
-export function LocationBar() {
-  const location = useCustomerLocation();
+function useCepLookup(onDone: () => void) {
   const router = useRouter();
-
-  // Quem ainda não informou o CEP vê a caixa já aberta: um link "Informe seu
-  // CEP" cobra um toque a mais para chegar no mesmo campo, e é o primeiro
-  // toque de quem acabou de chegar no site.
-  const [isEditing, setIsEditing] = useState(false);
   const [cep, setCep] = useState("");
   const [status, setStatus] = useState<"idle" | "buscando" | "erro">("idle");
-
-  const showForm = location === null || isEditing;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -67,24 +58,143 @@ export function LocationBar() {
 
     setLocation(next);
     setStatus("idle");
-    setIsEditing(false);
     setCep("");
+    onDone();
     router.push(storesUrl(next));
   }
 
-  if (!showForm) {
+  return { cep, setCep, status, setStatus, submit };
+}
+
+function ErrorHint({ status }: { status: "idle" | "buscando" | "erro" }) {
+  if (status !== "erro") return null;
+  return (
+    <span className="text-xs text-red-600 dark:text-red-400">
+      CEP não encontrado
+    </span>
+  );
+}
+
+/**
+ * O campo de CEP em destaque, na home.
+ *
+ * A home pedia o bairro numa lista, e bairro sem CEP resolve metade do
+ * problema: encontra a loja, mas não preenche o endereço da entrega — e o
+ * cliente teria de informar o CEP no passo seguinte de qualquer jeito. Uma
+ * pergunta só, no lugar mais visível da página.
+ */
+export function LocationHero() {
+  const location = useCustomerLocation();
+  const [isEditing, setIsEditing] = useState(false);
+  const { cep, setCep, status, setStatus, submit } = useCepLookup(() =>
+    setIsEditing(false),
+  );
+
+  if (location && !isEditing) {
+    return (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <p className="flex items-center gap-2 text-base">
+          <HouseIcon />
+          <span>
+            {location.neighborhood || location.city}
+            <span className="text-neutral-500 dark:text-neutral-400">
+              {" · "}
+              {formatCep(location.cep)}
+            </span>
+          </span>
+        </p>
+        <button
+          type="button"
+          onClick={() => setIsEditing(true)}
+          className="text-sm text-neutral-500 underline underline-offset-4 dark:text-neutral-400"
+        >
+          trocar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-2">
+      <label
+        htmlFor="cep-hero"
+        className="flex items-center gap-2 text-base font-medium"
+      >
+        <HouseIcon />
+        Informe seu CEP para ver as lojas
+      </label>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          id="cep-hero"
+          value={maskCep(cep)}
+          onChange={(event) => {
+            setCep(event.target.value);
+            setStatus("idle");
+          }}
+          inputMode="numeric"
+          autoComplete="postal-code"
+          placeholder="00000-000"
+          className="w-40 rounded-lg border border-neutral-300 bg-surface px-4 py-3 text-lg tabular-nums outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
+        />
+        <button
+          type="submit"
+          disabled={status === "buscando"}
+          className="rounded-lg bg-neutral-900 px-5 py-3 font-medium text-white disabled:opacity-60 dark:bg-white dark:text-neutral-900"
+        >
+          {status === "buscando" ? "Buscando…" : "Ver lojas"}
+        </button>
+
+        {location ? (
+          <button
+            type="button"
+            onClick={() => {
+              setIsEditing(false);
+              setStatus("idle");
+            }}
+            className="text-sm text-neutral-500 dark:text-neutral-400"
+          >
+            cancelar
+          </button>
+        ) : null}
+      </div>
+
+      <ErrorHint status={status} />
+    </form>
+  );
+}
+
+/**
+ * A barra de CEP do topo, que acompanha o cliente pelo site inteiro.
+ *
+ * Ela se cala na home enquanto não há CEP: lá o campo grande já faz a
+ * pergunta, e dois campos pedindo a mesma coisa na mesma tela só criam a
+ * dúvida de qual dos dois vale.
+ */
+export function LocationBar() {
+  const location = useCustomerLocation();
+  const pathname = usePathname();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const { cep, setCep, status, setStatus, submit } = useCepLookup(() =>
+    setIsEditing(false),
+  );
+
+  if (!location && pathname === "/") return null;
+
+  if (location && !isEditing) {
     return (
       <button
         type="button"
         onClick={() => setIsEditing(true)}
         className="flex min-w-0 items-center gap-1.5 text-sm text-neutral-600 underline-offset-4 hover:underline dark:text-neutral-400"
       >
-        <HouseIcon />
+        <HouseIcon className="size-4" />
         <span className="truncate">
-          {location?.neighborhood || location?.city}
+          {location.neighborhood || location.city}
           <span className="text-neutral-400">
-            {" "}
-            · {formatCep(location?.cep ?? "")}
+            {" · "}
+            {formatCep(location.cep)}
           </span>
         </span>
       </button>
@@ -97,7 +207,7 @@ export function LocationBar() {
         htmlFor="cep-do-cliente"
         className="flex items-center gap-1.5 text-sm text-neutral-600 dark:text-neutral-400"
       >
-        <HouseIcon />
+        <HouseIcon className="size-4" />
         Informe seu CEP
       </label>
 
@@ -137,11 +247,7 @@ export function LocationBar() {
         </button>
       ) : null}
 
-      {status === "erro" ? (
-        <span className="text-xs text-red-600 dark:text-red-400">
-          CEP não encontrado
-        </span>
-      ) : null}
+      <ErrorHint status={status} />
     </form>
   );
 }

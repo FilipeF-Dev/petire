@@ -39,6 +39,7 @@ const CARD_COLUMNS = [
   "cep",
   "cuisine_tags",
   "delivery_fee_cents",
+  "delivery_minutes",
   "min_order_cents",
 ] as const;
 

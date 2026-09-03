@@ -43,6 +43,7 @@ export async function saveStore(
     cuisineTags: formData.get("cuisineTags") ?? "",
     kind: formData.get("kind"),
     deliveryFee: formData.get("deliveryFee") ?? "0",
+    deliveryMinutes: formData.get("deliveryMinutes") ?? "",
     minOrder: formData.get("minOrder") ?? "0",
   });
   if (!parsed.success) return toFormState(parsed.error, formValues(formData));
@@ -66,6 +67,7 @@ export async function saveStore(
       cuisine_tags: parsed.data.cuisineTags,
       kind: parsed.data.kind,
       delivery_fee_cents: parsed.data.deliveryFee,
+      delivery_minutes: parsed.data.deliveryMinutes,
       min_order_cents: parsed.data.minOrder,
     })
     .eq("id", session.storeId);

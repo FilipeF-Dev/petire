@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { siteUrl } from "@/lib/env";
+import { formatDeliveryTime } from "@/lib/delivery";
 import { formatCents, formatDeliveryFee } from "@/lib/money";
 import { priceOf, type Promotion } from "@/lib/promotions";
 import { viewRows } from "@/lib/storefront";
@@ -183,6 +184,9 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
 
             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
               Entrega {formatDeliveryFee(store.delivery_fee_cents)}
+              {formatDeliveryTime(store.delivery_minutes)
+                ? ` · ${formatDeliveryTime(store.delivery_minutes)}`
+                : null}
               {store.min_order_cents > 0
                 ? ` · pedido mínimo ${formatCents(store.min_order_cents)}`
                 : null}

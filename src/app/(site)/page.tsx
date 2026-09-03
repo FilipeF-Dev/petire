@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { LocationHero } from "@/components/location-bar";
 import { viewRows, type PublicPlace } from "@/lib/storefront";
 import { createPublicClient } from "@/lib/supabase/public";
 
@@ -27,35 +28,51 @@ export default async function HomePage() {
           Monte seu pedido e feche no WhatsApp da loja. Sem taxa de serviço,
           cadastro, propaganda ou burocracia.
         </p>
+
+        <div className="mt-6">
+          <LocationHero />
+        </div>
       </section>
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold tracking-wide uppercase">
-          Onde você está
-        </h2>
+      {/*
+        A lista de bairros deixou de ser a porta de entrada — o CEP faz o que
+        ela fazia e ainda preenche o endereço da entrega — mas continua aqui,
+        mais discreta, por dois motivos: quem não quer digitar o CEP tem por
+        onde entrar, e são estes links que dão ao Google um caminho para cada
+        cidade e bairro atendidos. Busca é o canal de aquisição gratuito do
+        Petire.
+      */}
+      {places.length > 0 ? (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold tracking-wide uppercase">
+            Ou veja por bairro
+          </h2>
 
-        {places.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {places.map((place) => (
-              <li key={`${place.city}-${place.neighborhood}`}>
+              <li key={`${place.city_slug}-${place.neighborhood_slug}`}>
                 <Link
+                  // `perto`, não `bairro`: filtrar por bairro exato esconderia
+                  // a lanchonete do Centro que entrega no bairro inteiro. Ele
+                  // ordena, e é a mesma regra que o CEP usa.
                   href={{
                     pathname: "/lojas",
                     query: {
                       cidade: place.city_slug,
-                      bairro: place.neighborhood_slug,
+                      perto: place.neighborhood_slug,
                     },
                   }}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-surface px-4 py-3.5 transition hover:bg-surface-hover dark:border-neutral-800"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-surface px-4 py-3 text-sm transition hover:bg-surface-hover dark:border-neutral-800"
                 >
                   <span>
                     <span className="font-medium">{place.neighborhood}</span>
-                    <span className="block text-sm text-neutral-500 dark:text-neutral-400">
+                    <span className="text-neutral-500 dark:text-neutral-400">
+                      {" · "}
                       {place.city}
-                      {place.state_uf ? ` · ${place.state_uf}` : null}
+                      {place.state_uf ? `, ${place.state_uf}` : null}
                     </span>
                   </span>
-                  <span className="shrink-0 text-sm text-neutral-500 dark:text-neutral-400">
+                  <span className="shrink-0 text-neutral-500 dark:text-neutral-400">
                     {place.store_count}{" "}
                     {place.store_count === 1 ? "loja" : "lojas"}
                   </span>
@@ -63,12 +80,12 @@ export default async function HomePage() {
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="rounded-xl border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
-            Ainda não há lojas cadastradas.
-          </p>
-        )}
-      </section>
+        </section>
+      ) : (
+        <p className="rounded-xl border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+          Ainda não há lojas cadastradas.
+        </p>
+      )}
 
       <section className="rounded-xl border border-neutral-200 bg-surface p-5 dark:border-neutral-800">
         <h2 className="font-medium">Tem uma lanchonete ou distribuidora?</h2>

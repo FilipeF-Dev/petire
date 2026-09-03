@@ -21,8 +21,10 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
             </Link>
             <CartLink />
           </div>
-          {/* Ocupa a linha inteira no celular: é a porta de entrada do site. */}
-          <div className="order-last min-w-0 basis-full">
+          {/* Ocupa a linha inteira no celular. Na home ela se cala enquanto
+              não há CEP — lá o campo grande faz a pergunta — e o `empty:hidden`
+              tira o espaço que a linha vazia deixaria. */}
+          <div className="order-last min-w-0 basis-full empty:hidden">
             <LocationBar />
           </div>
         </div>

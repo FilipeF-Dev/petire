@@ -6,6 +6,7 @@ import { useMemo } from "react";
 
 import { useCustomerLocation } from "@/components/location-bar";
 import { formatCep } from "@/lib/customer-location";
+import { formatDeliveryTime } from "@/lib/delivery";
 import { formatCents, formatDeliveryFee } from "@/lib/money";
 import { sortByProximity, type CustomerPlace } from "@/lib/proximity";
 import { slugify } from "@/lib/slug";
@@ -133,6 +134,9 @@ export function StoreList({
                     {store.neighborhood}
                     {" · entrega "}
                     {formatDeliveryFee(store.delivery_fee_cents)}
+                    {formatDeliveryTime(store.delivery_minutes)
+                      ? ` · ${formatDeliveryTime(store.delivery_minutes)}`
+                      : null}
                     {store.min_order_cents > 0
                       ? ` · mín. ${formatCents(store.min_order_cents)}`
                       : null}

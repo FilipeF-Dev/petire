@@ -111,6 +111,21 @@ const cuisineTagsField = z
       .slice(0, 10),
   );
 
+/**
+ * Tempo médio de entrega, em minutos. Vazio é resposta válida: a loja que não
+ * sabe estimar não mostra nada, em vez de chutar um número que erra todo dia.
+ */
+const deliveryMinutesField = z
+  .string()
+  .trim()
+  .transform((value) =>
+    value === "" ? null : Number.parseInt(value.replace(/\D/g, ""), 10),
+  )
+  .refine(
+    (value) => value === null || (Number.isFinite(value) && value >= 5 && value <= 240),
+    "Informe de 5 a 240 minutos.",
+  );
+
 /** Só dígitos. Vazio vira null — loja cadastrada antes do CEP existir. */
 const cepField = z
   .string()
@@ -331,6 +346,7 @@ export const storeSchema = z.object({
   cuisineTags: cuisineTagsField,
   kind: z.enum(["food", "drinks", "both"]),
   deliveryFee: money("Taxa de entrega"),
+  deliveryMinutes: deliveryMinutesField,
   minOrder: money("Pedido mínimo"),
 });
 
@@ -408,6 +424,7 @@ export const editStoreSchema = newStoreSchema
     description: optionalText(500),
     cuisineTags: cuisineTagsField,
     deliveryFee: money("Taxa de entrega"),
+    deliveryMinutes: deliveryMinutesField,
     minOrder: money("Pedido mínimo"),
   });
 
