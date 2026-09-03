@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { z } from "zod";
+
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -388,6 +390,68 @@ export async function setSubscription(
   if (error) return { error: "Não foi possível salvar a assinatura." };
 
   refreshStorefront(data?.slug ?? null);
+  return { error: null, savedAt: Date.now() };
+}
+
+/**
+ * Troca o e-mail de acesso do lojista.
+ *
+ * A loja costuma nascer com um endereço provisório, porque o cadastro acontece
+ * antes de o dono passar o e-mail dele. Sem isto, a única saída seria apagar a
+ * loja e refazer tudo.
+ *
+ * Precisa mudar em dois lugares: em `auth.users`, que é o que valida o login,
+ * e em `public.managers`, que é o que o painel mostra. Deixar os dois fora de
+ * sincronia é pior do que não trocar — a tela diria um e-mail e o login exigiria
+ * outro.
+ */
+export async function updateManagerEmail(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+
+  const managerId = uuid.safeParse(formData.get("managerId"));
+  if (!managerId.success) return { error: "Gerente inválido." };
+
+  const parsed = z
+    .email("E-mail inválido.")
+    .safeParse(String(formData.get("email") ?? "").trim());
+
+  if (!parsed.success) {
+    return {
+      error: null,
+      fieldErrors: { email: "E-mail inválido." },
+      values: formValues(formData),
+    };
+  }
+
+  const admin = createAdminClient();
+
+  const { error: authError } = await admin.auth.admin.updateUserById(
+    managerId.data,
+    // Sem `email_confirm`, o usuário fica pendente de confirmação e não
+    // consegue entrar — e não existe fluxo de e-mail no MVP para resolver.
+    { email: parsed.data, email_confirm: true },
+  );
+
+  if (authError) {
+    return {
+      error: authError.message.includes("already")
+        ? "Já existe uma conta com esse e-mail."
+        : "Não foi possível trocar o e-mail de acesso.",
+      values: formValues(formData),
+    };
+  }
+
+  const { error } = await admin
+    .from("managers")
+    .update({ email: parsed.data })
+    .eq("id", managerId.data);
+
+  if (error) return { error: "E-mail trocado no login, mas não no painel." };
+
+  revalidatePath("/admin");
   return { error: null, savedAt: Date.now() };
 }
 

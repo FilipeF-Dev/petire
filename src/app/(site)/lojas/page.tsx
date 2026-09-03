@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
-import { formatCents } from "@/lib/money";
+import { formatCents, formatDeliveryFee } from "@/lib/money";
 import { humanizePlace, slugify } from "@/lib/slug";
 import {
   CARD_SELECT,
@@ -187,9 +187,7 @@ export default async function LojasPage({
                   <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">
                     {store.neighborhood}
                     {" · entrega "}
-                    {store.delivery_fee_cents === 0
-                      ? "grátis"
-                      : formatCents(store.delivery_fee_cents)}
+                    {formatDeliveryFee(store.delivery_fee_cents)}
                     {store.min_order_cents > 0
                       ? ` · mín. ${formatCents(store.min_order_cents)}`
                       : null}
