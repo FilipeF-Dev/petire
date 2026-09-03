@@ -13,15 +13,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // continuar no sitemap depois de sair do ar.
   const { data } = await supabase
     .from("stores_public")
-    .select("slug, city, neighborhood");
+    .select("slug, city, city_slug, neighborhood, neighborhood_slug");
 
   const stores = viewRows<PublicStoreLocation>(data);
 
+  // Chaveado pelo slug: duas lojas com a mesma cidade escrita diferente não
+  // podem virar duas URLs no sitemap.
   const places = new Map<string, { city: string; neighborhood: string }>();
   for (const store of stores) {
-    places.set(`${store.city}|${store.neighborhood}`, {
-      city: store.city,
-      neighborhood: store.neighborhood,
+    // slugify devolve null quando não sobra caractere aproveitável; sem slug
+    // não existe URL de bairro para indexar.
+    if (!store.city_slug || !store.neighborhood_slug) continue;
+
+    places.set(`${store.city_slug}|${store.neighborhood_slug}`, {
+      city: store.city_slug,
+      neighborhood: store.neighborhood_slug,
     });
   }
 

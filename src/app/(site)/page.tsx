@@ -12,7 +12,7 @@ export default async function HomePage() {
 
   const { data } = await supabase
     .from("neighborhoods_public")
-    .select("city, neighborhood, store_count")
+    .select("city, city_slug, neighborhood, neighborhood_slug, state_uf, store_count")
     .order("store_count", { ascending: false });
 
   const places = viewRows<PublicPlace>(data);
@@ -41,7 +41,10 @@ export default async function HomePage() {
                 <Link
                   href={{
                     pathname: "/lojas",
-                    query: { cidade: place.city, bairro: place.neighborhood },
+                    query: {
+                      cidade: place.city_slug,
+                      bairro: place.neighborhood_slug,
+                    },
                   }}
                   className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 px-4 py-3.5 transition hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900"
                 >
@@ -49,6 +52,7 @@ export default async function HomePage() {
                     <span className="font-medium">{place.neighborhood}</span>
                     <span className="block text-sm text-neutral-500 dark:text-neutral-400">
                       {place.city}
+                      {place.state_uf ? ` · ${place.state_uf}` : null}
                     </span>
                   </span>
                   <span className="shrink-0 text-sm text-neutral-500 dark:text-neutral-400">

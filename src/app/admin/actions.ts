@@ -8,6 +8,7 @@ import {
   newStoreSchema,
   slugify,
   subscriptionSchema,
+  formValues,
   toFormState,
   uuid,
   type FormState,
@@ -54,6 +55,10 @@ export async function createStore(
   const parsed = newStoreSchema.safeParse({
     name: formData.get("name"),
     slug: formData.get("slug") ?? "",
+    cep: formData.get("cep") ?? "",
+    stateUf: formData.get("stateUf") ?? "",
+    ibgeCode: formData.get("ibgeCode") ?? "",
+    address: formData.get("address") ?? "",
     city: formData.get("city"),
     neighborhood: formData.get("neighborhood"),
     whatsapp: formData.get("whatsapp") ?? "",
@@ -61,14 +66,15 @@ export async function createStore(
     managerEmail: formData.get("managerEmail"),
     trialDays: formData.get("trialDays") ?? "90",
   });
-  if (!parsed.success) return toFormState(parsed.error);
+  if (!parsed.success) return toFormState(parsed.error, formValues(formData));
 
   const data = parsed.data;
   const slug = data.slug ?? slugify(data.name);
   if (!slug) {
     return {
       error: null,
-      fieldErrors: { slug: "Não consegui gerar um endereço a partir do nome." },
+      fieldErrors: { slug: "Não consegui gerar um apelido a partir do nome." },
+      values: formValues(formData),
     };
   }
 
@@ -82,6 +88,10 @@ export async function createStore(
     .insert({
       slug,
       name: data.name,
+      cep: data.cep,
+      state_uf: data.stateUf,
+      ibge_code: data.ibgeCode,
+      address: data.address,
       city: data.city,
       neighborhood: data.neighborhood,
       whatsapp_e164: data.whatsapp,
@@ -99,8 +109,9 @@ export async function createStore(
     return {
       error:
         storeError?.code === "23505"
-          ? "Já existe uma loja com esse endereço."
+          ? "Já existe uma loja com esse apelido."
           : "Não foi possível criar a loja.",
+      values: formValues(formData),
     };
   }
 
@@ -119,6 +130,7 @@ export async function createStore(
       error: userError?.message.includes("already")
         ? "Já existe uma conta com esse e-mail."
         : "Não foi possível criar o login do lojista.",
+      values: formValues(formData),
     };
   }
 
@@ -173,7 +185,7 @@ export async function setSubscription(
     status: formData.get("status"),
     until: formData.get("until") ?? "",
   });
-  if (!parsed.success) return toFormState(parsed.error);
+  if (!parsed.success) return toFormState(parsed.error, formValues(formData));
 
   const admin = createAdminClient();
   const { data, error } = await admin

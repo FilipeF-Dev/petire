@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { formatCents } from "@/lib/money";
+import { slugify } from "@/lib/validation";
 import {
   CARD_SELECT,
   viewRows,
@@ -50,8 +51,13 @@ export default async function LojasPage({
     .from("stores_public")
     .select(CARD_SELECT);
 
-  if (city) query = query.eq("city", city);
-  if (neighborhood) query = query.eq("neighborhood", neighborhood);
+  // Filtra pelas colunas normalizadas, não pelo texto digitado: uma loja
+  // cadastrada como "vila madalena" tem de aparecer junto com as de
+  // "Vila Madalena".
+  if (city) query = query.eq("city_slug", slugify(city));
+  if (neighborhood) {
+    query = query.eq("neighborhood_slug", slugify(neighborhood));
+  }
   if (tag) query = query.contains("cuisine_tags", [tag]);
   if (onlyOpen) query = query.eq("is_open_now", true);
 
@@ -77,7 +83,10 @@ export default async function LojasPage({
     .sort()
     .slice(0, 12);
 
-  const place = neighborhood ?? city;
+  // O rótulo vem das lojas encontradas, não do que veio na URL: assim o
+  // título mostra a grafia oficial mesmo se o link trouxer "vila madalena".
+  const place =
+    stores[0]?.neighborhood ?? stores[0]?.city ?? neighborhood ?? city;
 
   return (
     <div className="flex flex-col gap-6">

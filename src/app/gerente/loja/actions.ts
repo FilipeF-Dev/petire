@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   storeHourSchema,
   storeSchema,
+  formValues,
   toFormState,
   uuid,
   type FormState,
@@ -34,6 +35,9 @@ export async function saveStore(
     description: formData.get("description") ?? "",
     whatsapp: formData.get("whatsapp") ?? "",
     address: formData.get("address") ?? "",
+    cep: formData.get("cep") ?? "",
+    stateUf: formData.get("stateUf") ?? "",
+    ibgeCode: formData.get("ibgeCode") ?? "",
     city: formData.get("city"),
     neighborhood: formData.get("neighborhood"),
     cuisineTags: formData.get("cuisineTags") ?? "",
@@ -41,7 +45,7 @@ export async function saveStore(
     deliveryFee: formData.get("deliveryFee") ?? "0",
     minOrder: formData.get("minOrder") ?? "0",
   });
-  if (!parsed.success) return toFormState(parsed.error);
+  if (!parsed.success) return toFormState(parsed.error, formValues(formData));
 
   const supabase = await createClient();
 
@@ -54,6 +58,9 @@ export async function saveStore(
       description: parsed.data.description,
       whatsapp_e164: parsed.data.whatsapp,
       address: parsed.data.address,
+      cep: parsed.data.cep,
+      state_uf: parsed.data.stateUf,
+      ibge_code: parsed.data.ibgeCode,
       city: parsed.data.city,
       neighborhood: parsed.data.neighborhood,
       cuisine_tags: parsed.data.cuisineTags,
@@ -107,7 +114,7 @@ export async function addStoreHour(
     opensAt: formData.get("opensAt"),
     closesAt: formData.get("closesAt"),
   });
-  if (!parsed.success) return toFormState(parsed.error);
+  if (!parsed.success) return toFormState(parsed.error, formValues(formData));
 
   const supabase = await createClient();
   const { error } = await supabase.from("store_hours").insert({

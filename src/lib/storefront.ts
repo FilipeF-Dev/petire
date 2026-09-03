@@ -30,7 +30,10 @@ const CARD_COLUMNS = [
   "description",
   "logo_url",
   "neighborhood",
+  "neighborhood_slug",
   "city",
+  "city_slug",
+  "state_uf",
   "cuisine_tags",
   "delivery_fee_cents",
   "min_order_cents",
@@ -41,6 +44,7 @@ const DETAIL_COLUMNS = [
   "cover_url",
   "whatsapp_e164",
   "address",
+  "cep",
 ] as const;
 
 /** Loja na listagem de `/lojas`. */
@@ -58,12 +62,15 @@ export type PublicStoreDetail = Pick<
 /** Só o que o sitemap precisa. */
 export type PublicStoreLocation = Pick<
   StoreRow,
-  "slug" | "city" | "neighborhood"
+  "slug" | "city" | "city_slug" | "neighborhood" | "neighborhood_slug"
 >;
 
 export type PublicPlace = {
   city: string;
+  city_slug: string;
   neighborhood: string;
+  neighborhood_slug: string;
+  state_uf: string | null;
   store_count: number;
 };
 

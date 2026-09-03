@@ -11,12 +11,34 @@ export type FormState = {
   fieldErrors?: Record<string, string>;
   /** Muda a cada gravação bem-sucedida, para o formulário saber que pode limpar. */
   savedAt?: number;
+  /**
+   * O que foi enviado, devolvido para o formulário se reconstruir.
+   *
+   * O React 19 reseta campos não-controlados quando a action termina — inclusive
+   * quando ela termina em erro de validação. Sem devolver os valores, uma
+   * vírgula errada no preço apaga tudo que a pessoa acabou de digitar.
+   * Como o reset leva o campo de volta ao `defaultValue`, basta o formulário
+   * ler daqui.
+   */
+  values?: Record<string, string>;
 };
 
 export const emptyFormState: FormState = { error: null };
 
+/** Só os campos de texto: arquivo não volta para o formulário. */
+export function formValues(formData: FormData): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === "string") values[key] = value;
+  }
+  return values;
+}
+
 /** Converte os issues do zod no formato que os formulários consomem. */
-export function toFormState(error: z.ZodError): FormState {
+export function toFormState(
+  error: z.ZodError,
+  values?: Record<string, string>,
+): FormState {
   const fieldErrors: Record<string, string> = {};
 
   for (const issue of error.issues) {
@@ -26,7 +48,7 @@ export function toFormState(error: z.ZodError): FormState {
     }
   }
 
-  return { error: "Confira os campos destacados.", fieldErrors };
+  return { error: "Confira os campos destacados.", fieldErrors, values };
 }
 
 // -----------------------------------------------------------------------------
@@ -70,6 +92,29 @@ const money = (label: string) =>
 
     return cents;
   });
+
+/** Só dígitos. Vazio vira null — loja cadastrada antes do CEP existir. */
+const cepField = z
+  .string()
+  .transform((value) => value.replace(/\D/g, ""))
+  .refine((value) => value === "" || value.length === 8, "CEP inválido.")
+  .transform((value) => (value === "" ? null : value));
+
+const ufField = z
+  .string()
+  .trim()
+  .transform((value) => (value === "" ? null : value.toUpperCase()))
+  .refine((value) => value === null || /^[A-Z]{2}$/.test(value), "UF inválida.");
+
+/** Código do município no IBGE, como o ViaCEP devolve. */
+const ibgeField = z
+  .string()
+  .trim()
+  .transform((value) => (value === "" ? null : value))
+  .refine(
+    (value) => value === null || /^[0-9]{7}$/.test(value),
+    "Código do município inválido.",
+  );
 
 const uuid = z.uuid("Identificador inválido.");
 
@@ -172,6 +217,9 @@ export const storeSchema = z.object({
     return normalized;
   }),
   address: optionalText(200),
+  cep: cepField,
+  stateUf: ufField,
+  ibgeCode: ibgeField,
   city: requiredText("Cidade", 80),
   neighborhood: requiredText("Bairro", 80),
   cuisineTags: z
@@ -210,14 +258,39 @@ export function slugify(input: string): string {
 
 export const newStoreSchema = z.object({
   name: requiredText("Nome da loja"),
-  slug: z
-    .string()
-    .trim()
-    .transform((value) => (value === "" ? null : slugify(value)))
-    .refine(
-      (value) => value === null || /^[a-z0-9]+(-[a-z0-9]+)*$/.test(value),
-      "Endereço inválido.",
-    ),
+  slug: z.string().transform((value, ctx) => {
+    const trimmed = value.trim();
+    if (trimmed === "") return null;
+
+    // Alguém já colou a URL do site da loja aqui. O rótulo do campo foi
+    // corrigido, mas a validação também precisa recusar — o slug entra na
+    // URL pública e não tem como desfazer depois de indexado.
+    // Pega qualquer coisa com esquema, "www." ou domínio: o erro é colar um
+    // endereço, e endereço vem em muitas formas.
+    if (
+      trimmed.includes("://") ||
+      /^www\./i.test(trimmed) ||
+      /\.(com|net|org|br|io|app|shop)\b/i.test(trimmed)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Aqui vai só o apelido da loja dentro do Petire, não o endereço do site dela.",
+      });
+      return z.NEVER;
+    }
+
+    const slug = slugify(trimmed);
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) {
+      ctx.addIssue({ code: "custom", message: "Use letras, números e hífen." });
+      return z.NEVER;
+    }
+    return slug;
+  }),
+  cep: cepField,
+  stateUf: ufField,
+  ibgeCode: ibgeField,
+  address: optionalText(200),
   city: requiredText("Cidade", 80),
   neighborhood: requiredText("Bairro", 80),
   whatsapp: z.string().transform((value, ctx) => {

@@ -55,7 +55,7 @@ export function ProductForm({
         <Field label="Nome" error={state.fieldErrors?.name}>
           <input
             name="name"
-            defaultValue={product?.name}
+            defaultValue={state.values?.name ?? product?.name}
             required
             maxLength={120}
             autoFocus={!product}
@@ -71,7 +71,7 @@ export function ProductForm({
         >
           <textarea
             name="description"
-            defaultValue={product?.description ?? ""}
+            defaultValue={state.values?.description ?? product?.description ?? ""}
             rows={3}
             maxLength={500}
             placeholder="Pão brioche, hambúrguer 180g, queijo, alface e tomate."
@@ -83,7 +83,9 @@ export function ProductForm({
           <Field label="Preço" error={state.fieldErrors?.price}>
             <input
               name="price"
-              defaultValue={product ? centsToInput(product.price_cents) : ""}
+              defaultValue={
+                state.values?.price ?? (product ? centsToInput(product.price_cents) : "")
+              }
               required
               inputMode="decimal"
               placeholder="24,90"
@@ -94,7 +96,7 @@ export function ProductForm({
           <Field label="Categoria" error={state.fieldErrors?.categoryId}>
             <select
               name="categoryId"
-              defaultValue={product?.category_id ?? ""}
+              defaultValue={state.values?.categoryId ?? product?.category_id ?? ""}
               className={inputClass}
             >
               <option value="">Sem categoria</option>

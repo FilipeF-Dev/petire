@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
+import { AddressFields } from "@/components/address-fields";
 import { Button, Field, FormError, inputClass } from "@/components/ui";
 import { emptyFormState } from "@/lib/validation";
 
@@ -13,6 +14,9 @@ type Store = {
   description: string | null;
   whatsapp_e164: string;
   address: string | null;
+  cep: string | null;
+  state_uf: string | null;
+  ibge_code: string | null;
   city: string;
   neighborhood: string;
   cuisine_tags: string[];
@@ -54,7 +58,7 @@ export function StoreForm({ store }: { store: Store }) {
       <Field label="Nome da loja" error={state.fieldErrors?.name}>
         <input
           name="name"
-          defaultValue={store.name}
+          defaultValue={state.values?.name ?? store.name}
           required
           maxLength={120}
           className={inputClass}
@@ -68,7 +72,7 @@ export function StoreForm({ store }: { store: Store }) {
       >
         <textarea
           name="description"
-          defaultValue={store.description ?? ""}
+          defaultValue={state.values?.description ?? store.description ?? ""}
           rows={2}
           maxLength={500}
           className={inputClass}
@@ -82,7 +86,7 @@ export function StoreForm({ store }: { store: Store }) {
       >
         <input
           name="whatsapp"
-          defaultValue={formatWhatsapp(store.whatsapp_e164)}
+          defaultValue={state.values?.whatsapp ?? formatWhatsapp(store.whatsapp_e164)}
           required
           inputMode="tel"
           placeholder="(11) 98765-4321"
@@ -90,43 +94,23 @@ export function StoreForm({ store }: { store: Store }) {
         />
       </Field>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Bairro" error={state.fieldErrors?.neighborhood}>
-          <input
-            name="neighborhood"
-            defaultValue={store.neighborhood}
-            required
-            maxLength={80}
-            className={inputClass}
-          />
-        </Field>
-
-        <Field label="Cidade" error={state.fieldErrors?.city}>
-          <input
-            name="city"
-            defaultValue={store.city}
-            required
-            maxLength={80}
-            className={inputClass}
-          />
-        </Field>
-      </div>
-
-      <Field label="Endereço" error={state.fieldErrors?.address}>
-        <input
-          name="address"
-          defaultValue={store.address ?? ""}
-          maxLength={200}
-          placeholder="Rua Aspicuelta, 420"
-          className={inputClass}
-        />
-      </Field>
+      <AddressFields
+        initial={{
+          cep: store.cep ?? "",
+          address: store.address ?? "",
+          neighborhood: store.neighborhood,
+          city: store.city,
+          uf: store.state_uf ?? "",
+          ibge: store.ibge_code ?? "",
+        }}
+        errors={state.fieldErrors}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Tipo de loja" error={state.fieldErrors?.kind}>
           <select
             name="kind"
-            defaultValue={store.kind}
+            defaultValue={state.values?.kind ?? store.kind}
             className={inputClass}
           >
             <option value="food">Comida</option>
@@ -142,7 +126,7 @@ export function StoreForm({ store }: { store: Store }) {
         >
           <input
             name="cuisineTags"
-            defaultValue={store.cuisine_tags.join(", ")}
+            defaultValue={state.values?.cuisineTags ?? store.cuisine_tags.join(", ")}
             placeholder="lanches, hamburguer, porcoes"
             className={inputClass}
           />
@@ -157,7 +141,7 @@ export function StoreForm({ store }: { store: Store }) {
         >
           <input
             name="deliveryFee"
-            defaultValue={centsToInput(store.delivery_fee_cents)}
+            defaultValue={state.values?.deliveryFee ?? centsToInput(store.delivery_fee_cents)}
             inputMode="decimal"
             className={inputClass}
           />
@@ -166,7 +150,7 @@ export function StoreForm({ store }: { store: Store }) {
         <Field label="Pedido mínimo" error={state.fieldErrors?.minOrder}>
           <input
             name="minOrder"
-            defaultValue={centsToInput(store.min_order_cents)}
+            defaultValue={state.values?.minOrder ?? centsToInput(store.min_order_cents)}
             inputMode="decimal"
             className={inputClass}
           />

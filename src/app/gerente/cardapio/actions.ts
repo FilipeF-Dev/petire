@@ -10,6 +10,7 @@ import {
   optionGroupSchema,
   optionSchema,
   productSchema,
+  formValues,
   toFormState,
   uuid,
   type FormState,
@@ -53,7 +54,7 @@ export async function saveCategory(
   if (!session.storeId) return { error: "Sua conta não tem loja." };
 
   const parsed = categorySchema.safeParse({ name: formData.get("name") });
-  if (!parsed.success) return toFormState(parsed.error);
+  if (!parsed.success) return toFormState(parsed.error, formValues(formData));
 
   const supabase = await createClient();
   const categoryId = formData.get("categoryId");
@@ -131,7 +132,7 @@ export async function saveProduct(
     imageUrl: formData.get("imageUrl") ?? "",
     isAvailable: formData.get("isAvailable"),
   });
-  if (!parsed.success) return toFormState(parsed.error);
+  if (!parsed.success) return toFormState(parsed.error, formValues(formData));
 
   const supabase = await createClient();
   const productId = formData.get("productId");
@@ -350,7 +351,7 @@ export async function saveOptionGroup(
     minSelect: formData.get("minSelect") ?? "0",
     maxSelect: formData.get("maxSelect") ?? "1",
   });
-  if (!parsed.success) return toFormState(parsed.error);
+  if (!parsed.success) return toFormState(parsed.error, formValues(formData));
 
   const supabase = await createClient();
   const groupId = formData.get("groupId");
@@ -427,7 +428,7 @@ export async function saveOption(
     name: formData.get("name"),
     priceDelta: formData.get("priceDelta") ?? "",
   });
-  if (!parsed.success) return toFormState(parsed.error);
+  if (!parsed.success) return toFormState(parsed.error, formValues(formData));
 
   const supabase = await createClient();
   const productId = formData.get("productId");

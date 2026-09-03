@@ -140,11 +140,14 @@ src/
     offline/              fallback do service worker
     manifest.ts           manifesto do PWA
     sitemap.ts robots.ts
-  components/ui.tsx       primitivas visuais do painel
+  components/
+    address-fields.tsx    endereço com busca por CEP
+    ui.tsx                primitivas visuais do painel
   lib/
     auth.ts               requireManager / requireAdmin
     env.ts                leitura das variáveis de ambiente
     cart.ts               carrinho no localStorage
+    cep.ts                consulta ao ViaCEP
     money.ts              centavos ↔ texto
     order-message.ts      texto do pedido e link do wa.me
     promotions.ts         preço com desconto aplicado
@@ -196,6 +199,39 @@ dá erro** — o WhatsApp simplesmente abre com o texto cortado e a loja recebe
 meio pedido. Por isso `buildOrderMessage()` monta o texto em três níveis de
 detalhe e usa o mais rico que couber em 1500 caracteres. É o que
 `src/lib/order-message.test.ts` cobre.
+
+## Endereço das lojas
+
+O cliente só acha a loja se o bairro dele e o bairro da loja forem a mesma
+coisa. Com texto livre não são: "Vila Madalena" e "vila madalena" viram dois
+bairros na home, e a busca separa as lojas. São duas defesas, e as duas fazem
+falta.
+
+**Na entrada, o CEP.** `src/lib/cep.ts` consulta o ViaCEP e preenche endereço,
+bairro, cidade, UF e o **código IBGE do município** — que é o identificador
+canônico da cidade e não depende de grafia. Cidade e UF ficam travadas depois
+da consulta.
+
+Cidade pequena tem CEP único e volta **sem bairro e sem logradouro** — e cidade
+pequena é justamente o mercado do Petire. Por isso o bairro continua editável,
+e por isso a segunda defesa não é opcional.
+
+**Na saída, colunas geradas pelo banco.** `city_slug` e `neighborhood_slug` são
+`GENERATED ALWAYS` a partir de `public.slugify()`. O app não tem como esquecer
+de atualizar, nem uma edição no painel do lojista tem como recriar a
+divergência. Filtros, home e sitemap agrupam por esses slugs; o nome exibido é
+a grafia mais usada entre as lojas do bairro (`mode()`).
+
+## Formulários e o reset do React 19
+
+Quando uma Server Action passada em `<form action>` termina, o React reseta os
+campos não-controlados — **inclusive quando ela termina em erro de validação**.
+Sem tratar isso, uma vírgula errada no preço apaga tudo que a pessoa acabou de
+digitar.
+
+Por isso `FormState` carrega `values`: a action devolve o que foi enviado e o
+formulário usa como `defaultValue`. Como o reset leva o campo de volta ao
+`defaultValue`, ele cai exatamente no que a pessoa tinha escrito.
 
 ## Fotos do cardápio
 

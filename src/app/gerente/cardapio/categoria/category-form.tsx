@@ -35,7 +35,7 @@ export function CategoryForm({
         <Field label="Nome da categoria" error={state.fieldErrors?.name}>
           <input
             name="name"
-            defaultValue={category?.name}
+            defaultValue={state.values?.name ?? category?.name}
             required
             maxLength={60}
             autoFocus={!category}

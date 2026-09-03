@@ -422,12 +422,15 @@ export type Database = {
       stores: {
         Row: {
           address: string | null
+          cep: string | null
           city: string
+          city_slug: string | null
           cover_url: string | null
           created_at: string
           cuisine_tags: string[]
           delivery_fee_cents: number
           description: string | null
+          ibge_code: string | null
           id: string
           is_active: boolean
           is_open_manual: boolean | null
@@ -438,7 +441,9 @@ export type Database = {
           min_order_cents: number
           name: string
           neighborhood: string
+          neighborhood_slug: string | null
           slug: string
+          state_uf: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
           subscription_until: string | null
           updated_at: string
@@ -446,12 +451,15 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          cep?: string | null
           city: string
+          city_slug?: string | null
           cover_url?: string | null
           created_at?: string
           cuisine_tags?: string[]
           delivery_fee_cents?: number
           description?: string | null
+          ibge_code?: string | null
           id?: string
           is_active?: boolean
           is_open_manual?: boolean | null
@@ -462,7 +470,9 @@ export type Database = {
           min_order_cents?: number
           name: string
           neighborhood: string
+          neighborhood_slug?: string | null
           slug: string
+          state_uf?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
           subscription_until?: string | null
           updated_at?: string
@@ -470,12 +480,15 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          cep?: string | null
           city?: string
+          city_slug?: string | null
           cover_url?: string | null
           created_at?: string
           cuisine_tags?: string[]
           delivery_fee_cents?: number
           description?: string | null
+          ibge_code?: string | null
           id?: string
           is_active?: boolean
           is_open_manual?: boolean | null
@@ -486,7 +499,9 @@ export type Database = {
           min_order_cents?: number
           name?: string
           neighborhood?: string
+          neighborhood_slug?: string | null
           slug?: string
+          state_uf?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
           subscription_until?: string | null
           updated_at?: string
@@ -499,7 +514,10 @@ export type Database = {
       neighborhoods_public: {
         Row: {
           city: string | null
+          city_slug: string | null
           neighborhood: string | null
+          neighborhood_slug: string | null
+          state_uf: string | null
           store_count: number | null
         }
         Relationships: []
@@ -507,7 +525,9 @@ export type Database = {
       stores_public: {
         Row: {
           address: string | null
+          cep: string | null
           city: string | null
+          city_slug: string | null
           cover_url: string | null
           cuisine_tags: string[] | null
           delivery_fee_cents: number | null
@@ -521,12 +541,16 @@ export type Database = {
           min_order_cents: number | null
           name: string | null
           neighborhood: string | null
+          neighborhood_slug: string | null
           slug: string | null
+          state_uf: string | null
           whatsapp_e164: string | null
         }
         Insert: {
           address?: string | null
+          cep?: string | null
           city?: string | null
+          city_slug?: string | null
           cover_url?: string | null
           cuisine_tags?: string[] | null
           delivery_fee_cents?: number | null
@@ -540,12 +564,16 @@ export type Database = {
           min_order_cents?: number | null
           name?: string | null
           neighborhood?: string | null
+          neighborhood_slug?: string | null
           slug?: string | null
+          state_uf?: string | null
           whatsapp_e164?: string | null
         }
         Update: {
           address?: string | null
+          cep?: string | null
           city?: string | null
+          city_slug?: string | null
           cover_url?: string | null
           cuisine_tags?: string[] | null
           delivery_fee_cents?: number | null
@@ -559,7 +587,9 @@ export type Database = {
           min_order_cents?: number | null
           name?: string | null
           neighborhood?: string | null
+          neighborhood_slug?: string | null
           slug?: string | null
+          state_uf?: string | null
           whatsapp_e164?: string | null
         }
         Relationships: []
@@ -568,6 +598,7 @@ export type Database = {
     Functions: {
       is_admin: { Args: never; Returns: boolean }
       manages_store: { Args: { target: string }; Returns: boolean }
+      slugify: { Args: { input: string }; Returns: string }
       storage_store_id: { Args: { object_name: string }; Returns: string }
       store_is_open: {
         Args: { at_time?: string; target: string }
