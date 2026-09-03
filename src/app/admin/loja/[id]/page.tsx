@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
+import { DeleteStore } from "./delete-store";
 import { EditStoreForm } from "./edit-store-form";
 
 export const metadata: Metadata = {
@@ -22,20 +23,30 @@ export default async function EditarLojaPage({
 
   // Leitura pelo RLS normal: manages_store() é true em qualquer loja para o
   // papel de admin. Só a escrita precisa de service_role.
-  const [storeResult, historyResult] = await Promise.all([
-    supabase
-      .from("stores")
-      .select(
-        "id, slug, name, description, whatsapp_e164, cep, address, city, neighborhood, state_uf, ibge_code, cuisine_tags, kind, delivery_fee_cents, min_order_cents, is_active",
-      )
-      .eq("id", id)
-      .maybeSingle(),
-    supabase
-      .from("store_slug_history")
-      .select("slug, created_at")
-      .eq("store_id", id)
-      .order("created_at", { ascending: false }),
-  ]);
+  const [storeResult, historyResult, productsResult, ordersResult] =
+    await Promise.all([
+      supabase
+        .from("stores")
+        .select(
+          "id, slug, name, description, whatsapp_e164, cep, address, city, neighborhood, state_uf, ibge_code, cuisine_tags, kind, delivery_fee_cents, min_order_cents, is_active",
+        )
+        .eq("id", id)
+        .maybeSingle(),
+      supabase
+        .from("store_slug_history")
+        .select("slug, created_at")
+        .eq("store_id", id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("products")
+        .select("id", { count: "exact", head: true })
+        .eq("store_id", id),
+      supabase
+        .from("events")
+        .select("id", { count: "exact", head: true })
+        .eq("store_id", id)
+        .eq("kind", "whatsapp_click"),
+    ]);
 
   const store = storeResult.data;
   if (!store) notFound();
@@ -72,6 +83,15 @@ export default async function EditarLojaPage({
           </ul>
         </section>
       ) : null}
+
+      <DeleteStore
+        storeId={store.id}
+        slug={store.slug}
+        counts={{
+          products: productsResult.count ?? 0,
+          orders: ordersResult.count ?? 0,
+        }}
+      />
     </div>
   );
 }

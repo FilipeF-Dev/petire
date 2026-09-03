@@ -233,6 +233,23 @@ tabela e `/loja/[slug]` passa a redirecionar permanentemente para o atual em
 vez de dar 404. O apelido novo é removido do histórico na mesma operação —
 sem isso, renomear e voltar atrás criaria um ciclo de redirecionamento.
 
+## Apagar uma loja
+
+`/admin/loja/[id]` tem exclusão, com confirmação por digitação do apelido. O
+botão desabilitado é fricção, não segurança — o servidor confere de novo.
+
+O cascade do banco leva cardápio, opções, promoções, horários, métricas e a
+linha em `managers`. Mas duas coisas ficam fora do alcance dele, e sem elas a
+exclusão seria só parcial:
+
+- o usuário em `auth.users` — o lojista continuaria conseguindo entrar;
+- as fotos no Storage — continuariam ocupando espaço pago, sem nada
+  apontando para elas.
+
+As duas são apagadas explicitamente em `deleteStore()`. Os gerentes precisam
+ser lidos **antes** do delete: depois dele a linha em `managers` já não existe
+e não haveria como achar o usuário de auth.
+
 ## Formulários e o reset do React 19
 
 Quando uma Server Action passada em `<form action>` termina, o React reseta os

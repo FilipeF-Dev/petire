@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -247,6 +248,100 @@ export async function updateStore(
 
   refreshStorefront(newSlug);
   return { error: null, savedAt: Date.now() };
+}
+
+/**
+ * Lista tudo que está sob um prefixo no bucket.
+ *
+ * O `list` do Storage não é recursivo, e as fotos ficam em
+ * `<store_id>/produtos/...`. Sem descer um nível, os arquivos ficariam órfãos
+ * ocupando espaço pago, sem nada apontando para eles.
+ */
+async function listStorageFiles(
+  admin: ReturnType<typeof createAdminClient>,
+  prefix: string,
+): Promise<string[]> {
+  const { data } = await admin.storage
+    .from("store-images")
+    .list(prefix, { limit: 1000 });
+
+  const paths: string[] = [];
+  for (const entry of data ?? []) {
+    const full = `${prefix}/${entry.name}`;
+    // Pasta vem sem id.
+    if (entry.id === null) paths.push(...(await listStorageFiles(admin, full)));
+    else paths.push(full);
+  }
+  return paths;
+}
+
+/**
+ * Apaga a loja inteira.
+ *
+ * O cascade do banco leva cardápio, opções, promoções, horários, métricas e a
+ * linha de gerente. Mas duas coisas ficam fora do alcance dele e precisam ser
+ * apagadas à mão, senão a exclusão é só parcial:
+ *
+ *   - o usuário em `auth.users`, que continuaria conseguindo entrar;
+ *   - as fotos no Storage, que continuariam ocupando espaço pago.
+ */
+export async function deleteStore(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+
+  const storeId = uuid.safeParse(formData.get("storeId"));
+  if (!storeId.success) return { error: "Loja inválida." };
+
+  const admin = createAdminClient();
+
+  const { data: store } = await admin
+    .from("stores")
+    .select("slug, name")
+    .eq("id", storeId.data)
+    .maybeSingle();
+
+  if (!store) return { error: "Loja não encontrada." };
+
+  // Confirmação conferida no servidor também: o botão desabilitado na tela é
+  // conveniência, não barreira.
+  const confirmation = String(formData.get("confirm") ?? "").trim();
+  if (confirmation !== store.slug) {
+    return {
+      error: null,
+      fieldErrors: {
+        confirm: `Digite exatamente "${store.slug}" para confirmar.`,
+      },
+    };
+  }
+
+  // Os gerentes precisam ser lidos antes: o cascade apaga a linha em
+  // `managers` e depois não haveria como achar o usuário de auth.
+  const { data: managers } = await admin
+    .from("managers")
+    .select("id")
+    .eq("store_id", storeId.data)
+    .eq("role", "manager");
+
+  const files = await listStorageFiles(admin, storeId.data);
+  if (files.length > 0) {
+    await admin.storage.from("store-images").remove(files);
+  }
+
+  const { error } = await admin
+    .from("stores")
+    .delete()
+    .eq("id", storeId.data);
+
+  if (error) return { error: "Não foi possível apagar a loja." };
+
+  for (const manager of managers ?? []) {
+    await admin.auth.admin.deleteUser(manager.id);
+  }
+
+  refreshStorefront(store.slug);
+  redirect("/admin");
 }
 
 export async function setStoreActive(formData: FormData): Promise<void> {
