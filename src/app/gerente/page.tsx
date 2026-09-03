@@ -41,7 +41,7 @@ export default async function GerentePage() {
       supabase
         .from("stores")
         .select(
-          "name, slug, neighborhood, city, logo_url, cuisine_tags, delivery_fee_cents, subscription_status, subscription_until, is_active",
+          "name, slug, neighborhood, city, logo_url, cuisine_tags, delivery_fee_cents, delivery_minutes, subscription_status, subscription_until, is_active",
         )
         .eq("id", session.storeId)
         .single(),
@@ -86,6 +86,12 @@ export default async function GerentePage() {
       done: (hours.count ?? 0) > 0,
       label: "Cadastrar os horários",
       hint: "É o que abre e fecha a loja sozinho, todo dia.",
+      href: "/gerente/loja",
+    },
+    {
+      done: store.data.delivery_minutes !== null,
+      label: "Informar o tempo de entrega",
+      hint: "É a pergunta que o cliente faz antes de pedir.",
       href: "/gerente/loja",
     },
     {
