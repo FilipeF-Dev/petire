@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 
 import { AddressFields } from "@/components/address-fields";
 import { Button, Field, FormError, inputClass } from "@/components/ui";
+import { siteHost } from "@/lib/site";
 import { emptyFormState } from "@/lib/validation";
 
 import { updateStore } from "../../actions";
@@ -80,7 +81,7 @@ export function EditStoreForm({ store }: { store: Store }) {
       >
         <div className="flex items-center gap-1 rounded-lg border border-neutral-300 px-3 focus-within:border-neutral-900 dark:border-neutral-700 dark:focus-within:border-neutral-300">
           <span className="shrink-0 text-sm text-neutral-500 dark:text-neutral-400">
-            /loja/
+            {siteHost}/loja/
           </span>
           <input
             name="slug"
