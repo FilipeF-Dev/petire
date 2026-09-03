@@ -419,6 +419,39 @@ export type Database = {
           },
         ]
       }
+      store_slug_history: {
+        Row: {
+          created_at: string
+          slug: string
+          store_id: string
+        }
+        Insert: {
+          created_at?: string
+          slug: string
+          store_id: string
+        }
+        Update: {
+          created_at?: string
+          slug?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_slug_history_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_slug_history_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stores: {
         Row: {
           address: string | null

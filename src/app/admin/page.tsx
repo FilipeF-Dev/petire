@@ -133,20 +133,26 @@ export default async function AdminPage() {
                       ) : null}
                     </div>
 
-                    <form action={setStoreActive} className="shrink-0">
-                      <input type="hidden" name="storeId" value={store.id} />
-                      <input
-                        type="hidden"
-                        name="isActive"
-                        value={String(!store.is_active)}
-                      />
-                      <Button
-                        type="submit"
-                        variant={store.is_active ? "secondary" : "primary"}
-                      >
-                        {store.is_active ? "Tirar do ar" : "Colocar no ar"}
-                      </Button>
-                    </form>
+                    <div className="flex shrink-0 gap-2">
+                      <Link href={`/admin/loja/${store.id}`}>
+                        <Button variant="secondary">Editar</Button>
+                      </Link>
+
+                      <form action={setStoreActive}>
+                        <input type="hidden" name="storeId" value={store.id} />
+                        <input
+                          type="hidden"
+                          name="isActive"
+                          value={String(!store.is_active)}
+                        />
+                        <Button
+                          type="submit"
+                          variant={store.is_active ? "secondary" : "primary"}
+                        >
+                          {store.is_active ? "Tirar do ar" : "Colocar no ar"}
+                        </Button>
+                      </form>
+                    </div>
                   </div>
 
                   <div className="mt-4 flex flex-col gap-3 border-t border-neutral-200 pt-4 dark:border-neutral-800">

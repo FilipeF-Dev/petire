@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  editStoreSchema,
   newStoreSchema,
   slugify,
   subscriptionSchema,
@@ -155,6 +156,97 @@ export async function createStore(
     savedAt: Date.now(),
     created: { email: data.managerEmail, password, slug: store.slug },
   };
+}
+
+export async function updateStore(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+
+  const storeId = uuid.safeParse(formData.get("storeId"));
+  if (!storeId.success) return { error: "Loja inválida." };
+
+  const parsed = editStoreSchema.safeParse({
+    name: formData.get("name"),
+    slug: formData.get("slug") ?? "",
+    description: formData.get("description") ?? "",
+    cep: formData.get("cep") ?? "",
+    stateUf: formData.get("stateUf") ?? "",
+    ibgeCode: formData.get("ibgeCode") ?? "",
+    address: formData.get("address") ?? "",
+    city: formData.get("city"),
+    neighborhood: formData.get("neighborhood"),
+    whatsapp: formData.get("whatsapp") ?? "",
+    kind: formData.get("kind"),
+    cuisineTags: formData.get("cuisineTags") ?? "",
+    deliveryFee: formData.get("deliveryFee") ?? "0",
+    minOrder: formData.get("minOrder") ?? "0",
+  });
+  if (!parsed.success) return toFormState(parsed.error, formValues(formData));
+
+  const data = parsed.data;
+  const newSlug = data.slug!;
+  const admin = createAdminClient();
+
+  const { data: current } = await admin
+    .from("stores")
+    .select("slug")
+    .eq("id", storeId.data)
+    .maybeSingle();
+
+  if (!current) return { error: "Loja não encontrada." };
+
+  const { error } = await admin
+    .from("stores")
+    .update({
+      slug: newSlug,
+      name: data.name,
+      description: data.description,
+      cep: data.cep,
+      state_uf: data.stateUf,
+      ibge_code: data.ibgeCode,
+      address: data.address,
+      city: data.city,
+      neighborhood: data.neighborhood,
+      whatsapp_e164: data.whatsapp,
+      kind: data.kind,
+      cuisine_tags: data.cuisineTags,
+      delivery_fee_cents: data.deliveryFee,
+      min_order_cents: data.minOrder,
+    })
+    .eq("id", storeId.data);
+
+  if (error) {
+    return {
+      error:
+        error.code === "23505"
+          ? "Já existe outra loja com esse apelido."
+          : "Não foi possível salvar a loja.",
+      values: formValues(formData),
+    };
+  }
+
+  if (current.slug !== newSlug) {
+    // O apelido novo pode ter pertencido a alguém antes; ele agora é de uma
+    // loja viva, então sai do histórico para não virar um redirecionamento
+    // circular.
+    await admin.from("store_slug_history").delete().eq("slug", newSlug);
+
+    // O antigo passa a redirecionar. É o que segura os links que o cliente
+    // salvou e o que o Google já indexou.
+    await admin
+      .from("store_slug_history")
+      .upsert(
+        { slug: current.slug, store_id: storeId.data },
+        { onConflict: "slug" },
+      );
+
+    revalidatePath(`/loja/${current.slug}`);
+  }
+
+  refreshStorefront(newSlug);
+  return { error: null, savedAt: Date.now() };
 }
 
 export async function setStoreActive(formData: FormData): Promise<void> {

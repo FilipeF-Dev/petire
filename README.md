@@ -131,7 +131,7 @@ src/
       lojas/              lista com filtros
       loja/[slug]/        cardápio — a página de SEO
       carrinho/           carrinho multi-loja e envio
-    admin/                cadastro de lojas e assinaturas
+    admin/                cadastro, edição e assinatura das lojas
     entrar/               login do lojista
     gerente/              painel (protegido)
       cardapio/           categorias, itens, opções, fotos
@@ -221,6 +221,17 @@ e por isso a segunda defesa não é opcional.
 de atualizar, nem uma edição no painel do lojista tem como recriar a
 divergência. Filtros, home e sitemap agrupam por esses slugs; o nome exibido é
 a grafia mais usada entre as lojas do bairro (`mode()`).
+
+## Trocar o apelido de uma loja
+
+O admin edita a loja em `/admin/loja/[id]`, inclusive o apelido (slug). Só que
+o slug é a URL pública: é o que o Google indexou e o link que o cliente salvou
+no WhatsApp. Trocar sem mais nada transforma os dois em 404 silencioso.
+
+Por isso existe `store_slug_history`. Ao trocar, o apelido antigo entra na
+tabela e `/loja/[slug]` passa a redirecionar permanentemente para o atual em
+vez de dar 404. O apelido novo é removido do histórico na mesma operação —
+sem isso, renomear e voltar atrás criaria um ciclo de redirecionamento.
 
 ## Formulários e o reset do React 19
 

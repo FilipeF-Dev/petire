@@ -313,6 +313,29 @@ export const newStoreSchema = z.object({
     .max(365, "Máximo de 365 dias."),
 });
 
+/** Edição pelo admin: os mesmos campos da criação, menos o login do lojista. */
+export const editStoreSchema = newStoreSchema
+  .omit({ managerEmail: true, trialDays: true })
+  .extend({
+    // Na edição o apelido é obrigatório — deixar em branco apagaria a URL.
+    slug: newStoreSchema.shape.slug.refine(
+      (value) => value !== null,
+      "Informe o apelido da loja.",
+    ),
+    description: optionalText(500),
+    cuisineTags: z
+      .string()
+      .transform((value) =>
+        value
+          .split(",")
+          .map((tag) => tag.trim().toLowerCase())
+          .filter(Boolean)
+          .slice(0, 10),
+      ),
+    deliveryFee: money("Taxa de entrega"),
+    minOrder: money("Pedido mínimo"),
+  });
+
 export const subscriptionSchema = z.object({
   storeId: uuid,
   status: z.enum(["trial", "active", "past_due", "suspended"]),

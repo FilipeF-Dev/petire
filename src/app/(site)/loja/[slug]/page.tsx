@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { siteUrl } from "@/lib/env";
 import { formatCents } from "@/lib/money";
@@ -10,7 +10,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { hhmm, SCHEMA_WEEKDAYS, WEEKDAYS } from "@/lib/weekdays";
 
 import { CartBar } from "./cart-bar";
-import { getStorePage, type StorePage } from "./data";
+import { findRenamedStore, getStorePage, type StorePage } from "./data";
 import { MenuItem } from "./menu-item";
 import { TrackStoreView } from "./track-view";
 
@@ -87,7 +87,13 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
   const { slug } = await params;
   const page = await getStorePage(slug);
 
-  if (!page) notFound();
+  if (!page) {
+    // Pode ser um apelido antigo desta loja: o cliente salvou o link e o
+    // Google indexou. Redireciona em vez de dar 404.
+    const current = await findRenamedStore(slug);
+    if (current) permanentRedirect(`/loja/${current}`);
+    notFound();
+  }
 
   const { store, categories, products, hours, promotions } = page;
 

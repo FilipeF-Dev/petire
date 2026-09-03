@@ -62,3 +62,21 @@ export const getStorePage = cache(async (slug: string) => {
 });
 
 export type StorePage = NonNullable<Awaited<ReturnType<typeof getStorePage>>>;
+
+/**
+ * Para onde um apelido antigo aponta hoje.
+ *
+ * O admin pode trocar o apelido da loja, e o antigo é o link que o cliente
+ * salvou e o que o Google indexou. Devolver 404 seria perder os dois.
+ */
+export const findRenamedStore = cache(async (oldSlug: string) => {
+  const supabase = createPublicClient();
+
+  const { data } = await supabase
+    .from("store_slug_history")
+    .select("stores(slug)")
+    .eq("slug", oldSlug)
+    .maybeSingle();
+
+  return data?.stores?.slug ?? null;
+});
