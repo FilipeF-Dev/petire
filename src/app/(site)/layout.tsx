@@ -37,9 +37,17 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
       <footer className="border-t border-neutral-200 dark:border-neutral-800">
         <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-xs text-neutral-500 sm:px-6 dark:text-neutral-400">
           <p>Petire · peça direto da loja, sem taxa de serviço.</p>
-          <Link href="/entrar" className="underline-offset-4 hover:underline">
-            Sou lojista
-          </Link>
+          <span className="flex gap-4">
+            <Link
+              href="/cadastrar"
+              className="underline-offset-4 hover:underline"
+            >
+              Cadastrar minha loja
+            </Link>
+            <Link href="/entrar" className="underline-offset-4 hover:underline">
+              Sou lojista
+            </Link>
+          </span>
         </div>
       </footer>
     </div>

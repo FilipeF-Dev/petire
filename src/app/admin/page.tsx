@@ -3,12 +3,14 @@ import Link from "next/link";
 
 import { Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
+import { daysSince, lastEditedAt, STALE_DAYS } from "@/lib/freshness";
 import { daysUntil, STATUS_LABEL } from "@/lib/subscription";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 import { setStoreActive } from "./actions";
 import { DemandSignals } from "./demand";
-import { ResetPassword, SubscriptionForm } from "./store-controls";
+import { PlanForm, ResetPassword, SubscriptionForm } from "./store-controls";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -17,6 +19,10 @@ export const metadata: Metadata = {
 
 // Os rótulos e a conta de dias moram em src/lib/subscription.ts: o admin e o
 // painel do lojista precisam dizer a mesma coisa sobre a mesma loja.
+
+// A régua do cardápio parado mora em src/lib/freshness.ts: o admin vê para
+// saber com quem falar, e o lojista vê para agir antes de alguém precisar
+// falar com ele — os dois lados medem a mesma coisa.
 
 export default async function AdminPage() {
   await requireAdmin();
@@ -28,13 +34,23 @@ export default async function AdminPage() {
     supabase
       .from("stores")
       .select(
-        "id, slug, name, city, neighborhood, is_active, subscription_status, subscription_until, created_at",
+        "id, slug, name, city, neighborhood, is_active, plan, subscription_status, subscription_until, created_at",
       )
       .order("created_at", { ascending: false }),
     supabase.from("managers").select("id, store_id, email").eq("role", "manager"),
-    supabase.from("products").select("store_id, is_available"),
+    // updated_at alimenta o sinal de frescor: cardápio parado é o risco número
+    // dois do próprio MVP, e até aqui nada envelhecia sozinho.
+    supabase.from("products").select("store_id, is_available, updated_at"),
   ]);
 
+  // A fila mora atrás de service_role: `store_applications` não tem policy,
+  // porque carrega e-mail e telefone de quem se candidatou.
+  const { count: pendingCount } = await createAdminClient()
+    .from("store_applications")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending");
+
+  const pending = pendingCount ?? 0;
   const stores = storesResult.data ?? [];
   const managers = managersResult.data ?? [];
   const products = productsResult.data ?? [];
@@ -49,9 +65,20 @@ export default async function AdminPage() {
         title="Lojas"
         description={`${stores.length} cadastradas · ${live} no ar`}
         action={
-          <Link href="/admin/nova-loja">
-            <Button>Nova loja</Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* A fila só aparece quando tem gente nela: um link permanente
+                marcando zero ensina a não olhar. */}
+            {pending > 0 ? (
+              <Link href="/admin/pedidos">
+                <Button variant="secondary">
+                  {pending} {pending === 1 ? "pedido" : "pedidos"} na fila
+                </Button>
+              </Link>
+            ) : null}
+            <Link href="/admin/nova-loja">
+              <Button>Nova loja</Button>
+            </Link>
+          </div>
         }
       />
 
@@ -75,6 +102,7 @@ export default async function AdminPage() {
             const manager = managers.find((m) => m.store_id === store.id);
             const items = products.filter((p) => p.store_id === store.id);
             const available = items.filter((p) => p.is_available).length;
+            const stale = daysSince(lastEditedAt(items));
             const remaining = daysUntil(store.subscription_until);
             const isLive =
               store.is_active && store.subscription_status !== "suspended";
@@ -126,6 +154,11 @@ export default async function AdminPage() {
                           Sem cardápio. Colocar no ar assim atrapalha mais do
                           que ajuda.
                         </p>
+                      ) : stale !== null && stale >= STALE_DAYS ? (
+                        <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
+                          Cardápio parado há {stale} dias. Vale conferir se
+                          preço e horário ainda valem.
+                        </p>
                       ) : null}
                     </div>
 
@@ -157,6 +190,7 @@ export default async function AdminPage() {
                       status={store.subscription_status}
                       until={store.subscription_until}
                     />
+                    <PlanForm storeId={store.id} plan={store.plan} />
                     {manager ? <ResetPassword managerId={manager.id} /> : null}
                   </div>
                 </Card>

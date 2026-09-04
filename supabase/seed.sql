@@ -271,6 +271,27 @@ from (
 cross join lateral generate_series(1, greatest(1, 12 - p.rank * 2));
 
 -- ----------------------------------------------------------------------------
+-- Uma loja esperando na fila, para o /admin/pedidos ter o que mostrar.
+-- ----------------------------------------------------------------------------
+
+insert into public.store_applications
+  (store_name, manager_email, whatsapp_e164, cep, address, city, neighborhood,
+   state_uf, ibge_code, kind, note)
+values (
+  'Pizzaria da Praça',
+  'pizzaria@petire.local',
+  '5511912345678',
+  '05433010',
+  'Rua Aspicuelta, 900',
+  'São Paulo',
+  'Vila Madalena',
+  'SP',
+  '3550308',
+  'food',
+  'Abrimos de terça a domingo, das 18h à meia-noite. Meu cardápio está em foto, dá para mandar por WhatsApp?'
+);
+
+-- ----------------------------------------------------------------------------
 -- Um pagamento já registrado, para o histórico da assinatura não nascer vazio.
 -- ----------------------------------------------------------------------------
 

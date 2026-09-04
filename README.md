@@ -133,15 +133,19 @@ src/
       loja/[slug]/        cardápio — a página de SEO
         menu-browser.tsx  índice de categorias e busca no cardápio
       carrinho/           carrinho multi-loja e envio
+      cadastrar/          autocadastro da loja, público
     admin/                cadastro, edição e assinatura das lojas
       demand.tsx          demanda não atendida e lojas indicadas
       loja/[id]/payments.tsx  registro da mensalidade e histórico
+      pedidos/            fila de aprovação das candidaturas
     entrar/               login do lojista
     gerente/              painel (protegido)
       cardapio/           categorias, itens, opções, fotos
         importar/         cardápio colado como texto
       promocoes/          descontos por item ou no cardápio todo
       divulgar/           link, mensagem pronta e cartaz com QR
+      relatorio/          o mês fechado, para guardar (plano Plus)
+      equipe/             acessos da loja (plano Plus)
       loja/               dados, horários, abrir/fechar
     api/events/           gravação de métricas
     api/demand/           demanda que o catálogo não atendeu
@@ -163,6 +167,7 @@ src/
     customer-contact.ts   nome e número de quem recebe, só no browser dele
     customer-location.ts  CEP do cliente, só no browser dele
     delivery.ts           tempo de entrega, do jeito que o cliente lê
+    freshness.ts          há quanto tempo ninguém mexe no cardápio
     opening.ts            quando a loja fechada volta a abrir
     slug.ts               normalização, gêmea da do banco
     money.ts              centavos ↔ texto
@@ -424,6 +429,91 @@ WhatsApp) e não escreve nada: assinatura nunca foi editável por ele.
 
 `subscriptionNotice()` avisa antes. Quem descobre que venceu porque a loja sumiu
 do catálogo já perdeu os pedidos do dia.
+
+## Como uma loja entra
+
+Cadastrar loja era trabalho do admin: pedir os dados por WhatsApp, digitar tudo,
+devolver a senha. Funciona nas dez primeiras e vira o gargalo do go-to-market
+por volta da trigésima — e é trabalho do fundador, não do produto.
+
+`/cadastrar` é público e indexável: "colocar meu cardápio online" é coisa que
+lojista procura no Google, e busca é o canal gratuito do Petire dos dois lados
+do balcão. O que muda é **quem digita**, não quem aprova.
+
+Duas coisas continuam do outro lado da aprovação, de propósito:
+
+- **a conta de acesso.** Formulário aberto criando usuário de auth é convite a
+  robô, e a senha inicial precisa chegar a uma pessoa de verdade;
+- **a loja no ar.** Ela nasce fora do ar de qualquer jeito, e quem confere o
+  cardápio é o admin.
+
+Por isso `store_applications` é uma tabela à parte e não uma loja com mais um
+status: uma linha ali não é uma loja, é um pedido para virar uma. Aprovar chama
+`provisionStore()` — a mesma sequência do cadastro manual, extraída justamente
+para não existirem duas cópias dela.
+
+**A senha aparece uma vez só, e isso restringe o que a aprovação pode
+revalidar.** `revalidatePath` limpa o cache de rota do cliente e faz a página
+atual buscar de novo; na fila, isso remonta a lista sem o pedido aprovado e
+desmonta o card que está mostrando a senha. Por isso `provisionStore()` não
+revalida nada — e não precisa: a loja nasce fora do ar, então nenhuma página
+pública muda.
+
+## Cardápio que envelhece
+
+Cardápio desatualizado é o risco número dois do próprio MVP, e a mitigação era
+"esgotado em um toque" — que depende de o lojista lembrar. Nada envelhecia
+sozinho: uma loja abandonada seguia no ar com preço de seis meses atrás, e quem
+descobria era o cliente, no meio do pedido.
+
+`src/lib/freshness.ts` mede a última edição pelo `max(products.updated_at)`, que
+já existia por causa do trigger. Os dois lados usam a mesma régua: o admin vê
+para saber com quem falar, o lojista vê para agir antes de alguém precisar falar
+com ele.
+
+## Degraus de plano
+
+O plano abre **recurso**, nunca desconta comissão — comissão zero é a razão de a
+loja estar aqui, e cobrar mais de quem vende mais seria comissão com outro nome.
+Hoje o Plus abre dois: mais de um acesso (`/gerente/equipe`) e o relatório do mês
+fechado (`/gerente/relatorio`).
+
+Nada disso toca a vitrine. O cliente não vê plano nenhum e a ordem da lista
+continua sendo por distância — vender posição gastaria a confiança que traz o
+cliente de volta, que é o ativo mais caro do produto.
+
+`stores.plan` fica fora de `stores_public` e fora do `GRANT UPDATE` do gerente,
+pelo mesmo motivo de `subscription_status`: quem muda o plano é quem cobra por
+ele. O teto de logins vem de `store_manager_limit()`, no banco, para valer mesmo
+se amanhã alguém escrever outra tela que crie gerente.
+
+Os itens **Equipe** e **Relatório** aparecem no menu para todo mundo, inclusive
+no plano que não os abre. Um item que some do menu não é uma oferta, é uma
+dúvida; a página é que explica o degrau.
+
+O relatório é por mês do calendário, e é por isso que `store_metrics_between()`
+existe: nenhuma quantidade de dias corridos responde "agosto", porque agosto tem
+31 e fevereiro tem 28. As janelas deslizantes do painel foram reescritas em cima
+dela, para não haver duas contagens capazes de divergir.
+
+## Quantos pedidos realmente chegaram
+
+`whatsapp_click` mede intenção. O rótulo do painel já diz isso — mas isso resolve
+a honestidade, não a pergunta: na renovação, o lojista responde "mas eu não
+recebi 84".
+
+Quem sabe é ele. Uma vez por semana o painel pergunta quantos chegaram, sobre a
+semana que acabou de fechar (um mês depois ninguém lembra), e a razão entre as
+duas contagens vira a taxa que faltava.
+
+É a única coisa que o gerente escreve sobre as próprias métricas, e por isso o
+denominador não passa pelo formulário: `opened` é preenchido por trigger a
+partir dos eventos, e a coluna nem está no `GRANT INSERT` dele. Ele informa o
+numerador; o sistema informa o resto. Também não há policy de update — uma
+confirmação é registro do que aconteceu, não um número ajustável depois.
+
+A pergunta não aparece quando não saiu pedido nenhum: aí não há o que calibrar,
+e ela só serviria para lembrar o lojista de que a semana foi fraca.
 
 ## Trocar o apelido de uma loja
 

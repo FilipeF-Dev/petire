@@ -105,12 +105,17 @@ export default async function HomePage() {
           Sem comissão por pedido: mensalidade fixa, e o cliente fala direto
           com você.
         </p>
-        <Link
-          href="/entrar"
-          className="mt-3 inline-block text-sm underline underline-offset-4"
-        >
-          Entrar no painel do lojista
-        </Link>
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+          <Link href="/cadastrar" className="underline underline-offset-4">
+            Cadastrar minha loja
+          </Link>
+          <Link
+            href="/entrar"
+            className="text-neutral-500 underline-offset-4 hover:underline dark:text-neutral-400"
+          >
+            já tenho conta
+          </Link>
+        </div>
       </section>
     </div>
   );
