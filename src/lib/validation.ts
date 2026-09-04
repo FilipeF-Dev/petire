@@ -441,6 +441,54 @@ export const subscriptionSchema = z.object({
     ),
 });
 
+/**
+ * A loja que o cliente queria ter encontrado.
+ *
+ * Vem de um formulário público, então o lugar chega como slug num campo oculto
+ * — que é editável por quem quiser. O formato é conferido aqui; conteúdo
+ * inventado no máximo suja a fila de prospecção, que é lida por uma pessoa.
+ */
+const optionalSlug = z
+  .string()
+  .trim()
+  .transform((value) => (value === "" ? null : value))
+  .refine(
+    (value) => value === null || /^[a-z0-9-]{1,120}$/.test(value),
+    "Lugar inválido.",
+  );
+
+export const suggestionSchema = z.object({
+  storeName: z
+    .string()
+    .trim()
+    .min(2, "Diga o nome da loja.")
+    .max(80, "Máximo de 80 caracteres."),
+  contact: z.string().trim().max(80, "Máximo de 80 caracteres.").optional(),
+  citySlug: optionalSlug,
+  neighborhoodSlug: optionalSlug,
+});
+
+/**
+ * Registro de um pagamento de mensalidade.
+ *
+ * `coversUntil` é o novo vencimento da loja: registrar o pagamento e mover a
+ * data são a mesma operação, senão o admin faz metade e esquece a outra — e a
+ * loja some do catálogo com a mensalidade paga.
+ */
+export const paymentSchema = z.object({
+  storeId: uuid,
+  amount: money("Valor"),
+  paidOn: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida."),
+  coversUntil: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida."),
+  note: z.string().trim().max(200, "Máximo de 200 caracteres.").optional(),
+});
+
 // -----------------------------------------------------------------------------
 // Horário
 // -----------------------------------------------------------------------------

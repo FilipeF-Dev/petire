@@ -288,6 +288,7 @@ export type Database = {
           image_url: string | null
           is_available: boolean
           name: string
+          name_slug: string | null
           price_cents: number
           sort_order: number
           store_id: string
@@ -301,6 +302,7 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean
           name: string
+          name_slug?: string | null
           price_cents: number
           sort_order?: number
           store_id: string
@@ -314,6 +316,7 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean
           name?: string
+          name_slug?: string | null
           price_cents?: number
           sort_order?: number
           store_id?: string
@@ -479,6 +482,33 @@ export type Database = {
           },
         ]
       }
+      store_suggestions: {
+        Row: {
+          city_slug: string | null
+          contact: string | null
+          created_at: string
+          id: number
+          neighborhood_slug: string | null
+          store_name: string
+        }
+        Insert: {
+          city_slug?: string | null
+          contact?: string | null
+          created_at?: string
+          id?: never
+          neighborhood_slug?: string | null
+          store_name: string
+        }
+        Update: {
+          city_slug?: string | null
+          contact?: string | null
+          created_at?: string
+          id?: never
+          neighborhood_slug?: string | null
+          store_name?: string
+        }
+        Relationships: []
+      }
       stores: {
         Row: {
           address: string | null
@@ -501,6 +531,7 @@ export type Database = {
           logo_url: string | null
           min_order_cents: number
           name: string
+          name_slug: string | null
           neighborhood: string
           neighborhood_slug: string | null
           slug: string
@@ -531,6 +562,7 @@ export type Database = {
           logo_url?: string | null
           min_order_cents?: number
           name: string
+          name_slug?: string | null
           neighborhood: string
           neighborhood_slug?: string | null
           slug: string
@@ -561,6 +593,7 @@ export type Database = {
           logo_url?: string | null
           min_order_cents?: number
           name?: string
+          name_slug?: string | null
           neighborhood?: string
           neighborhood_slug?: string | null
           slug?: string
@@ -571,6 +604,51 @@ export type Database = {
           whatsapp_e164?: string
         }
         Relationships: []
+      }
+      subscription_payments: {
+        Row: {
+          amount_cents: number
+          covers_until: string
+          created_at: string
+          id: number
+          note: string | null
+          paid_on: string
+          store_id: string
+        }
+        Insert: {
+          amount_cents: number
+          covers_until: string
+          created_at?: string
+          id?: never
+          note?: string | null
+          paid_on?: string
+          store_id: string
+        }
+        Update: {
+          amount_cents?: number
+          covers_until?: string
+          created_at?: string
+          id?: never
+          note?: string | null
+          paid_on?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_payments_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_payments_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -605,6 +683,7 @@ export type Database = {
           logo_url: string | null
           min_order_cents: number | null
           name: string | null
+          name_slug: string | null
           neighborhood: string | null
           neighborhood_slug: string | null
           slug: string | null
@@ -630,6 +709,7 @@ export type Database = {
           logo_url?: string | null
           min_order_cents?: number | null
           name?: string | null
+          name_slug?: string | null
           neighborhood?: string | null
           neighborhood_slug?: string | null
           slug?: string | null
@@ -655,6 +735,7 @@ export type Database = {
           logo_url?: string | null
           min_order_cents?: number | null
           name?: string | null
+          name_slug?: string | null
           neighborhood?: string | null
           neighborhood_slug?: string | null
           slug?: string | null
@@ -688,6 +769,14 @@ export type Database = {
           cart_adds: number
           store_views: number
           whatsapp_clicks: number
+        }[]
+      }
+      store_top_products: {
+        Args: { max_rows?: number; target: string; window_days?: number }
+        Returns: {
+          adds: number
+          name: string
+          product_id: string
         }[]
       }
     }

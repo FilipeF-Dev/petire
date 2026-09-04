@@ -40,6 +40,13 @@ export type ResolvedLine = {
   /** Preço de tabela, presente só quando há promoção. */
   originalUnitCents: number | null;
   options: { groupName: string; name: string; priceDeltaCents: number }[];
+  /**
+   * Os ids das opções que valeram — as que esgotaram já saíram daqui.
+   *
+   * É o que permite guardar o pedido para repetir depois (ver
+   * src/lib/recent-orders.ts) sem ter de reabrir o item e remarcar tudo.
+   */
+  optionIds: string[];
   note: string | null;
 };
 
@@ -150,6 +157,7 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
             line.optionIds.includes(option.id) && option.is_available,
         )
         .map((option) => ({
+          id: option.id,
           groupName: group.name,
           name: option.name,
           priceDeltaCents: option.price_delta_cents,
@@ -180,7 +188,12 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
         totalCents: unitCents * line.quantity,
         originalUnitCents:
           base.originalCents === null ? null : base.originalCents + extras,
-        options: chosen,
+        options: chosen.map(({ groupName, name, priceDeltaCents }) => ({
+          groupName,
+          name,
+          priceDeltaCents,
+        })),
+        optionIds: chosen.map((option) => option.id),
         note: line.note,
       },
     ]);

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { InstallPrompt } from "@/components/install-prompt";
 import { LocationHero } from "@/components/location-bar";
 import { OrderAgain } from "@/components/order-again";
 import { viewRows, type PublicPlace } from "@/lib/storefront";
@@ -41,6 +42,9 @@ export default async function HomePage() {
         cliente depois da hidratação, e some para quem nunca pediu.
       */}
       <OrderAgain />
+
+      {/* Só para quem já pediu: o valor precisa vir antes do convite. */}
+      <InstallPrompt />
 
       {/*
         A lista de bairros deixou de ser a porta de entrada — o CEP faz o que

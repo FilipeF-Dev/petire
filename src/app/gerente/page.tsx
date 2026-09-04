@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui";
 import { requireManager } from "@/lib/auth";
 import { formatCents } from "@/lib/money";
+import { subscriptionNotice } from "@/lib/subscription";
 import { createClient } from "@/lib/supabase/server";
 
 import { FirstSteps, type Step } from "./first-steps";
@@ -14,11 +15,67 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+/**
+ * A variação contra os 30 dias anteriores.
+ *
+ * Número solto não é acionável: "18 pedidos" não diz se o mês foi bom. O que
+ * o lojista precisa saber é se está subindo ou caindo, porque é isso que
+ * decide se ele divulga mais ou se procura o Petire para reclamar.
+ *
+ * Sem base de comparação não se inventa uma: a loja no primeiro mês não tem
+ * "mês anterior", e uma seta verde saindo do zero prometeria um crescimento
+ * que é só a estreia.
+ */
+function Delta({ current, previous }: { current: number; previous: number }) {
+  if (previous === 0) return null;
+
+  const change = Math.round(((current - previous) / previous) * 100);
+
+  if (change === 0) {
+    return (
+      <span className="text-neutral-500 dark:text-neutral-400">
+        igual aos 30 dias anteriores
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={
+        change > 0
+          ? "text-green-700 dark:text-green-400"
+          : "text-amber-700 dark:text-amber-400"
+      }
+    >
+      {change > 0 ? "↑" : "↓"} {Math.abs(change)}% vs. 30 dias anteriores
+    </span>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  hint,
+  current,
+  previous,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  current?: number;
+  previous?: number;
+}) {
   return (
     <div className="rounded-xl border border-neutral-200 bg-surface p-4 dark:border-neutral-800">
       <p className="text-xs text-neutral-500 dark:text-neutral-400">{label}</p>
       <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+
+      {current !== undefined && previous !== undefined ? (
+        <p className="mt-1 text-xs">
+          <Delta current={current} previous={previous} />
+        </p>
+      ) : null}
+
       {hint ? (
         <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{hint}</p>
       ) : null}
@@ -36,8 +93,17 @@ export default async function GerentePage() {
 
   const supabase = await createClient();
 
-  const [store, products, allProducts, hours, metrics, isOpen] =
-    await Promise.all([
+  const [
+    store,
+    products,
+    allProducts,
+    hours,
+    metrics,
+    metrics60,
+    topProducts,
+    paymentsResult,
+    isOpen,
+  ] = await Promise.all([
       supabase
         .from("stores")
         .select(
@@ -59,10 +125,35 @@ export default async function GerentePage() {
         .select("id", { count: "exact", head: true })
         .eq("store_id", session.storeId),
       supabase.rpc("store_metrics", { target: session.storeId }),
+      // Os 60 dias menos os 30 recentes dão exatamente o mês anterior, sem
+      // precisar de uma função nova nem de datas calculadas no render — a
+      // janela continua sendo contada pelo relógio do banco.
+      supabase.rpc("store_metrics", {
+        target: session.storeId,
+        window_days: 60,
+      }),
+      supabase.rpc("store_top_products", { target: session.storeId }),
+      // "Quando eu paguei?" é pergunta que hoje chega por WhatsApp. O RLS já
+      // limita à própria loja.
+      supabase
+        .from("subscription_payments")
+        .select("id, paid_on, amount_cents")
+        .eq("store_id", session.storeId)
+        .order("paid_on", { ascending: false })
+        .limit(3),
       supabase.rpc("store_is_open", { target: session.storeId }),
     ]);
 
   const counts = metrics.data?.[0];
+  const counts60 = metrics60.data?.[0];
+
+  const previous = {
+    clicks: (counts60?.whatsapp_clicks ?? 0) - (counts?.whatsapp_clicks ?? 0),
+    views: (counts60?.store_views ?? 0) - (counts?.store_views ?? 0),
+  };
+
+  const top = topProducts.data ?? [];
+  const payments = paymentsResult.data ?? [];
 
   if (store.error || !store.data) {
     return (
@@ -71,6 +162,11 @@ export default async function GerentePage() {
       </p>
     );
   }
+
+  const notice = subscriptionNotice(
+    store.data.subscription_status,
+    store.data.subscription_until,
+  );
 
   // O lojista não consegue se colocar no ar — isso é privilégio de coluna, não
   // esquecimento. O passo aparece assim mesmo para ele saber por que a loja
@@ -149,11 +245,15 @@ export default async function GerentePage() {
         <Stat
           label="Pedidos abertos no WhatsApp"
           value={String(counts?.whatsapp_clicks ?? 0)}
+          current={counts?.whatsapp_clicks ?? 0}
+          previous={previous.clicks}
           hint="30 dias · o cliente saiu daqui com o pedido escrito"
         />
         <Stat
           label="Visitas ao cardápio"
           value={String(counts?.store_views ?? 0)}
+          current={counts?.store_views ?? 0}
+          previous={previous.views}
           hint="30 dias · uma por visita, não por recarregamento"
         />
         <Stat
@@ -163,14 +263,80 @@ export default async function GerentePage() {
         />
       </div>
 
-      <div className="rounded-xl border border-neutral-200 bg-surface p-4 text-sm dark:border-neutral-800">
-        <p className="font-medium">Assinatura</p>
-        <p className="mt-1 text-neutral-500 dark:text-neutral-400">
-          {store.data.subscription_status}
-          {store.data.subscription_until
-            ? ` · até ${new Date(store.data.subscription_until).toLocaleDateString("pt-BR")}`
-            : null}
+      {/*
+        Qual item puxa o pedido. É o único destes números em que o lojista pode
+        mexer sozinho — subir o item na lista, fazer promoção nele, garantir
+        que não falte. Some no primeiro mês, quando ainda não há o que ranquear.
+      */}
+      {top.length > 0 ? (
+        <div className="rounded-xl border border-neutral-200 bg-surface p-4 dark:border-neutral-800">
+          <p className="text-sm font-medium">O que mais entra no carrinho</p>
+          <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+            últimos 30 dias
+          </p>
+
+          <ul className="mt-3 flex flex-col gap-1.5">
+            {top.map((item) => (
+              <li
+                key={item.product_id}
+                className="flex items-baseline justify-between gap-3 text-sm"
+              >
+                <span className="min-w-0 truncate">{item.name}</span>
+                <span className="shrink-0 text-neutral-500 tabular-nums dark:text-neutral-400">
+                  {Number(item.adds)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {/*
+        Vencimento avisado antes. Quem descobre que venceu porque a loja sumiu
+        do catálogo já perdeu os pedidos do dia — e aí a conversa começa com o
+        lojista irritado, sobre um problema que um aviso teria evitado.
+      */}
+      <div
+        className={
+          notice.tone === "alert"
+            ? "rounded-xl border border-red-300 bg-red-50 p-4 text-sm dark:border-red-900 dark:bg-red-950/40"
+            : notice.tone === "warn"
+              ? "rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/40"
+              : "rounded-xl border border-neutral-200 bg-surface p-4 text-sm dark:border-neutral-800"
+        }
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="font-medium">Assinatura · {notice.title}</p>
+          {store.data.subscription_until ? (
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              até{" "}
+              {new Date(
+                `${store.data.subscription_until}T12:00:00`,
+              ).toLocaleDateString("pt-BR")}
+            </p>
+          ) : null}
+        </div>
+        <p className="mt-1 text-neutral-600 dark:text-neutral-400">
+          {notice.hint}
         </p>
+
+        {payments.length > 0 ? (
+          <ul className="mt-3 flex flex-col gap-1 border-t border-neutral-200 pt-3 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+            {payments.map((payment) => (
+              <li key={payment.id} className="flex justify-between gap-3">
+                <span>
+                  Pago em{" "}
+                  {new Date(
+                    `${payment.paid_on}T12:00:00`,
+                  ).toLocaleDateString("pt-BR")}
+                </span>
+                <span className="tabular-nums">
+                  {formatCents(payment.amount_cents)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-2">

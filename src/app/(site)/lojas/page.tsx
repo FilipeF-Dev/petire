@@ -13,6 +13,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 
 import { StoreFilters } from "./filters";
 import { StoreList } from "./store-list";
+import { SuggestStore } from "./suggest-store";
 
 export const metadata: Metadata = {
   title: "Lojas perto de você",
@@ -27,11 +28,20 @@ function first(value: string | string[] | undefined): string | null {
 }
 
 /**
- * `%` e `_` são curingas do LIKE e `,` separa filtros no PostgREST. Sem tirar
- * esses caracteres, uma busca por "50%" vira um filtro malformado.
+ * A busca compara slug com slug, não texto com texto.
+ *
+ * Comparar o texto digitado com o cadastrado quebra no caso mais comum que
+ * existe: "coca cola" não acha "Coca-Cola", "acai" não acha "Açaí", "x salada"
+ * não acha "X-Salada". `slugify` derruba acento, caixa e pontuação dos dois
+ * lados, e o banco guarda o resultado em `name_slug` — coluna gerada, gêmea
+ * desta função (ver 20260905120000_search_normalization.sql).
+ *
+ * Ela também é a defesa que o `sanitizeSearch` escrito a mão era: o que sobra
+ * é `[a-z0-9-]`, então não há como um `%`, um `_` ou uma vírgula digitados
+ * virarem curinga do LIKE ou separador de filtro do PostgREST.
  */
-function sanitizeSearch(value: string): string {
-  return value.replace(/[%_,()*\\]/g, " ").trim();
+function searchSlug(value: string): string {
+  return slugify(value);
 }
 
 export default async function LojasPage({
@@ -70,14 +80,14 @@ export default async function LojasPage({
   // procurando. Os produtos vêm primeiro, numa consulta separada, porque o
   // PostgREST não filtra a tabela principal por uma condição da tabela
   // aninhada: o embed traria a loja inteira com a lista de produtos vazia.
-  const clean = search ? sanitizeSearch(search) : "";
+  const clean = search ? searchSlug(search) : "";
   let productMatches: { store_id: string; name: string }[] = [];
 
   if (clean) {
     const { data: hits } = await supabase
       .from("products")
       .select("store_id, name")
-      .ilike("name", `%${clean}%`)
+      .like("name_slug", `%${clean}%`)
       .limit(200);
 
     // O RLS de products já limita a lojas públicas, então o que volta aqui é o
@@ -87,8 +97,8 @@ export default async function LojasPage({
     const storeIds = [...new Set(productMatches.map((hit) => hit.store_id))];
 
     query = storeIds.length
-      ? query.or(`name.ilike.%${clean}%,id.in.(${storeIds.join(",")})`)
-      : query.ilike("name", `%${clean}%`);
+      ? query.or(`name_slug.like.%${clean}%,id.in.(${storeIds.join(",")})`)
+      : query.like("name_slug", `%${clean}%`);
   }
 
   // Loja fechada continua na lista — o cliente quer ver o cardápio e o
@@ -187,7 +197,23 @@ export default async function LojasPage({
         stores={stores}
         nearSlug={nearSlug}
         matchedProducts={Object.fromEntries(matchedProducts)}
+        showEmptyMessage={!unmet}
       />
+
+      {/*
+        O mesmo momento que gera o sinal de demanda gera a melhor pergunta que
+        o Petire tem para fazer. Quem acabou de não encontrar nada sabe o nome
+        da loja que faltou.
+      */}
+      {unmet ? (
+        <SuggestStore
+          place={place}
+          citySlug={city ? slugify(city) : null}
+          neighborhoodSlug={
+            nearSlug ?? (neighborhood ? slugify(neighborhood) : null)
+          }
+        />
+      ) : null}
     </div>
   );
 }

@@ -8,6 +8,14 @@ import { createClient } from "@/lib/supabase/server";
 import { DeleteStore } from "./delete-store";
 import { EditStoreForm } from "./edit-store-form";
 import { ManagerAccess } from "./manager-access";
+import { Payments } from "./payments";
+
+/** Um mês à frente do vencimento atual, ou de hoje se não houver. */
+function nextDueDate(until: string | null): string {
+  const base = until ? new Date(`${until}T12:00:00`) : new Date();
+  base.setMonth(base.getMonth() + 1);
+  return base.toISOString().slice(0, 10);
+}
 
 export const metadata: Metadata = {
   title: "Editar loja",
@@ -30,11 +38,12 @@ export default async function EditarLojaPage({
     productsResult,
     ordersResult,
     managerResult,
+    paymentsResult,
   ] = await Promise.all([
       supabase
         .from("stores")
         .select(
-          "id, slug, name, description, whatsapp_e164, cep, address, city, neighborhood, state_uf, ibge_code, cuisine_tags, kind, delivery_fee_cents, delivery_minutes, min_order_cents, is_active",
+          "id, slug, name, description, whatsapp_e164, cep, address, city, neighborhood, state_uf, ibge_code, cuisine_tags, kind, delivery_fee_cents, delivery_minutes, min_order_cents, is_active, subscription_until",
         )
         .eq("id", id)
         .maybeSingle(),
@@ -58,6 +67,12 @@ export default async function EditarLojaPage({
         .eq("store_id", id)
         .eq("role", "manager")
         .maybeSingle(),
+      supabase
+        .from("subscription_payments")
+        .select("id, amount_cents, paid_on, covers_until, note")
+        .eq("store_id", id)
+        .order("paid_on", { ascending: false })
+        .limit(12),
     ]);
 
   const store = storeResult.data;
@@ -84,6 +99,12 @@ export default async function EditarLojaPage({
           cardápio dela.
         </p>
       )}
+
+      <Payments
+        storeId={store.id}
+        suggestedUntil={nextDueDate(store.subscription_until)}
+        payments={paymentsResult.data ?? []}
+      />
 
       {history.length > 0 ? (
         <section className="max-w-lg">

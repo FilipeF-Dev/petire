@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   editStoreSchema,
   newStoreSchema,
+  paymentSchema,
   slugify,
   subscriptionSchema,
   formValues,
@@ -390,6 +391,72 @@ export async function setSubscription(
     .single();
 
   if (error) return { error: "Não foi possível salvar a assinatura." };
+
+  refreshStorefront(data?.slug ?? null);
+  return { error: null, savedAt: Date.now() };
+}
+
+/**
+ * Registra um pagamento e move o vencimento na mesma operação.
+ *
+ * Antes, "recebeu o PIX" e "mudou a data" eram dois atos separados na cabeça do
+ * admin, e fazer só o primeiro tira do ar uma loja que pagou. Aqui é um só: o
+ * valor entra no histórico e a data que ele cobre vira o vencimento da loja.
+ *
+ * O status vai para `active` junto. Uma loja que acabou de pagar não é `trial`
+ * nem `past_due`, e deixar isso para um segundo formulário é deixar para
+ * esquecer.
+ */
+export async function registerPayment(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+
+  const parsed = paymentSchema.safeParse({
+    storeId: formData.get("storeId"),
+    amount: formData.get("amount") ?? "",
+    paidOn: formData.get("paidOn") ?? "",
+    coversUntil: formData.get("coversUntil") ?? "",
+    note: formData.get("note") ?? "",
+  });
+  if (!parsed.success) return toFormState(parsed.error, formValues(formData));
+
+  const { storeId, amount, paidOn, coversUntil, note } = parsed.data;
+  const admin = createAdminClient();
+
+  const { error: paymentError } = await admin
+    .from("subscription_payments")
+    .insert({
+      store_id: storeId,
+      amount_cents: amount,
+      paid_on: paidOn,
+      covers_until: coversUntil,
+      note: note || null,
+    });
+
+  if (paymentError) {
+    return { error: "Não foi possível registrar o pagamento." };
+  }
+
+  const { data, error } = await admin
+    .from("stores")
+    .update({
+      subscription_status: "active",
+      subscription_until: coversUntil,
+    })
+    .eq("id", storeId)
+    .select("slug")
+    .single();
+
+  if (error) {
+    // O pagamento ficou registrado; o vencimento, não. Melhor dizer isso do que
+    // deixar o admin achar que a loja está em dia quando ela ainda vence hoje.
+    return {
+      error:
+        "Pagamento registrado, mas o vencimento não foi atualizado. Ajuste a assinatura na lista.",
+    };
+  }
 
   refreshStorefront(data?.slug ?? null);
   return { error: null, savedAt: Date.now() };

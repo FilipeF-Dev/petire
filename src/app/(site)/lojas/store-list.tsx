@@ -29,11 +29,18 @@ export function StoreList({
   stores,
   nearSlug,
   matchedProducts,
+  showEmptyMessage = true,
 }: {
   stores: PublicStoreCard[];
   nearSlug: string | null;
   /** Itens que casaram com a busca, por loja. Vazio quando não houve busca. */
   matchedProducts: Record<string, string[]>;
+  /**
+   * Falso quando quem explica o vazio é o convite a indicar uma loja, logo
+   * abaixo. "Nenhuma loja com esses filtros" seria mentira ali: não há filtro
+   * nenhum, a cidade é que ainda não tem loja.
+   */
+  showEmptyMessage?: boolean;
 }) {
   const location = useCustomerLocation();
 
@@ -78,9 +85,11 @@ export function StoreList({
       ) : null}
 
       {ordered.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-neutral-300 px-4 py-12 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
-          Nenhuma loja com esses filtros.
-        </p>
+        showEmptyMessage ? (
+          <p className="rounded-xl border border-dashed border-neutral-300 px-4 py-12 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+            Nenhuma loja com esses filtros.
+          </p>
+        ) : null
       ) : (
         <ul className="flex flex-col gap-3">
           {ordered.map((store) => (

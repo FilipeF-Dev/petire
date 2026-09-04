@@ -20,17 +20,46 @@ const KEY = "petire.pedidos.v1";
 /** Quantas cabem antes de a lista virar rolagem em vez de atalho. */
 const LIMIT = 4;
 
+/**
+ * A identidade do que foi pedido — a mesma coisa que o carrinho guarda, e pelo
+ * mesmo motivo: preço, nome e disponibilidade são relidos do banco na hora.
+ */
+export type RepeatLine = {
+  productId: string;
+  optionIds: string[];
+  quantity: number;
+  note: string | null;
+};
+
 export type RecentStore = {
   slug: string;
   name: string;
   /** Epoch em ms. Ordena a lista; nada é mostrado ao cliente. */
   at: number;
+  /**
+   * Opcionais porque entraram depois: quem já tinha a lista guardada continua
+   * com o atalho para a loja, só sem o "repetir pedido" até o próximo envio.
+   */
+  storeId?: string;
+  lines?: RepeatLine[];
 };
 
 const EMPTY: RecentStore[] = [];
 
 let cache: RecentStore[] | undefined;
 const listeners = new Set<() => void>();
+
+function isLine(value: unknown): value is RepeatLine {
+  if (typeof value !== "object" || value === null) return false;
+  const line = value as Record<string, unknown>;
+  return (
+    typeof line.productId === "string" &&
+    Array.isArray(line.optionIds) &&
+    line.optionIds.every((option) => typeof option === "string") &&
+    typeof line.quantity === "number" &&
+    line.quantity > 0
+  );
+}
 
 function isStore(value: unknown): value is RecentStore {
   if (typeof value !== "object" || value === null) return false;
@@ -40,7 +69,9 @@ function isStore(value: unknown): value is RecentStore {
     store.slug !== "" &&
     typeof store.name === "string" &&
     store.name !== "" &&
-    typeof store.at === "number"
+    typeof store.at === "number" &&
+    (store.lines === undefined ||
+      (Array.isArray(store.lines) && store.lines.every(isLine)))
   );
 }
 
@@ -97,11 +128,18 @@ export function getServerSnapshot(): RecentStore[] {
  * cardápio aberto por curiosidade não é pedido. Repetir a mesma loja move ela
  * para o topo em vez de duplicar.
  */
-export function rememberOrder(store: { slug: string; name: string }): void {
+export function rememberOrder(store: {
+  storeId: string;
+  slug: string;
+  name: string;
+  lines: RepeatLine[];
+}): void {
   const entry: RecentStore = {
     slug: store.slug,
     name: store.name,
     at: Date.now(),
+    storeId: store.storeId,
+    lines: store.lines,
   };
 
   const next = [
