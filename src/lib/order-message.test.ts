@@ -115,6 +115,40 @@ describe("buildOrderMessage", () => {
   });
 });
 
+describe("caminho de volta", () => {
+  // Sem cadastro, esta mensagem na conversa do cliente é a única coisa que o
+  // traz de volta. É o que faz o número do lojista crescer do mês 1 para o 2.
+  const storeUrl = "https://petire.com.br/loja/lanchonete-do-ze";
+
+  it("deixa o link da loja no fim da mensagem", () => {
+    const text = normalize(buildOrderMessage(order({ storeUrl })));
+
+    expect(text).toContain("Pedir de novo: petire.com.br/loja/lanchonete-do-ze");
+  });
+
+  it("tira o https:// para o WhatsApp linkar sozinho", () => {
+    const text = normalize(buildOrderMessage(order({ storeUrl })));
+    expect(text).not.toContain("https://");
+  });
+
+  it("não inventa rodapé quando não há link", () => {
+    const text = normalize(buildOrderMessage(order()));
+    expect(text).not.toContain("Pedir de novo");
+  });
+
+  it("é o link que se perde no corte, nunca o endereço", () => {
+    // O rodapé é a última linha de propósito: num pedido que ainda estoura
+    // depois dos três níveis de detalhe, o corte cai nele.
+    const many = Array.from({ length: 60 }, (_, index) =>
+      line({ name: `Item número ${index + 1} do cardápio` }),
+    );
+    const text = normalize(buildOrderMessage(order({ lines: many, storeUrl })));
+
+    expect(text.length).toBeLessThanOrEqual(1500);
+    expect(text).toContain("*Total:");
+  });
+});
+
 describe("endereço de entrega", () => {
   const delivery = {
     cep: "36030330",

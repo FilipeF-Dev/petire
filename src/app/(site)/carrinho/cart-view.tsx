@@ -7,12 +7,14 @@ import { useCustomerLocation } from "@/components/location-bar";
 import { useCart } from "@/components/use-cart";
 import { clearStore, removeLine, setQuantity } from "@/lib/cart";
 import type { CustomerContact } from "@/lib/customer-contact";
+import { siteUrl } from "@/lib/env";
 import { formatCents, formatDeliveryFee } from "@/lib/money";
 import {
   buildOrderMessage,
   whatsappUrl,
   type Delivery,
 } from "@/lib/order-message";
+import { rememberOrder } from "@/lib/recent-orders";
 
 import { CheckoutDialog } from "./checkout-dialog";
 
@@ -56,6 +58,12 @@ function StoreOrder({
   // gesto direto do cliente — é o que o iOS exige para não barrar a saída.
   function send(contact: CustomerContact) {
     reportWhatsappClick(store.storeId);
+
+    // "Peça novamente", na home. Registrado no envio e não na visita: a lista
+    // responde de onde o cliente já pediu, e cardápio aberto por curiosidade
+    // não é pedido.
+    rememberOrder({ slug: store.slug, name: store.name });
+
     setIsAsking(false);
     setSent(true);
 
@@ -63,6 +71,9 @@ function StoreOrder({
     // cliente. Ele sai do browser dele direto para o WhatsApp da loja.
     const message = buildOrderMessage({
       storeName: store.name,
+      // O caminho de volta. Sem cadastro, esta mensagem na conversa do cliente
+      // é o que ele encontra quando quer pedir de novo.
+      storeUrl: `${siteUrl}/loja/${store.slug}`,
       lines: store.lines.map((line) => ({
         name: line.name,
         quantity: line.quantity,
@@ -200,13 +211,40 @@ function StoreOrder({
       </div>
 
       <div className="border-t border-neutral-200 p-4 dark:border-neutral-800">
+        {/*
+          Loja fechada não é beco sem saída, mas também não pode ser o mesmo
+          botão verde de sempre. Quem manda o pedido de madrugada não é
+          respondido, e a culpa fica dividida entre a loja e o Petire — então o
+          envio continua possível, e deixa de ser a ação em destaque.
+        */}
+        {store.isOpenNow ? null : (
+          <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            <p className="font-medium">
+              {store.name} está fechada
+              {store.opensLabel ? ` — ${store.opensLabel}` : null}.
+            </p>
+            <p className="mt-0.5">
+              Ela só vê a mensagem quando abrir. Seu carrinho fica guardado até
+              lá.
+            </p>
+          </div>
+        )}
+
         {store.meetsMinimum ? (
           <button
             type="button"
             onClick={() => setIsAsking(true)}
-            className="w-full rounded-lg bg-green-600 px-4 py-3.5 text-sm font-medium text-white transition hover:bg-green-700"
+            className={
+              store.isOpenNow
+                ? "w-full rounded-lg bg-green-600 px-4 py-3.5 text-sm font-medium text-white transition hover:bg-green-700"
+                : "w-full rounded-lg border border-neutral-300 px-4 py-3.5 text-sm font-medium transition hover:bg-surface-hover dark:border-neutral-700"
+            }
           >
-            {sent ? "Abrindo o WhatsApp…" : `Fazer pedido — ${store.name}`}
+            {sent
+              ? "Abrindo o WhatsApp…"
+              : store.isOpenNow
+                ? `Fazer pedido — ${store.name}`
+                : "Enviar mesmo assim"}
           </button>
         ) : (
           <>

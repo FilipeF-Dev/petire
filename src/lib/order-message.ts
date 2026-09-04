@@ -38,6 +38,15 @@ export type Delivery = {
 
 export type Order = {
   storeName: string;
+  /**
+   * A página da loja no Petire.
+   *
+   * É o único caminho de volta que existe. Sem cadastro, o Petire some da vida
+   * do cliente no instante em que ele sai para o WhatsApp — mas esta mensagem
+   * fica na conversa dele com a loja, que é exatamente onde ele procura quando
+   * quer pedir de novo.
+   */
+  storeUrl?: string | null;
   lines: OrderLine[];
   subtotalCents: number;
   deliveryFeeCents: number;
@@ -93,7 +102,21 @@ function render(order: Order, detail: Detail): string {
     totals.join("\n"),
     "",
     ...deliveryBlock(order.delivery),
+    ...backLink(order.storeUrl),
   ].join("\n");
+}
+
+/**
+ * O caminho de volta, no rodapé.
+ *
+ * Sem o "https://": o WhatsApp linka o domínio sozinho e o texto fica mais
+ * curto de ler. Fica por último de propósito — se um pedido enorme ainda
+ * estourar o limite depois dos três níveis de detalhe, o que se perde no corte
+ * é o link, nunca o endereço da entrega.
+ */
+function backLink(storeUrl: string | null | undefined): string[] {
+  if (!storeUrl) return [];
+  return ["", `Pedir de novo: ${storeUrl.replace(/^https?:\/\//, "")}`];
 }
 
 /**

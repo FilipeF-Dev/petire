@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 
+import { openingLabel, type OpeningHour } from "@/lib/opening";
 import { priceOf, type Promotion } from "@/lib/promotions";
 import { CARD_SELECT, viewRows, type PublicStoreCard } from "@/lib/storefront";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -47,6 +48,15 @@ export type ResolvedStore = {
   slug: string;
   name: string;
   isOpenNow: boolean;
+  /**
+   * "abre amanhã às 09:00", ou nulo quando não há hora a prometer — loja sem
+   * horário cadastrado, ou fechada na mão pelo lojista.
+   *
+   * Só faz sentido com `isOpenNow` falso. É o que decide se o cliente espera ou
+   * procura outra loja; sem isso ele manda a mensagem de madrugada e ninguém
+   * responde.
+   */
+  opensLabel: string | null;
   deliveryFeeCents: number;
   minOrderCents: number;
   lines: ResolvedLine[];
@@ -80,12 +90,12 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
   const storeIds = [...new Set(lines.map((line) => line.storeId))];
   const productIds = [...new Set(lines.map((line) => line.productId))];
 
-  const [storesResult, productsResult, promotionsResult] = await Promise.all([
+  const [storesResult, productsResult, promotionsResult, hoursResult] = await Promise.all([
     // stores_public só devolve loja ativa e não suspensa — uma loja que saiu
     // do ar some do carrinho junto.
     supabase
       .from("stores_public")
-      .select(`${CARD_SELECT}, whatsapp_e164`)
+      .select(`${CARD_SELECT}, whatsapp_e164, is_open_manual`)
       .in("id", storeIds),
     supabase
       .from("products")
@@ -98,12 +108,17 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
       .select("store_id, product_id, kind, value, starts_at, ends_at")
       .in("store_id", storeIds)
       .eq("is_active", true),
+    // Para responder "e quando abre?" à loja que está fechada agora.
+    supabase
+      .from("store_hours")
+      .select("store_id, weekday, opens_at")
+      .in("store_id", storeIds),
   ]);
 
   const stores = new Map(
-    viewRows<PublicStoreCard & { whatsapp_e164: string }>(
-      storesResult.data,
-    ).map((store) => [store.id, store]),
+    viewRows<
+      PublicStoreCard & { whatsapp_e164: string; is_open_manual: boolean | null }
+    >(storesResult.data).map((store) => [store.id, store]),
   );
   const products = new Map(
     (productsResult.data ?? []).map((product) => [product.id, product]),
@@ -181,11 +196,18 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
     );
     const totalCents = subtotalCents + store.delivery_fee_cents;
 
+    const hours: OpeningHour[] = (hoursResult.data ?? [])
+      .filter((hour) => hour.store_id === storeId)
+      .map((hour) => ({ weekday: hour.weekday, opens_at: hour.opens_at }));
+
     resolved.push({
       storeId,
       slug: store.slug,
       name: store.name,
       isOpenNow: store.is_open_now,
+      opensLabel: store.is_open_now
+        ? null
+        : openingLabel(hours, store.is_open_manual),
       deliveryFeeCents: store.delivery_fee_cents,
       minOrderCents: store.min_order_cents,
       lines: storeLines,

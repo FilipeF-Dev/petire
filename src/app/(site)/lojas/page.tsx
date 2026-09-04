@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { TrackDemand } from "@/components/track-demand";
 import { sortByPopularity } from "@/lib/cuisines";
 import { humanizePlace, slugify } from "@/lib/slug";
 import {
@@ -141,8 +142,31 @@ export default async function LojasPage({
     ? (stores[0]?.neighborhood ?? humanizePlace(slugify(neighborhood)))
     : (stores[0]?.city ?? (city ? humanizePlace(slugify(city)) : null));
 
+  // A demanda que o catálogo não atendeu. Lista vazia por causa de um chip
+  // marcado não é demanda descoberta — é filtro, e o cliente desmarca. O que
+  // interessa é a busca que não achou nada e a cidade onde ainda não há loja.
+  const hasChips = Boolean(tag) || Boolean(kind) || onlyOpen;
+
+  const unmet: "search_empty" | "area_uncovered" | null =
+    stores.length > 0 || hasChips
+      ? null
+      : clean
+        ? "search_empty"
+        : city
+          ? "area_uncovered"
+          : null;
+
   return (
     <div className="flex flex-col gap-6">
+      {unmet ? (
+        <TrackDemand
+          kind={unmet}
+          citySlug={city ? slugify(city) : null}
+          neighborhoodSlug={nearSlug ?? (neighborhood ? slugify(neighborhood) : null)}
+          term={unmet === "search_empty" ? clean : null}
+        />
+      ) : null}
+
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           {place ? `Lojas em ${place}` : "Lojas"}

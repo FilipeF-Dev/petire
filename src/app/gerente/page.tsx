@@ -137,16 +137,24 @@ export default async function GerentePage() {
 
       <FirstSteps steps={steps} />
 
+      {/*
+        Estes números são a única prova de valor que existe: o pedido fecha no
+        WhatsApp, fora do sistema. Por isso o rótulo diz exatamente o que foi
+        medido. "Pedidos enviados" prometia o que o dado não sustenta — o
+        evento é gravado quando o cliente sai para o WhatsApp, e ninguém aqui
+        vê se ele apertou enviar. Um número que o lojista desconfia uma vez
+        deixa de valer para sempre, e não há um segundo argumento na manga.
+      */}
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat
-          label="Pedidos enviados"
+          label="Pedidos abertos no WhatsApp"
           value={String(counts?.whatsapp_clicks ?? 0)}
-          hint="últimos 30 dias"
+          hint="30 dias · o cliente saiu daqui com o pedido escrito"
         />
         <Stat
           label="Visitas ao cardápio"
           value={String(counts?.store_views ?? 0)}
-          hint="últimos 30 dias"
+          hint="30 dias · uma por visita, não por recarregamento"
         />
         <Stat
           label="Itens disponíveis"

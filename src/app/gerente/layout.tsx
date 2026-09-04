@@ -3,6 +3,7 @@ import Link from "next/link";
 import { signOut } from "@/app/entrar/actions";
 import { PageTransition } from "@/components/page-transition";
 import { requireManager } from "@/lib/auth";
+import { supportWhatsapp } from "@/lib/env";
 
 import { GerenteNav } from "./nav";
 
@@ -49,6 +50,35 @@ export default async function GerenteLayout({
       <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
         <PageTransition>{children}</PageTransition>
       </div>
+
+      {/*
+        Suporte no rodapé de toda página do painel, não numa página de ajuda.
+        Quem trava não vai procurar onde reclamar — ou o caminho está na tela em
+        que ele travou, ou ele fecha o painel e não volta.
+
+        A mensagem já vem escrita com o apelido da loja: sem isso a conversa
+        começa com "qual loja é a sua?", que é a pergunta que o Petire já sabe
+        responder sozinho.
+      */}
+      {supportWhatsapp ? (
+        <footer className="border-t border-neutral-200 dark:border-neutral-800">
+          <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-5 text-sm text-neutral-500 sm:px-6 dark:text-neutral-400">
+            <p>Travou em alguma coisa? A gente resolve junto.</p>
+            <a
+              href={`https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(
+                `Olá! Preciso de ajuda com o painel do Petire${
+                  session.storeSlug ? ` (loja ${session.storeSlug})` : ""
+                }.`,
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-neutral-300 px-3 py-1.5 transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+            >
+              Falar com o Petire no WhatsApp
+            </a>
+          </div>
+        </footer>
+      ) : null}
     </div>
   );
 }
