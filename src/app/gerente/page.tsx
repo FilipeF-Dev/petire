@@ -4,10 +4,12 @@ import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui";
 import { requireManager } from "@/lib/auth";
+import { daysSince, STALE_DAYS } from "@/lib/freshness";
 import { formatCents } from "@/lib/money";
 import { subscriptionNotice } from "@/lib/subscription";
 import { createClient } from "@/lib/supabase/server";
 
+import { ConfirmWeek } from "./confirm-week";
 import { FirstSteps, type Step } from "./first-steps";
 
 export const metadata: Metadata = {
@@ -103,6 +105,9 @@ export default async function GerentePage() {
     topProducts,
     paymentsResult,
     isOpen,
+    pendingWeek,
+    confirmations,
+    lastEdit,
   ] = await Promise.all([
       supabase
         .from("stores")
@@ -142,6 +147,24 @@ export default async function GerentePage() {
         .order("paid_on", { ascending: false })
         .limit(3),
       supabase.rpc("store_is_open", { target: session.storeId }),
+      // A semana fechada que ainda não foi respondida. Vazio quando já
+      // respondeu, ou quando não saiu pedido nenhum.
+      supabase.rpc("store_pending_confirmation", { target: session.storeId }),
+      // A taxa entre o que sai daqui e o que chega lá, das últimas semanas.
+      supabase
+        .from("order_confirmations")
+        .select("opened, confirmed")
+        .eq("store_id", session.storeId)
+        .order("week_start", { ascending: false })
+        .limit(8),
+      // Quando o cardápio foi mexido pela última vez.
+      supabase
+        .from("products")
+        .select("updated_at")
+        .eq("store_id", session.storeId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
   const counts = metrics.data?.[0];
@@ -154,6 +177,17 @@ export default async function GerentePage() {
 
   const top = topProducts.data ?? [];
   const payments = paymentsResult.data ?? [];
+  const week = pendingWeek.data?.[0];
+
+  // A taxa só aparece depois que há semana respondida — antes disso ela seria
+  // um número inventado sobre o trabalho de outra pessoa.
+  const answered = confirmations.data ?? [];
+  const totalOpened = answered.reduce((sum, row) => sum + row.opened, 0);
+  const totalConfirmed = answered.reduce((sum, row) => sum + row.confirmed, 0);
+  const arrivalRate =
+    totalOpened > 0 ? Math.round((totalConfirmed / totalOpened) * 100) : null;
+
+  const staleDays = daysSince(lastEdit.data?.updated_at);
 
   if (store.error || !store.data) {
     return (
@@ -234,6 +268,37 @@ export default async function GerentePage() {
       <FirstSteps steps={steps} />
 
       {/*
+        Cardápio parado é o risco número dois do MVP, e a mitigação até aqui
+        ("esgotado em um toque") dependia de o lojista lembrar sozinho. Quem
+        avisa agora é o painel — antes de o cliente descobrir pelo preço errado.
+      */}
+      {staleDays !== null && staleDays >= STALE_DAYS ? (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/40">
+          <p className="font-medium">
+            Faz {staleDays} dias que ninguém mexe no cardápio.
+          </p>
+          <p className="mt-1 text-neutral-600 dark:text-neutral-400">
+            Preço mudou? Saiu algum item? Cardápio errado é o que faz o cliente
+            desistir mais rápido — e ele desiste da loja, não do site.
+          </p>
+          <Link
+            href="/gerente/cardapio"
+            className="mt-2 inline-block underline underline-offset-4"
+          >
+            Conferir o cardápio
+          </Link>
+        </div>
+      ) : null}
+
+      {week ? (
+        <ConfirmWeek
+          weekStart={week.week_start}
+          weekEnd={week.week_end}
+          opened={Number(week.opened)}
+        />
+      ) : null}
+
+      {/*
         Estes números são a única prova de valor que existe: o pedido fecha no
         WhatsApp, fora do sistema. Por isso o rótulo diz exatamente o que foi
         medido. "Pedidos enviados" prometia o que o dado não sustenta — o
@@ -247,7 +312,11 @@ export default async function GerentePage() {
           value={String(counts?.whatsapp_clicks ?? 0)}
           current={counts?.whatsapp_clicks ?? 0}
           previous={previous.clicks}
-          hint="30 dias · o cliente saiu daqui com o pedido escrito"
+          hint={
+            arrivalRate === null
+              ? "30 dias · o cliente saiu daqui com o pedido escrito"
+              : `30 dias · você confirmou que ${arrivalRate}% chegam`
+          }
         />
         <Stat
           label="Visitas ao cardápio"

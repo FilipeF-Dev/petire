@@ -3,12 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+/**
+ * Equipe e Relatório aparecem para todo mundo, inclusive no plano que não os
+ * abre. Um item que some do menu não é uma oferta — é uma dúvida: o lojista
+ * não sabe que o recurso existe, e quem quer vender o degrau perde a única
+ * chance de explicá-lo. A página é que diz o que o plano abre.
+ */
 const LINKS = [
   { href: "/gerente", label: "Início" },
   { href: "/gerente/cardapio", label: "Cardápio" },
   { href: "/gerente/promocoes", label: "Promoções" },
   { href: "/gerente/loja", label: "Minha loja" },
   { href: "/gerente/divulgar", label: "Divulgar" },
+  { href: "/gerente/relatorio", label: "Relatório" },
+  { href: "/gerente/equipe", label: "Equipe" },
 ] as const;
 
 export function GerenteNav() {

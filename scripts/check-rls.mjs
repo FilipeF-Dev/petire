@@ -473,6 +473,140 @@ await check("store_top_products não vaza a loja do vizinho", async () => {
   assert(data.length === 0, `vazou ${data.length} linha(s)`);
 });
 
+console.log("\nFila de cadastro");
+
+// A fila carrega e-mail e telefone de quem se candidatou, e é a lista de lojas
+// prestes a entrar no catálogo.
+
+await check("anon não escreve candidatura", async () => {
+  const { error } = await anon.from("store_applications").insert({
+    store_name: "Loja fantasma",
+    manager_email: "a@b.com",
+    whatsapp_e164: "5511987654321",
+    city: "São Paulo",
+    neighborhood: "Centro",
+    kind: "food",
+  });
+
+  assert(error, "anon gravou em store_applications");
+  return "bloqueado";
+});
+
+await check("anon não lê a fila", async () => {
+  const { data, error } = await anon.from("store_applications").select("id");
+  assert(error || (data ?? []).length === 0, "anon enxergou a fila");
+  return "bloqueado";
+});
+
+await check("gerente logado também não lê a fila", async () => {
+  const { data, error } = await ze.from("store_applications").select("id");
+  assert(error || (data ?? []).length === 0, "gerente enxergou a fila");
+  return "bloqueado";
+});
+
+console.log("\nPlano");
+
+await check("gerente lê o próprio plano", async () => {
+  const { data, error } = await ze
+    .from("stores")
+    .select("plan")
+    .eq("id", STORE_ZE)
+    .single();
+  assert(!error, error?.message ?? "");
+  return data.plan;
+});
+
+await check("gerente NÃO troca o próprio plano", async () => {
+  // Privilégio de coluna, como subscription_status: quem muda o plano é quem
+  // cobra por ele.
+  const { error } = await ze
+    .from("stores")
+    .update({ plan: "plus" })
+    .eq("id", STORE_ZE);
+
+  assert(error, "gerente trocou o próprio plano");
+  return "bloqueado";
+});
+
+await check("gerente enxerga só a equipe da própria loja", async () => {
+  // A tela de equipe e a remoção de acesso dependem desta leitura. O alcance é
+  // a própria loja: o gerente do Zé não pode listar quem cuida da vizinha.
+  const { data, error } = await ze.from("managers").select("email, store_id");
+  assert(!error, error?.message ?? "");
+  assert(data.length > 0, "gerente não enxergou nem a própria linha");
+  assert(
+    data.every((row) => row.store_id === STORE_ZE),
+    "vazou gerente de outra loja",
+  );
+  return `${data.length} da própria loja`;
+});
+
+await check("store_manager_limit responde pelo plano", async () => {
+  const { data, error } = await ze.rpc("store_manager_limit", {
+    target: STORE_ZE,
+  });
+  assert(!error, error?.message ?? "");
+  assert(data === 1, `esperava 1 no plano básico, veio ${data}`);
+  return `${data} login`;
+});
+
+console.log("\nConfirmação de pedidos");
+
+await check("gerente confirma a semana da própria loja", async () => {
+  // Segunda-feira qualquer, no passado.
+  const { error } = await ze.from("order_confirmations").insert({
+    store_id: STORE_ZE,
+    week_start: "2026-08-24",
+    confirmed: 9,
+  });
+  assert(!error, error?.message ?? "");
+});
+
+await check("o denominador não vem do formulário", async () => {
+  // `opened` foi enviado como 999 e tem de ser sobrescrito pelo trigger, que
+  // conta os eventos de verdade.
+  const { error } = await ze.from("order_confirmations").insert({
+    store_id: STORE_ZE,
+    week_start: "2026-08-17",
+    confirmed: 5,
+    opened: 999,
+  });
+
+  // O grant de insert não inclui a coluna `opened`, então nem chega ao trigger.
+  assert(error, "gerente escreveu opened");
+  return "coluna bloqueada";
+});
+
+await check("gerente NÃO confirma pela loja do vizinho", async () => {
+  const { error } = await ze.from("order_confirmations").insert({
+    store_id: STORE_DIST,
+    week_start: "2026-08-24",
+    confirmed: 99,
+  });
+
+  assert(error, "gerente confirmou pela loja do vizinho");
+  return "bloqueado";
+});
+
+await check("gerente NÃO edita uma confirmação já feita", async () => {
+  // Sem policy de update: confirmação é registro do que aconteceu, não rascunho
+  // ajustável depois de conhecido o resultado.
+  const { data, error } = await ze
+    .from("order_confirmations")
+    .update({ confirmed: 1 })
+    .eq("store_id", STORE_ZE)
+    .select("id");
+
+  assert(error || (data ?? []).length === 0, "gerente editou a confirmação");
+  return "bloqueado";
+});
+
+await check("anon não lê confirmação de ninguém", async () => {
+  const { data, error } = await anon.from("order_confirmations").select("id");
+  assert(error || (data ?? []).length === 0, "anon enxergou confirmações");
+  return "bloqueado";
+});
+
 // --- resultado ---------------------------------------------------------------
 
 console.log("");

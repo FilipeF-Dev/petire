@@ -8,6 +8,7 @@ import { emptyFormState } from "@/lib/validation";
 
 import {
   resetManagerPassword,
+  setPlan,
   setSubscription,
   type NewStoreState,
 } from "./actions";
@@ -73,6 +74,52 @@ export function SubscriptionForm({
       </label>
 
       <Submit label="Salvar" />
+
+      {state.savedAt && !state.error ? (
+        <span className="pb-2.5 text-sm text-green-700 dark:text-green-400">
+          salvo
+        </span>
+      ) : null}
+      {state.error ? <FormError message={state.error} /> : null}
+    </form>
+  );
+}
+
+/**
+ * O degrau de recurso da loja.
+ *
+ * Separado da assinatura de propósito: uma coisa é estar pagando, outra é o que
+ * o pagamento abre. Misturar os dois num formulário só faria "atrasada" e
+ * "plus" parecerem estados do mesmo eixo.
+ */
+export function PlanForm({
+  storeId,
+  plan,
+}: {
+  storeId: string;
+  plan: string;
+}) {
+  const [state, formAction] = useActionState(setPlan, emptyFormState);
+
+  return (
+    <form action={formAction} className="flex flex-wrap items-end gap-2">
+      <input type="hidden" name="storeId" value={storeId} />
+
+      <label className="flex flex-col gap-1">
+        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+          Plano
+        </span>
+        <select
+          name="plan"
+          defaultValue={plan}
+          className={`${inputClass} w-32 py-2 text-sm`}
+        >
+          <option value="basico">Básico</option>
+          <option value="plus">Plus</option>
+        </select>
+      </label>
+
+      <Submit label="Trocar" />
 
       {state.savedAt && !state.error ? (
         <span className="pb-2.5 text-sm text-green-700 dark:text-green-400">

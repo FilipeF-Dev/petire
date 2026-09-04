@@ -442,6 +442,56 @@ export const subscriptionSchema = z.object({
 });
 
 /**
+ * A loja se candidatando sozinha.
+ *
+ * Os mesmos campos que o admin digitava, agora digitados por quem os conhece.
+ * Não tem apelido nem dias de teste: os dois são decisão de quem aprova, e o
+ * apelido é a URL pública — deixar o candidato escolher seria deixá-lo escolher
+ * o que o Google vai indexar antes de alguém conferir se a loja existe.
+ */
+export const applicationSchema = z.object({
+  storeName: requiredText("Nome da loja", 80),
+  managerEmail: z.email("E-mail inválido."),
+  whatsapp: z.string().transform((value, ctx) => {
+    const normalized = normalizeWhatsapp(value);
+    if (!normalized) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Informe DDD + número. Ex.: (11) 98765-4321",
+      });
+      return z.NEVER;
+    }
+    return normalized;
+  }),
+  cep: cepField,
+  stateUf: ufField,
+  ibgeCode: ibgeField,
+  address: optionalText(200),
+  city: requiredText("Cidade", 80),
+  neighborhood: requiredText("Bairro", 80),
+  kind: z.enum(["food", "drinks", "both"], "Escolha o tipo da loja."),
+  note: optionalText(500),
+});
+
+/** Quantos pedidos a loja diz ter recebido na semana. */
+export const confirmationSchema = z.object({
+  weekStart: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Semana inválida."),
+  confirmed: z.coerce
+    .number("Informe um número.")
+    .int("Informe um número inteiro.")
+    .min(0, "Não pode ser negativo.")
+    .max(10_000, "Número alto demais."),
+});
+
+/** Convite de um segundo login para a loja. Só no plano que permite equipe. */
+export const teamInviteSchema = z.object({
+  email: z.email("E-mail inválido."),
+});
+
+/**
  * A loja que o cliente queria ter encontrado.
  *
  * Vem de um formulário público, então o lugar chega como slug num campo oculto

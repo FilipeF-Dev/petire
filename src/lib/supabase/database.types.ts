@@ -279,6 +279,48 @@ export type Database = {
           },
         ]
       }
+      order_confirmations: {
+        Row: {
+          confirmed: number
+          created_at: string
+          id: number
+          opened: number
+          store_id: string
+          week_start: string
+        }
+        Insert: {
+          confirmed: number
+          created_at?: string
+          id?: never
+          opened?: number
+          store_id: string
+          week_start: string
+        }
+        Update: {
+          confirmed?: number
+          created_at?: string
+          id?: never
+          opened?: number
+          store_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_confirmations_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_confirmations_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category_id: string | null
@@ -400,6 +442,78 @@ export type Database = {
           },
           {
             foreignKeyName: "promotions_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_applications: {
+        Row: {
+          address: string | null
+          cep: string | null
+          city: string
+          created_at: string
+          ibge_code: string | null
+          id: number
+          kind: Database["public"]["Enums"]["store_kind"]
+          manager_email: string
+          neighborhood: string
+          note: string | null
+          reviewed_at: string | null
+          state_uf: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          store_id: string | null
+          store_name: string
+          whatsapp_e164: string
+        }
+        Insert: {
+          address?: string | null
+          cep?: string | null
+          city: string
+          created_at?: string
+          ibge_code?: string | null
+          id?: never
+          kind: Database["public"]["Enums"]["store_kind"]
+          manager_email: string
+          neighborhood: string
+          note?: string | null
+          reviewed_at?: string | null
+          state_uf?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          store_id?: string | null
+          store_name: string
+          whatsapp_e164: string
+        }
+        Update: {
+          address?: string | null
+          cep?: string | null
+          city?: string
+          created_at?: string
+          ibge_code?: string | null
+          id?: never
+          kind?: Database["public"]["Enums"]["store_kind"]
+          manager_email?: string
+          neighborhood?: string
+          note?: string | null
+          reviewed_at?: string | null
+          state_uf?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          store_id?: string | null
+          store_name?: string
+          whatsapp_e164?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_applications_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_applications_store_id_fkey"
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores_public"
@@ -534,6 +648,7 @@ export type Database = {
           name_slug: string | null
           neighborhood: string
           neighborhood_slug: string | null
+          plan: Database["public"]["Enums"]["store_plan"]
           slug: string
           state_uf: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
@@ -565,6 +680,7 @@ export type Database = {
           name_slug?: string | null
           neighborhood: string
           neighborhood_slug?: string | null
+          plan?: Database["public"]["Enums"]["store_plan"]
           slug: string
           state_uf?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
@@ -596,6 +712,7 @@ export type Database = {
           name_slug?: string | null
           neighborhood?: string
           neighborhood_slug?: string | null
+          plan?: Database["public"]["Enums"]["store_plan"]
           slug?: string
           state_uf?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
@@ -763,12 +880,29 @@ export type Database = {
         Returns: boolean
       }
       store_is_public: { Args: { target: string }; Returns: boolean }
+      store_manager_limit: { Args: { target: string }; Returns: number }
       store_metrics: {
         Args: { target: string; window_days?: number }
         Returns: {
           cart_adds: number
           store_views: number
           whatsapp_clicks: number
+        }[]
+      }
+      store_metrics_between: {
+        Args: { from_at: string; target: string; to_at: string }
+        Returns: {
+          cart_adds: number
+          store_views: number
+          whatsapp_clicks: number
+        }[]
+      }
+      store_pending_confirmation: {
+        Args: { target: string }
+        Returns: {
+          opened: number
+          week_end: string
+          week_start: string
         }[]
       }
       store_top_products: {
@@ -779,13 +913,28 @@ export type Database = {
           product_id: string
         }[]
       }
+      store_top_products_between: {
+        Args: {
+          from_at: string
+          max_rows?: number
+          target: string
+          to_at: string
+        }
+        Returns: {
+          adds: number
+          name: string
+          product_id: string
+        }[]
+      }
     }
     Enums: {
+      application_status: "pending" | "approved" | "rejected"
       demand_kind: "search_empty" | "area_uncovered"
       event_kind: "store_view" | "cart_add" | "whatsapp_click"
       manager_role: "manager" | "admin"
       promotion_kind: "percent" | "fixed"
       store_kind: "food" | "drinks" | "both"
+      store_plan: "basico" | "plus"
       subscription_status: "trial" | "active" | "past_due" | "suspended"
     }
     CompositeTypes: {
@@ -917,11 +1066,13 @@ export const Constants = {
   },
   public: {
     Enums: {
+      application_status: ["pending", "approved", "rejected"],
       demand_kind: ["search_empty", "area_uncovered"],
       event_kind: ["store_view", "cart_add", "whatsapp_click"],
       manager_role: ["manager", "admin"],
       promotion_kind: ["percent", "fixed"],
       store_kind: ["food", "drinks", "both"],
+      store_plan: ["basico", "plus"],
       subscription_status: ["trial", "active", "past_due", "suspended"],
     },
   },

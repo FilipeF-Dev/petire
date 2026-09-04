@@ -51,6 +51,123 @@ export type NewStoreState = FormState & {
   created?: { email: string; password: string; slug: string };
 };
 
+/**
+ * Criar a loja e o login do lojista, que são inseparáveis.
+ *
+ * Mora fora de `createStore` porque a aprovação de uma candidatura faz
+ * exatamente isto — e uma segunda cópia da sequência divergiria na primeira vez
+ * que alguém mexesse na ordem dos passos ou no desfazer.
+ *
+ * Os desfazer importam: sem o login, a loja é inútil e fica órfã na listagem;
+ * sem a linha em `managers`, o usuário de auth entra e não é dono de nada.
+ */
+type ProvisionInput = {
+  name: string;
+  slug: string;
+  cep: string | null;
+  stateUf: string | null;
+  ibgeCode: string | null;
+  address: string | null;
+  city: string;
+  neighborhood: string;
+  whatsapp: string;
+  kind: "food" | "drinks" | "both";
+  managerEmail: string;
+  trialDays: number;
+};
+
+type ProvisionResult =
+  | { ok: true; storeId: string; slug: string; email: string; password: string }
+  | { ok: false; error: string };
+
+async function provisionStore(data: ProvisionInput): Promise<ProvisionResult> {
+  const admin = createAdminClient();
+
+  const until = new Date();
+  until.setDate(until.getDate() + data.trialDays);
+
+  const { data: store, error: storeError } = await admin
+    .from("stores")
+    .insert({
+      slug: data.slug,
+      name: data.name,
+      cep: data.cep,
+      state_uf: data.stateUf,
+      ibge_code: data.ibgeCode,
+      address: data.address,
+      city: data.city,
+      neighborhood: data.neighborhood,
+      whatsapp_e164: data.whatsapp,
+      kind: data.kind,
+      // Entra no ar só depois que o lojista montar o cardápio. Loja vazia no
+      // catálogo é pior do que loja nenhuma.
+      is_active: false,
+      subscription_status: "trial",
+      subscription_until: until.toISOString().slice(0, 10),
+    })
+    .select("id, slug")
+    .single();
+
+  if (storeError || !store) {
+    return {
+      ok: false,
+      error:
+        storeError?.code === "23505"
+          ? "Já existe uma loja com esse apelido."
+          : "Não foi possível criar a loja.",
+    };
+  }
+
+  const password = initialPassword();
+  const { data: created, error: userError } =
+    await admin.auth.admin.createUser({
+      email: data.managerEmail,
+      password,
+      email_confirm: true,
+    });
+
+  if (userError || !created.user) {
+    await admin.from("stores").delete().eq("id", store.id);
+    return {
+      ok: false,
+      error: userError?.message.includes("already")
+        ? "Já existe uma conta com esse e-mail."
+        : "Não foi possível criar o login do lojista.",
+    };
+  }
+
+  const { error: managerError } = await admin.from("managers").insert({
+    id: created.user.id,
+    store_id: store.id,
+    role: "manager",
+    email: data.managerEmail,
+  });
+
+  if (managerError) {
+    await admin.auth.admin.deleteUser(created.user.id);
+    await admin.from("stores").delete().eq("id", store.id);
+    return { ok: false, error: "Não foi possível vincular o lojista à loja." };
+  }
+
+  // Sem revalidar nada aqui, e isso é deliberado nas duas pontas.
+  //
+  // Correção: a loja nasce fora do ar, então nenhuma página pública muda —
+  // `stores_public` só devolve loja ativa. Não havia o que invalidar.
+  //
+  // E efeito colateral: `revalidatePath` limpa o cache de rota do cliente, o
+  // que faz a página atual buscar de novo. Na fila de aprovação isso
+  // remontaria a lista sem o pedido recém-aprovado, desmontando o card que
+  // está mostrando a senha inicial — que aparece uma vez só.
+
+  return {
+    ok: true,
+    storeId: store.id,
+    slug: store.slug,
+    email: data.managerEmail,
+    password,
+  };
+}
+
 export async function createStore(
   _previous: NewStoreState,
   formData: FormData,
@@ -83,83 +200,145 @@ export async function createStore(
     };
   }
 
-  const admin = createAdminClient();
+  const result = await provisionStore({ ...data, slug });
 
-  const until = new Date();
-  until.setDate(until.getDate() + data.trialDays);
-
-  const { data: store, error: storeError } = await admin
-    .from("stores")
-    .insert({
-      slug,
-      name: data.name,
-      cep: data.cep,
-      state_uf: data.stateUf,
-      ibge_code: data.ibgeCode,
-      address: data.address,
-      city: data.city,
-      neighborhood: data.neighborhood,
-      whatsapp_e164: data.whatsapp,
-      kind: data.kind,
-      // Entra no ar só depois que o lojista montar o cardápio. Loja vazia no
-      // catálogo é pior do que loja nenhuma.
-      is_active: false,
-      subscription_status: "trial",
-      subscription_until: until.toISOString().slice(0, 10),
-    })
-    .select("id, slug")
-    .single();
-
-  if (storeError || !store) {
-    return {
-      error:
-        storeError?.code === "23505"
-          ? "Já existe uma loja com esse apelido."
-          : "Não foi possível criar a loja.",
-      values: formValues(formData),
-    };
+  if (!result.ok) {
+    return { error: result.error, values: formValues(formData) };
   }
 
-  const password = initialPassword();
-  const { data: created, error: userError } =
-    await admin.auth.admin.createUser({
-      email: data.managerEmail,
-      password,
-      email_confirm: true,
-    });
-
-  if (userError || !created.user) {
-    // Sem o login, a loja é inútil e ficaria órfã na listagem.
-    await admin.from("stores").delete().eq("id", store.id);
-    return {
-      error: userError?.message.includes("already")
-        ? "Já existe uma conta com esse e-mail."
-        : "Não foi possível criar o login do lojista.",
-      values: formValues(formData),
-    };
-  }
-
-  const { error: managerError } = await admin.from("managers").insert({
-    id: created.user.id,
-    store_id: store.id,
-    role: "manager",
-    email: data.managerEmail,
-  });
-
-  if (managerError) {
-    await admin.auth.admin.deleteUser(created.user.id);
-    await admin.from("stores").delete().eq("id", store.id);
-    return { error: "Não foi possível vincular o lojista à loja." };
-  }
-
-  refreshStorefront(store.slug);
+  // A listagem do admin precisa mostrar a loja nova. Seguro aqui: o formulário
+  // que exibe a senha está em /admin/nova-loja, não em /admin.
+  revalidatePath("/admin");
 
   // A senha aparece uma vez só: ela não fica gravada em lugar nenhum legível.
   return {
     error: null,
     savedAt: Date.now(),
-    created: { email: data.managerEmail, password, slug: store.slug },
+    created: {
+      email: result.email,
+      password: result.password,
+      slug: result.slug,
+    },
   };
+}
+
+/**
+ * Aprovar uma candidatura: vira loja, com login, exatamente como se o admin
+ * tivesse digitado.
+ *
+ * O apelido é gerado do nome aqui, e não pedido no formulário público: ele é a
+ * URL que o Google vai indexar, e quem decide isso é quem confere se a loja
+ * existe. Colisão de apelido ganha um sufixo em vez de recusar a aprovação —
+ * duas lanchonetes do Zé em cidades diferentes é o caso normal, não erro.
+ */
+export async function approveApplication(
+  _previous: NewStoreState,
+  formData: FormData,
+): Promise<NewStoreState> {
+  await requireAdmin();
+
+  const id = Number(formData.get("applicationId"));
+  if (!Number.isInteger(id)) return { error: "Pedido inválido." };
+
+  const admin = createAdminClient();
+
+  const { data: application } = await admin
+    .from("store_applications")
+    .select("*")
+    .eq("id", id)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (!application) {
+    return { error: "Este pedido já foi respondido." };
+  }
+
+  const base = slugify(application.store_name);
+  if (!base) {
+    return { error: "Não consegui gerar um apelido a partir do nome." };
+  }
+
+  const { data: taken } = await admin
+    .from("stores")
+    .select("slug")
+    .like("slug", `${base}%`);
+
+  const used = new Set((taken ?? []).map((store) => store.slug));
+  let slug = base;
+  for (let n = 2; used.has(slug); n += 1) slug = `${base}-${n}`;
+
+  const result = await provisionStore({
+    name: application.store_name,
+    slug,
+    cep: application.cep,
+    stateUf: application.state_uf,
+    ibgeCode: application.ibge_code,
+    address: application.address,
+    city: application.city,
+    neighborhood: application.neighborhood,
+    whatsapp: application.whatsapp_e164,
+    kind: application.kind,
+    managerEmail: application.manager_email,
+    // As primeiras lojas de um bairro entram com 90 dias grátis: é o que paga
+    // o risco de entrar num catálogo vazio. Ver docs/onboarding.md.
+    trialDays: 90,
+  });
+
+  if (!result.ok) return { error: result.error };
+
+  // Só depois de a loja existir. Marcar antes deixaria o pedido fora da fila
+  // sem nada no lugar dele, se a criação falhasse.
+  await admin
+    .from("store_applications")
+    .update({
+      status: "approved",
+      store_id: result.storeId,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  // Sem revalidar esta página, de propósito. A senha inicial aparece uma vez
+  // só, no card que acabou de aprovar; revalidar recarregaria a lista sem o
+  // pedido aprovado, desmontando o card e levando a senha junto — antes de
+  // alguém copiar. A lista se atualiza na próxima navegação.
+  //
+  // `provisionStore` já revalidou /admin, que é onde o número da fila aparece.
+  return {
+    error: null,
+    savedAt: Date.now(),
+    created: {
+      email: result.email,
+      password: result.password,
+      slug: result.slug,
+    },
+  };
+}
+
+/**
+ * Recusar. O pedido some da fila e continua na tabela — sem o registro, o
+ * mesmo lojista voltaria e ninguém lembraria por que ele foi recusado.
+ */
+export async function rejectApplication(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+
+  const id = Number(formData.get("applicationId"));
+  if (!Number.isInteger(id)) return { error: "Pedido inválido." };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("store_applications")
+    .update({ status: "rejected", reviewed_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("status", "pending");
+
+  if (error) return { error: "Não foi possível recusar o pedido." };
+
+  // Como na aprovação: quem confirma que o pedido saiu da fila é o próprio
+  // card. Revalidar aqui o desmontaria antes de o admin ler o que aconteceu.
+  return { error: null, savedAt: Date.now() };
 }
 
 export async function updateStore(
@@ -393,6 +572,42 @@ export async function setSubscription(
   if (error) return { error: "Não foi possível salvar a assinatura." };
 
   refreshStorefront(data?.slug ?? null);
+  return { error: null, savedAt: Date.now() };
+}
+
+/**
+ * Troca o plano da loja.
+ *
+ * O plano abre recurso, nunca desconta comissão — comissão zero é a razão de a
+ * loja estar aqui. Por isso nada aqui toca a vitrine: o cliente não vê plano
+ * nenhum, e a ordem da lista continua sendo por distância.
+ *
+ * Não chama `refreshStorefront()` de propósito: `plan` não sai em
+ * `stores_public`, então nenhuma página pública muda.
+ */
+export async function setPlan(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+
+  const storeId = uuid.safeParse(formData.get("storeId"));
+  if (!storeId.success) return { error: "Loja inválida." };
+
+  const plan = formData.get("plan");
+  if (plan !== "basico" && plan !== "plus") {
+    return { error: "Plano inválido." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("stores")
+    .update({ plan })
+    .eq("id", storeId.data);
+
+  if (error) return { error: "Não foi possível trocar o plano." };
+
+  revalidatePath("/admin");
   return { error: null, savedAt: Date.now() };
 }
 
