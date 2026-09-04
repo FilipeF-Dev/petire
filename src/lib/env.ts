@@ -28,6 +28,21 @@ export const supabaseAnonKey = required(
 export const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
+/**
+ * WhatsApp do Petire, onde o lojista pede ajuda.
+ *
+ * Quem trava no cadastro precisa hoje achar a conversa antiga do onboarding — e
+ * quem não acha simplesmente para de usar o painel, sem nunca reclamar. Churn
+ * silencioso é o mais caro, porque não aparece.
+ *
+ * Só dígitos, como `stores.whatsapp_e164`. Vazio esconde o rodapé de suporte:
+ * em desenvolvimento não há para quem escrever, e um link quebrado é pior do
+ * que nenhum link.
+ */
+export const supportWhatsapp = (
+  process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? ""
+).replace(/\D/g, "");
+
 /** Só no servidor. Ver src/lib/supabase/admin.ts. */
 export function serviceRoleKey(): string {
   return required(

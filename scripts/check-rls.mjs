@@ -352,6 +352,41 @@ await check("segunda-feira a Lanchonete do Zé está fechada", async () => {
   assert(data === false, "deu aberta num dia sem horário");
 });
 
+console.log("\nSinais de demanda");
+
+// É por estes números que o próximo bairro vai ser escolhido. Se o browser
+// escrevesse direto, qualquer um fabricaria demanda para o bairro que quisesse
+// — e se lesse, o mapa de expansão do Petire seria público.
+
+await check("anon não escreve sinal de demanda", async () => {
+  const { error } = await anon
+    .from("demand_signals")
+    .insert({ kind: "search_empty", term: "pizza" });
+
+  assert(error, "anon gravou em demand_signals");
+  return "bloqueado";
+});
+
+await check("anon não lê sinal de demanda", async () => {
+  const { data, error } = await anon.from("demand_signals").select("id");
+  assert(error || (data ?? []).length === 0, "anon enxergou demand_signals");
+  return "bloqueado";
+});
+
+await check("gerente logado também não enxerga", async () => {
+  // O mapa de demanda é do Petire, não da loja. E o gerente que o lesse saberia
+  // quais concorrentes convidar antes de nós.
+  const { data, error } = await ze.from("demand_signals").select("id");
+  assert(error || (data ?? []).length === 0, "gerente enxergou demand_signals");
+  return "bloqueado";
+});
+
+await check("demand_summary não é executável pelo browser", async () => {
+  const { error } = await anon.rpc("demand_summary", { window_days: 30 });
+  assert(error, "anon executou demand_summary");
+  return "bloqueado";
+});
+
 // --- resultado ---------------------------------------------------------------
 
 console.log("");

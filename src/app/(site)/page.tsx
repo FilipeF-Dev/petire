@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { LocationHero } from "@/components/location-bar";
+import { OrderAgain } from "@/components/order-again";
 import { viewRows, type PublicPlace } from "@/lib/storefront";
 import { createPublicClient } from "@/lib/supabase/public";
 
@@ -35,6 +36,13 @@ export default async function HomePage() {
       </section>
 
       {/*
+        Antes de qualquer lista: quem já pediu volta por aqui, num toque. A
+        seção não existe no HTML estático — ela é montada do localStorage do
+        cliente depois da hidratação, e some para quem nunca pediu.
+      */}
+      <OrderAgain />
+
+      {/*
         A lista de bairros deixou de ser a porta de entrada — o CEP faz o que
         ela fazia e ainda preenche o endereço da entrega — mas continua aqui,
         mais discreta, por dois motivos: quem não quer digitar o CEP tem por
@@ -45,7 +53,7 @@ export default async function HomePage() {
       {places.length > 0 ? (
         <section>
           <h2 className="mb-3 text-sm font-semibold tracking-wide uppercase">
-            Ou veja por bairro
+            Busque por bairro
           </h2>
 
           <ul className="flex flex-col gap-2">

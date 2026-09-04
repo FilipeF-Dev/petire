@@ -34,6 +34,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      demand_signals: {
+        Row: {
+          city_slug: string | null
+          created_at: string
+          id: number
+          kind: Database["public"]["Enums"]["demand_kind"]
+          neighborhood_slug: string | null
+          term: string | null
+        }
+        Insert: {
+          city_slug?: string | null
+          created_at?: string
+          id?: never
+          kind: Database["public"]["Enums"]["demand_kind"]
+          neighborhood_slug?: string | null
+          term?: string | null
+        }
+        Update: {
+          city_slug?: string | null
+          created_at?: string
+          id?: never
+          kind?: Database["public"]["Enums"]["demand_kind"]
+          neighborhood_slug?: string | null
+          term?: string | null
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           created_at: string
@@ -570,6 +597,7 @@ export type Database = {
           delivery_minutes: number | null
           description: string | null
           id: string | null
+          is_open_manual: boolean | null
           is_open_now: boolean | null
           kind: Database["public"]["Enums"]["store_kind"] | null
           lat: number | null
@@ -594,6 +622,7 @@ export type Database = {
           delivery_minutes?: number | null
           description?: string | null
           id?: string | null
+          is_open_manual?: boolean | null
           is_open_now?: never
           kind?: Database["public"]["Enums"]["store_kind"] | null
           lat?: number | null
@@ -618,6 +647,7 @@ export type Database = {
           delivery_minutes?: number | null
           description?: string | null
           id?: string | null
+          is_open_manual?: boolean | null
           is_open_now?: never
           kind?: Database["public"]["Enums"]["store_kind"] | null
           lat?: number | null
@@ -635,6 +665,14 @@ export type Database = {
       }
     }
     Functions: {
+      demand_summary: {
+        Args: { window_days?: number }
+        Returns: {
+          hits: number
+          kind: Database["public"]["Enums"]["demand_kind"]
+          label: string
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       manages_store: { Args: { target: string }; Returns: boolean }
       slugify: { Args: { input: string }; Returns: string }
@@ -654,6 +692,7 @@ export type Database = {
       }
     }
     Enums: {
+      demand_kind: "search_empty" | "area_uncovered"
       event_kind: "store_view" | "cart_add" | "whatsapp_click"
       manager_role: "manager" | "admin"
       promotion_kind: "percent" | "fixed"
@@ -789,6 +828,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      demand_kind: ["search_empty", "area_uncovered"],
       event_kind: ["store_view", "cart_add", "whatsapp_click"],
       manager_role: ["manager", "admin"],
       promotion_kind: ["percent", "fixed"],

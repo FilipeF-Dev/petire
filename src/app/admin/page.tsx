@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 import { setStoreActive } from "./actions";
+import { DemandSignals } from "./demand";
 import { ResetPassword, SubscriptionForm } from "./store-controls";
 
 export const metadata: Metadata = {
@@ -62,6 +63,10 @@ export default async function AdminPage() {
           </Link>
         }
       />
+
+      {/* Onde abrir o próximo bairro, e quem convidar. Some enquanto não há
+          sinal nenhum. */}
+      <DemandSignals />
 
       {stores.length === 0 ? (
         <EmptyState
