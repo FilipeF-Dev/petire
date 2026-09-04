@@ -221,7 +221,11 @@ insert into public.managers (id, store_id, role, email) values
   ('aaaaaaaa-0000-4000-8000-000000000003', null,                                   'admin',   'admin@petire.local');
 
 -- ----------------------------------------------------------------------------
--- Eventos dos últimos 30 dias, para o dashboard do gerente ter o que mostrar.
+-- Eventos, para o dashboard do gerente ter o que mostrar.
+--
+-- Sessenta dias e não trinta: o painel compara o mês corrente com o anterior, e
+-- sem os dois lados a variação não aparece. O mês anterior vem com volume
+-- menor de propósito, para a seta apontar para cima.
 -- ----------------------------------------------------------------------------
 
 insert into public.events (store_id, kind, created_at)
@@ -232,7 +236,49 @@ select
 from public.stores s
 cross join (values
   ('store_view'::public.event_kind,    120),
-  ('cart_add'::public.event_kind,       40),
   ('whatsapp_click'::public.event_kind, 18)
 ) as k(kind, n)
 cross join lateral generate_series(1, k.n);
+
+insert into public.events (store_id, kind, created_at)
+select
+  s.id,
+  k.kind,
+  now() - interval '30 days' - (random() * interval '30 days')
+from public.stores s
+cross join (values
+  ('store_view'::public.event_kind,     95),
+  ('whatsapp_click'::public.event_kind, 13)
+) as k(kind, n)
+cross join lateral generate_series(1, k.n);
+
+-- `cart_add` carrega o produto, e é só ele que carrega: é o que alimenta "o
+-- que mais entra no carrinho". Os primeiros itens de cada cardápio ganham mais
+-- adições, para o ranking ter o que ordenar.
+insert into public.events (store_id, product_id, kind, created_at)
+select
+  p.store_id,
+  p.id,
+  'cart_add'::public.event_kind,
+  now() - (random() * interval '30 days')
+from (
+  select
+    id,
+    store_id,
+    row_number() over (partition by store_id order by sort_order, created_at) as rank
+  from public.products
+) p
+cross join lateral generate_series(1, greatest(1, 12 - p.rank * 2));
+
+-- ----------------------------------------------------------------------------
+-- Um pagamento já registrado, para o histórico da assinatura não nascer vazio.
+-- ----------------------------------------------------------------------------
+
+insert into public.subscription_payments (store_id, amount_cents, paid_on, covers_until, note)
+values (
+  '11111111-1111-4111-8111-111111111111',
+  3000,
+  current_date - 20,
+  current_date + 10,
+  'PIX, comprovante no WhatsApp'
+);

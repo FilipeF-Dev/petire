@@ -90,7 +90,7 @@ Quatro clientes Supabase, quatro níveis de poder:
 |---|---|---|
 | `src/lib/supabase/client.ts` | `anon` / `authenticated` | Client Components |
 | `src/lib/supabase/server.ts` | `anon` / `authenticated` | Server Components, actions, route handlers |
-| `src/lib/supabase/admin.ts` | `service_role` — **ignora RLS** | só `/admin` e `/api/events` |
+| `src/lib/supabase/admin.ts` | `service_role` — **ignora RLS** | só `/admin`, `/api/events`, `/api/demand` e a indicação de loja |
 | `src/lib/supabase/public.ts` | `anon`, sem cookies | vitrine pública, sitemap, build |
 
 Regras que valem a pena ter na cabeça:
@@ -128,11 +128,14 @@ supabase/
 src/
   app/
     (site)/               vitrine pública
-      page.tsx            home, seletor de bairro
-      lojas/              lista com filtros
+      page.tsx            home, CEP, "peça novamente"
+      lojas/              lista com filtros e indicação de loja
       loja/[slug]/        cardápio — a página de SEO
+        menu-browser.tsx  índice de categorias e busca no cardápio
       carrinho/           carrinho multi-loja e envio
     admin/                cadastro, edição e assinatura das lojas
+      demand.tsx          demanda não atendida e lojas indicadas
+      loja/[id]/payments.tsx  registro da mensalidade e histórico
     entrar/               login do lojista
     gerente/              painel (protegido)
       cardapio/           categorias, itens, opções, fotos
@@ -141,12 +144,16 @@ src/
       divulgar/           link, mensagem pronta e cartaz com QR
       loja/               dados, horários, abrir/fechar
     api/events/           gravação de métricas
+    api/demand/           demanda que o catálogo não atendeu
     offline/              fallback do service worker
     manifest.ts           manifesto do PWA
     sitemap.ts robots.ts
   components/
     address-fields.tsx    endereço com busca por CEP
+    install-prompt.tsx    convite a instalar, só para quem já pediu
     location-bar.tsx      barra de CEP do cliente
+    order-again.tsx       lojas de onde o cliente já pediu
+    track-demand.tsx      busca vazia e cidade sem loja
     ui.tsx                primitivas visuais do painel
   lib/
     auth.ts               requireManager / requireAdmin
@@ -156,14 +163,17 @@ src/
     customer-contact.ts   nome e número de quem recebe, só no browser dele
     customer-location.ts  CEP do cliente, só no browser dele
     delivery.ts           tempo de entrega, do jeito que o cliente lê
+    opening.ts            quando a loja fechada volta a abrir
     slug.ts               normalização, gêmea da do banco
     money.ts              centavos ↔ texto
     order-message.ts      texto do pedido e link do wa.me
     menu-import.ts        lê o cardápio colado como texto
     promotions.ts         preço com desconto e janela de vigência
     proximity.ts          distância estimada pelo CEP
+    recent-orders.ts      último pedido por loja, só no browser dele
     qr.ts                 QR code da loja, em SVG
     storefront.ts         tipos das views públicas
+    subscription.ts       rótulos e aviso de vencimento
     validation.ts         schemas zod dos formulários
     weekdays.ts           dias da semana e horário
     supabase/             os quatro clientes + tipos gerados
@@ -294,6 +304,126 @@ e por isso a segunda defesa não é opcional.
 de atualizar, nem uma edição no painel do lojista tem como recriar a
 divergência. Filtros, home e sitemap agrupam por esses slugs; o nome exibido é
 a grafia mais usada entre as lojas do bairro (`mode()`).
+
+## A busca perdoa acento, hífen e caixa
+
+Comparar o texto digitado com o texto cadastrado quebra no caso mais comum que
+existe: "coca cola" não acha "Coca-Cola", "acai" não acha "Açaí", "x salada" não
+acha "X-Salada". E o produto aposta em achar a loja **pelo que ela vende** —
+quem procura já não sabe o nome da lanchonete que faz coxinha.
+
+A normalização já existia, para agrupar bairro e cidade: `public.slugify()`.
+`products.name_slug` e `stores.name_slug` são colunas geradas por ela, e a busca
+compara slug com slug. Pontuação virar hífen é o que faz "coca cola",
+"Coca-Cola" e "COCA COLA" caírem todas em `coca-cola`.
+
+Ela também é a defesa contra injeção de filtro que antes era um
+`sanitizeSearch()` escrito a mão: o que sobra é `[a-z0-9-]`, então não há como
+um `%`, um `_` ou uma vírgula digitados virarem curinga do LIKE ou separador do
+PostgREST.
+
+Sem índice, de propósito. `like '%x%'` não usa índice comum, e um GIN de
+trigrama custa uma extensão e manutenção de escrita para varrer as poucas
+centenas de linhas que um bairro tem.
+
+## O cardápio longo
+
+`/loja/[slug]` empilhava todas as categorias em sequência. Isso funciona para a
+lanchonete de trinta itens e não funciona para a distribuidora, que tem centenas
+de rótulos quase iguais — e distribuidora é metade do público que o Petire foi
+buscar.
+
+`MenuBrowser` dá duas saídas, porque são duas perguntas diferentes: quem sabe o
+que quer busca, quem está decidindo passeia pelo índice de categorias. A barra
+de categorias é fixa e marca onde a leitura está, via `IntersectionObserver`.
+
+A filtragem é **no browser**. O cardápio inteiro já veio no HTML — é ele que o
+Google indexa e é dele que a página vive. Ir ao servidor a cada tecla jogaria
+isso fora e ainda seria mais lento.
+
+## Loja fechada
+
+O botão de enviar continuava verde e ativo fora do horário. O cliente pedia de
+madrugada, ninguém respondia, e a culpa ficava dividida entre a loja e o site.
+
+No carrinho, `resolveCart()` devolve `opensLabel` — "abre amanhã às 09:00" — e o
+envio vira ação secundária. A conta está em `src/lib/opening.ts`, no fuso de
+Brasília, o mesmo que `store_is_open()` usa: sem fixá-lo, o relógio do servidor
+da Vercel decidiria quando a lanchonete abre.
+
+`is_open_manual` entrou na `stores_public` para separar **fechada pelo horário**
+de **fechada na mão**. Só a primeira tem hora a prometer; anunciar uma abertura
+para a loja que o dono fechou seria inventar uma promessa por ele.
+
+## O caminho de volta
+
+Sem cadastro, o Petire some da vida do cliente no instante em que ele sai para o
+WhatsApp — e a recompra é o que faz o número do lojista crescer do primeiro mês
+para o segundo, que é quando ele decide renovar. Três coisas cobrem isso, todas
+sem cadastro:
+
+- **O link no rodapé da mensagem.** Fica na conversa dele com a loja, que é onde
+  ele procura quando quer pedir de novo. É a última linha de propósito: num
+  pedido que ainda estoura o limite do `wa.me`, o corte cai nele e nunca no
+  endereço.
+- **"Peça novamente" na home**, com **Repetir** para remontar o último pedido da
+  loja num toque (`src/lib/recent-orders.ts`). Guarda só a identidade dos itens,
+  como o carrinho: preço e disponibilidade são relidos do banco.
+- **O convite a instalar**, só para quem **já pediu pelo menos uma vez**.
+  Convidar quem acabou de chegar é pedir compromisso antes de entregar valor.
+  Só Chromium dispara `beforeinstallprompt`; no iOS o convite não aparece, em
+  vez de virar um tutorial que ninguém segue.
+
+## O que o painel mostra, e o que ele promete
+
+Estes números são a única prova de valor que existe, porque o pedido fecha fora
+do sistema. Por isso o rótulo diz exatamente o que foi medido: "Pedidos abertos
+no WhatsApp", não "pedidos enviados" — o evento é gravado quando o cliente sai
+para o WhatsApp, e ninguém aqui vê se ele apertou enviar. A visita conta uma vez
+por sessão, senão o próprio lojista dando F5 infla o número que ele usa para
+decidir se renova.
+
+A variação contra os 30 dias anteriores sai de `store_metrics(target, 60)` menos
+os 30 recentes — a janela continua contada pelo relógio do banco, sem função
+nova. Sem base de comparação nada é mostrado: uma seta verde saindo do zero
+prometeria um crescimento que é só a estreia.
+
+`store_top_products()` responde a única pergunta em que o lojista pode agir
+sozinho: qual item puxa o pedido. `cart_add` já gravava o produto desde o
+começo; o dado estava lá e ninguém mostrava.
+
+## Demanda que o catálogo não atendeu
+
+Busca sem resultado e CEP de cidade sem loja eram becos sem saída silenciosos —
+e são o dado que diz onde abrir o próximo bairro. Vão para `demand_signals`,
+**tabela separada de `events` de propósito**: `events` é a prova de valor de uma
+loja, com `store_id` NOT NULL e índice por loja, e misturar contaminaria a
+métrica que vira dinheiro. Só slug de lugar e termo procurado; o CEP continua
+sem sair do aparelho do cliente.
+
+No mesmo momento, `store_suggestions` pergunta o que o sinal não sabe responder:
+*qual* loja faltou. Quem acabou de não encontrar nada sabe o nome e costuma
+saber o Instagram — e a abordagem deixa de ser fria. O que se guarda é o contato
+**da loja**, público por natureza; nada identifica quem indicou.
+
+As duas tabelas são escritas só pelo servidor e lidas só pelo admin, que já usa
+`service_role`. Escrita aberta viraria fábrica de demanda falsa para um bairro;
+leitura aberta entregaria a fila de prospecção do Petire a qualquer um.
+
+## A mensalidade
+
+A cobrança é PIX conferido a mão. O que doía não era o valor: era o vencimento
+anterior ser sobrescrito pelo seguinte, sem sobrar rastro de quando alguém
+pagou.
+
+`subscription_payments` é esse registro, e `registerPayment()` grava o pagamento
+**e** move `stores.subscription_until` na mesma operação — fazer só o primeiro
+tira do ar uma loja que pagou, e isso é o tipo de erro que o lojista descobre
+pelo cliente. O gerente lê o próprio histórico (uma conversa a menos por
+WhatsApp) e não escreve nada: assinatura nunca foi editável por ele.
+
+`subscriptionNotice()` avisa antes. Quem descobre que venceu porque a loja sumiu
+do catálogo já perdeu os pedidos do dia.
 
 ## Trocar o apelido de uma loja
 

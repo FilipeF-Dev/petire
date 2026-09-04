@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
+import { daysUntil, STATUS_LABEL } from "@/lib/subscription";
 import { createClient } from "@/lib/supabase/server";
 
 import { setStoreActive } from "./actions";
@@ -14,18 +15,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  trial: "Teste",
-  active: "Em dia",
-  past_due: "Atrasada",
-  suspended: "Suspensa",
-};
-
-function daysUntil(date: string | null): number | null {
-  if (!date) return null;
-  const target = new Date(`${date}T12:00:00`);
-  return Math.round((target.getTime() - Date.now()) / 86_400_000);
-}
+// Os rótulos e a conta de dias moram em src/lib/subscription.ts: o admin e o
+// painel do lojista precisam dizer a mesma coisa sobre a mesma loja.
 
 export default async function AdminPage() {
   await requireAdmin();

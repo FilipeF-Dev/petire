@@ -61,8 +61,20 @@ function StoreOrder({
 
     // "Peça novamente", na home. Registrado no envio e não na visita: a lista
     // responde de onde o cliente já pediu, e cardápio aberto por curiosidade
-    // não é pedido.
-    rememberOrder({ slug: store.slug, name: store.name });
+    // não é pedido. Vai junto a identidade dos itens, para o mesmo pedido
+    // voltar num toque — preço e disponibilidade são relidos na hora, como no
+    // carrinho.
+    rememberOrder({
+      storeId: store.storeId,
+      slug: store.slug,
+      name: store.name,
+      lines: store.lines.map((line) => ({
+        productId: line.productId,
+        optionIds: line.optionIds,
+        quantity: line.quantity,
+        note: line.note,
+      })),
+    });
 
     setIsAsking(false);
     setSent(true);

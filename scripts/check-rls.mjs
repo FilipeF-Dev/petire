@@ -387,6 +387,92 @@ await check("demand_summary não é executável pelo browser", async () => {
   return "bloqueado";
 });
 
+console.log("\nIndicações de loja");
+
+// A fila de prospecção do Petire. Aberta a escrita, vira caixa de spam; aberta
+// a leitura, é a lista de quem estamos prestes a abordar.
+
+await check("anon não escreve indicação", async () => {
+  const { error } = await anon
+    .from("store_suggestions")
+    .insert({ store_name: "Loja fantasma" });
+
+  assert(error, "anon gravou em store_suggestions");
+  return "bloqueado";
+});
+
+await check("anon não lê indicações", async () => {
+  const { data, error } = await anon.from("store_suggestions").select("id");
+  assert(error || (data ?? []).length === 0, "anon enxergou store_suggestions");
+  return "bloqueado";
+});
+
+console.log("\nMensalidade");
+
+await check("gerente lê os próprios pagamentos", async () => {
+  const { data, error } = await ze
+    .from("subscription_payments")
+    .select("id, amount_cents");
+  assert(!error, error?.message ?? "");
+  assert(data.length === 1, `esperava 1 pagamento, veio ${data.length}`);
+  return `${data.length} pagamento`;
+});
+
+await check("gerente NÃO lê o pagamento do vizinho", async () => {
+  // O pagamento do seed é da Lanchonete do Zé; a Distribuidora não pode vê-lo.
+  const vizinho = await managerClient("distribuidora@petire.local");
+  const { data, error } = await vizinho
+    .from("subscription_payments")
+    .select("id");
+  assert(!error, error?.message ?? "");
+  assert(data.length === 0, `vazou ${data.length} pagamento(s)`);
+});
+
+await check("gerente NÃO registra pagamento", async () => {
+  // Assinatura nunca é editável pelo lojista, nem por esta porta.
+  const { error } = await ze.from("subscription_payments").insert({
+    store_id: STORE_ZE,
+    amount_cents: 1,
+    covers_until: "2030-01-01",
+  });
+
+  assert(error, "gerente gravou um pagamento");
+  return "bloqueado";
+});
+
+await check("anon não lê pagamento de ninguém", async () => {
+  const { data, error } = await anon.from("subscription_payments").select("id");
+  assert(error || (data ?? []).length === 0, "anon enxergou pagamentos");
+  return "bloqueado";
+});
+
+console.log("\nItens mais pedidos");
+
+await check("store_top_products devolve o ranking da própria loja", async () => {
+  const { data, error } = await ze.rpc("store_top_products", {
+    target: STORE_ZE,
+  });
+  assert(!error, error?.message ?? "");
+  assert(data.length > 0, "ranking veio vazio");
+
+  // A função ordena por volume; se vier fora de ordem, o painel mente.
+  const counts = data.map((row) => Number(row.adds));
+  const sorted = [...counts].sort((a, b) => b - a);
+  assert(
+    JSON.stringify(counts) === JSON.stringify(sorted),
+    "ranking não veio ordenado",
+  );
+  return `${data.length} itens, topo com ${counts[0]}`;
+});
+
+await check("store_top_products não vaza a loja do vizinho", async () => {
+  const { data, error } = await ze.rpc("store_top_products", {
+    target: STORE_DIST,
+  });
+  assert(!error, error?.message ?? "");
+  assert(data.length === 0, `vazou ${data.length} linha(s)`);
+});
+
 // --- resultado ---------------------------------------------------------------
 
 console.log("");

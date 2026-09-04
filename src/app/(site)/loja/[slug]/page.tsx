@@ -12,7 +12,7 @@ import { hhmm, SCHEMA_WEEKDAYS, WEEKDAYS } from "@/lib/weekdays";
 
 import { CartBar } from "./cart-bar";
 import { findRenamedStore, getStorePage, type StorePage } from "./data";
-import { MenuItem } from "./menu-item";
+import { MenuBrowser, type MenuSection } from "./menu-browser";
 import { TrackStoreView } from "./track-view";
 
 // Rede de segurança. O caminho normal é o painel chamar revalidatePath assim
@@ -98,16 +98,51 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
 
   const { store, categories, products, hours, promotions } = page;
 
-  const sections = [
+  // O preço com promoção e a ordenação das opções são resolvidos aqui, no
+  // servidor: o MenuBrowser filtra e navega, e não tem por que saber de
+  // promoção nem de `sort_order`.
+  const toMenuProduct = (product: (typeof products)[number]) => {
+    const price = priceOf(
+      product.price_cents,
+      product.id,
+      promotions as Promotion[],
+    );
+
+    return {
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      image_url: product.image_url,
+      is_available: product.is_available,
+      priceCents: price.cents,
+      originalPriceCents: price.originalCents,
+      promotionLabel: price.label,
+      // O PostgREST não ordena relações aninhadas junto com a principal.
+      option_groups: [...product.option_groups]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((group) => ({
+          ...group,
+          options: [...group.options].sort((a, b) => a.sort_order - b.sort_order),
+        })),
+    };
+  };
+
+  const sections: MenuSection[] = [
     ...categories.map((category) => ({
-      id: category.id as string | null,
+      // O índice do cardápio precisa de um id em toda seção, inclusive na de
+      // itens sem categoria — é o alvo do link e a chave do estado.
+      id: category.id as string,
       name: category.name,
-      items: products.filter((p) => p.category_id === category.id),
+      items: products
+        .filter((p) => p.category_id === category.id)
+        .map(toMenuProduct),
     })),
     {
-      id: null,
+      id: "outros",
       name: "Outros",
-      items: products.filter((p) => p.category_id === null),
+      items: products
+        .filter((p) => p.category_id === null)
+        .map(toMenuProduct),
     },
   ].filter((section) => section.items.length > 0);
 
@@ -200,54 +235,11 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
           Esta loja ainda não publicou o cardápio.
         </p>
       ) : (
-        <div className="flex flex-col gap-8">
-          {sections.map((section) => (
-            <section key={section.id ?? "outros"}>
-              <h2 className="mb-3 text-sm font-semibold tracking-wide uppercase">
-                {section.name}
-              </h2>
-
-              <ul className="flex flex-col gap-2">
-                {section.items.map((product) => {
-                  const price = priceOf(
-                    product.price_cents,
-                    product.id,
-                    promotions as Promotion[],
-                  );
-
-                  return (
-                    <li key={product.id}>
-                      <MenuItem
-                        storeId={store.id}
-                        storeIsOpen={store.is_open_now}
-                        product={{
-                          id: product.id,
-                          name: product.name,
-                          description: product.description,
-                          image_url: product.image_url,
-                          is_available: product.is_available,
-                          priceCents: price.cents,
-                          originalPriceCents: price.originalCents,
-                          promotionLabel: price.label,
-                          // O PostgREST não ordena relações aninhadas junto
-                          // com a principal.
-                          option_groups: [...product.option_groups]
-                            .sort((a, b) => a.sort_order - b.sort_order)
-                            .map((group) => ({
-                              ...group,
-                              options: [...group.options].sort(
-                                (a, b) => a.sort_order - b.sort_order,
-                              ),
-                            })),
-                        }}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
-        </div>
+        <MenuBrowser
+          storeId={store.id}
+          storeIsOpen={store.is_open_now}
+          sections={sections}
+        />
       )}
 
       <section>
