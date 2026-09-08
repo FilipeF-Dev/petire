@@ -84,6 +84,15 @@ export type ResolvedCart = {
   stores: ResolvedStore[];
   /** Ids de linha que sumiram do cardápio ou esgotaram. O cliente limpa do storage. */
   dropped: string[];
+  /**
+   * O catálogo não pôde ser lido.
+   *
+   * Diferente de "o item não existe mais", e a diferença é o carrinho do
+   * cliente: quando a consulta falha, nada é descartado. Sem esta distinção,
+   * qualquer erro de leitura vira "todos os itens sumiram do cardápio" — e o
+   * carrinho é apagado de verdade, porque quem lê `dropped` chama `removeLine`.
+   */
+  failed?: boolean;
 };
 
 export async function resolveCart(input: unknown): Promise<ResolvedCart> {
@@ -121,6 +130,24 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
       .select("store_id, weekday, opens_at")
       .in("store_id", storeIds),
   ]);
+
+  /**
+   * Consulta que falhou não é item que sumiu.
+   *
+   * Estas três decidem se uma linha sobrevive: sem loja e sem produto não há o
+   * que montar, e sem as promoções o preço sairia pelo valor de tabela — mais
+   * caro do que o cliente viu no cardápio, na mensagem que vai para a loja.
+   *
+   * Sem esta parada, qualquer erro aqui — uma coluna que ainda não existe no
+   * banco de produção, o Supabase fora do ar por um minuto — descartava todas
+   * as linhas, e o carrinho do cliente era apagado do aparelho dele.
+   *
+   * `hoursResult` fica de fora de propósito: ele só alimenta o "abre amanhã às
+   * 09:00". Perder a frase é aceitável; perder o pedido, não.
+   */
+  if (storesResult.error || productsResult.error || promotionsResult.error) {
+    return { stores: [], dropped: [], failed: true };
+  }
 
   const stores = new Map(
     viewRows<
