@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireManager } from "@/lib/auth";
-import { dayEndsAt, dayStartsAt } from "@/lib/promotions";
+import { dayEndsAt, dayStartsAt, parseWeekdays } from "@/lib/promotions";
 import { createClient } from "@/lib/supabase/server";
 import {
   formValues,
@@ -29,11 +29,17 @@ function refreshPromotions(storeSlug: string | null) {
   if (storeSlug) revalidatePath(`/loja/${storeSlug}`);
 }
 
-function promotionErrorMessage(code: string | undefined) {
+function promotionErrorMessage(code: string | undefined, message?: string) {
   // 23503 = o produto escolhido não é desta loja
   if (code === "23503") return "Esse item não pertence à sua loja.";
   // 23514 = check do banco (percentual fora de 1–100, janela invertida)
   if (code === "23514") return "Confira o desconto e as datas.";
+
+  // PT422 = os dias da semana são do plano Plus. A mensagem vem do banco
+  // escrita para o lojista ler; reescrevê-la aqui seria manter o mesmo texto em
+  // dois lugares, prontos para divergir.
+  if (code === "PT422" && message) return message;
+
   return "Não foi possível salvar a promoção.";
 }
 
@@ -65,6 +71,9 @@ export async function savePromotion(
       ? dayStartsAt(parsed.data.startsOn)
       : new Date().toISOString(),
     ends_at: parsed.data.endsOn ? dayEndsAt(parsed.data.endsOn) : null,
+    // Fora do Plus os checkboxes vêm desabilitados, então não são enviados e
+    // isto cai em null sozinho. Quem garante mesmo assim é o gatilho no banco.
+    weekdays: parseWeekdays(formData.getAll("weekdays").map(String)),
   };
 
   if (typeof promotionId === "string" && promotionId !== "") {
@@ -76,7 +85,7 @@ export async function savePromotion(
 
     if (error) {
       return {
-        error: promotionErrorMessage(error.code),
+        error: promotionErrorMessage(error.code, error.message),
         values: formValues(formData),
       };
     }
@@ -87,7 +96,7 @@ export async function savePromotion(
 
     if (error) {
       return {
-        error: promotionErrorMessage(error.code),
+        error: promotionErrorMessage(error.code, error.message),
         values: formValues(formData),
       };
     }

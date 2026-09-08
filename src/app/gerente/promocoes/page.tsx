@@ -8,6 +8,7 @@ import {
   endsAtToDay,
   promotionStatus,
   startsAtToDay,
+  weekdaysLabel,
   type PromotionStatus,
 } from "@/lib/promotions";
 import { createClient } from "@/lib/supabase/server";
@@ -26,6 +27,7 @@ type PromotionRow = {
   value: number;
   starts_at: string;
   ends_at: string | null;
+  weekdays: number[] | null;
   is_active: boolean;
 };
 
@@ -49,8 +51,12 @@ function shortDay(day: string): string {
 function windowLabel(promotion: PromotionRow): string {
   const start = shortDay(startsAtToDay(promotion.starts_at));
   const end = promotion.ends_at ? shortDay(endsAtToDay(promotion.ends_at)) : null;
+  const window = end ? `${start} até ${end}` : `desde ${start}, sem prazo`;
 
-  return end ? `${start} até ${end}` : `desde ${start}, sem prazo`;
+  // "só" na frente porque a lista de dias sozinha se lê como quando ela
+  // começa, e não como os únicos dias em que ela vale.
+  const days = weekdaysLabel(promotion.weekdays);
+  return days ? `só ${days} · ${window}` : window;
 }
 
 export default async function PromocoesPage() {
@@ -68,7 +74,9 @@ export default async function PromocoesPage() {
   const [promotionsResult, productsResult] = await Promise.all([
     supabase
       .from("promotions")
-      .select("id, product_id, kind, value, starts_at, ends_at, is_active")
+      .select(
+        "id, product_id, kind, value, starts_at, ends_at, weekdays, is_active",
+      )
       .eq("store_id", session.storeId)
       .order("created_at", { ascending: false }),
     supabase
