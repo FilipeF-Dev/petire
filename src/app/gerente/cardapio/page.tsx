@@ -98,7 +98,7 @@ export default async function CardapioPage() {
 
   const supabase = await createClient();
 
-  const [categoriesResult, productsResult] = await Promise.all([
+  const [categoriesResult, productsResult, limitResult] = await Promise.all([
     supabase
       .from("menu_categories")
       .select("id, name, sort_order")
@@ -113,10 +113,17 @@ export default async function CardapioPage() {
       .eq("store_id", session.storeId)
       .order("sort_order")
       .order("created_at"),
+    supabase.rpc("store_item_limit", { target: session.storeId }),
   ]);
 
   const categories = categoriesResult.data ?? [];
   const products = productsResult.data ?? [];
+
+  // O teto só aparece quando está perto de importar. Mostrar "8 de 100" para
+  // quem tem oito itens é ruído, e pior: sugere um limite onde não há problema
+  // nenhum. Quem já usou 80% precisa saber antes de colar um cardápio inteiro.
+  const itemLimit = limitResult.data ?? 0;
+  const nearLimit = itemLimit > 0 && products.length >= itemLimit * 0.8;
   const uncategorized = products.filter((p) => p.category_id === null);
 
   const sections = [
@@ -142,7 +149,11 @@ export default async function CardapioPage() {
     <div>
       <PageHeader
         title="Cardápio"
-        description={`${products.length} ${products.length === 1 ? "item" : "itens"} em ${categories.length} ${categories.length === 1 ? "categoria" : "categorias"}`}
+        description={
+          nearLimit
+            ? `${products.length} de ${itemLimit} itens do seu plano, em ${categories.length} ${categories.length === 1 ? "categoria" : "categorias"}`
+            : `${products.length} ${products.length === 1 ? "item" : "itens"} em ${categories.length} ${categories.length === 1 ? "categoria" : "categorias"}`
+        }
         action={
           <div className="flex flex-wrap gap-2">
             <Link href="/gerente/cardapio/importar">

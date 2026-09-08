@@ -121,7 +121,13 @@ export async function importMenu(
   const { error } = await supabase.from("products").insert(rows);
   if (error) {
     return {
-      error: "Não foi possível gravar os itens.",
+      // PT422 = o cardápio colado passa do teto do plano. É o caso mais provável
+      // de estourar, porque aqui entram dezenas de itens de uma vez — e a
+      // mensagem do banco já diz ao lojista qual é o limite dele.
+      error:
+        error.code === "PT422"
+          ? error.message
+          : "Não foi possível gravar os itens.",
       values: formValues(formData),
     };
   }

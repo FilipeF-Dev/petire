@@ -880,6 +880,7 @@ export type Database = {
         Returns: boolean
       }
       store_is_public: { Args: { target: string }; Returns: boolean }
+      store_item_limit: { Args: { target: string }; Returns: number }
       store_manager_limit: { Args: { target: string }; Returns: number }
       store_metrics: {
         Args: { target: string; window_days?: number }

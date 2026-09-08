@@ -159,7 +159,7 @@ export async function saveProduct(
       .eq("id", productId)
       .eq("store_id", session.storeId);
 
-    if (error) return { error: productErrorMessage(error.code) };
+    if (error) return { error: productErrorMessage(error.code, error.message) };
 
     // Trocou a foto: a antiga vira lixo pago no Storage.
     if (current?.image_url && current.image_url !== values.image_url) {
@@ -181,7 +181,9 @@ export async function saveProduct(
     .select("id")
     .single();
 
-  if (error || !data) return { error: productErrorMessage(error?.code) };
+  if (error || !data) {
+    return { error: productErrorMessage(error?.code, error?.message) };
+  }
 
   refreshMenu(session.storeSlug);
   // Direto para a edição: é lá que ficam tamanho e adicionais, e um produto
@@ -189,9 +191,15 @@ export async function saveProduct(
   redirect(`/gerente/cardapio/produto/${data.id}`);
 }
 
-function productErrorMessage(code: string | undefined) {
+function productErrorMessage(code: string | undefined, message?: string) {
   // 23503 = a categoria escolhida não é desta loja
   if (code === "23503") return "Essa categoria não pertence à sua loja.";
+
+  // PT422 = passou do teto de itens do plano. A mensagem vem do banco escrita
+  // para o lojista ler, e já traz o número do plano dele — reescrevê-la aqui
+  // seria manter o mesmo texto em dois lugares, prontos para divergir.
+  if (code === "PT422" && message) return message;
+
   return "Não foi possível salvar o produto.";
 }
 
