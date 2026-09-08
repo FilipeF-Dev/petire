@@ -452,6 +452,54 @@ export type Database = {
           },
         ]
       }
+      prospects: {
+        Row: {
+          city: string
+          city_slug: string | null
+          created_at: string
+          has_menu: boolean
+          has_whatsapp: boolean
+          id: number
+          name: string
+          neighborhood: string
+          neighborhood_slug: string | null
+          note: string | null
+          on_app: boolean
+          status: Database["public"]["Enums"]["prospect_status"]
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          city_slug?: string | null
+          created_at?: string
+          has_menu?: boolean
+          has_whatsapp?: boolean
+          id?: never
+          name: string
+          neighborhood: string
+          neighborhood_slug?: string | null
+          note?: string | null
+          on_app?: boolean
+          status?: Database["public"]["Enums"]["prospect_status"]
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          city_slug?: string | null
+          created_at?: string
+          has_menu?: boolean
+          has_whatsapp?: boolean
+          id?: never
+          name?: string
+          neighborhood?: string
+          neighborhood_slug?: string | null
+          note?: string | null
+          on_app?: boolean
+          status?: Database["public"]["Enums"]["prospect_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       store_applications: {
         Row: {
           address: string | null
@@ -1052,6 +1100,7 @@ export type Database = {
       event_kind: "store_view" | "cart_add" | "whatsapp_click"
       manager_role: "manager" | "admin"
       promotion_kind: "percent" | "fixed"
+      prospect_status: "a_visitar" | "visitada" | "cadastrada" | "recusou"
       store_kind: "food" | "drinks" | "both"
       store_plan: "basico" | "plus"
       subscription_status: "trial" | "active" | "past_due" | "suspended"
@@ -1190,6 +1239,7 @@ export const Constants = {
       event_kind: ["store_view", "cart_add", "whatsapp_click"],
       manager_role: ["manager", "admin"],
       promotion_kind: ["percent", "fixed"],
+      prospect_status: ["a_visitar", "visitada", "cadastrada", "recusou"],
       store_kind: ["food", "drinks", "both"],
       store_plan: ["basico", "plus"],
       subscription_status: ["trial", "active", "past_due", "suspended"],

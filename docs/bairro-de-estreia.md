@@ -103,26 +103,43 @@ casa toda semana. Dez lojas ali dão um catálogo grande e nenhuma recompra.
 
 ## O levantamento que decide, em duas horas
 
-Antes de escolher, ande no bairro candidato com o celular e anote quatro
-colunas. Vale mais do que qualquer análise feita de longe:
+Antes de escolher, ande no bairro candidato e anote o que dá para ver da
+calçada. Vale mais do que qualquer análise feita de longe.
+
+A tela é **`/admin/prospeccao`**, e ela é feita para ser usada em pé, entre uma
+porta e a seguinte: bairro e cidade continuam preenchidos da anotação anterior,
+e só o nome e as três marcas voltam ao zero.
 
 | Coluna | Como preencher |
 |---|---|
 | Nome da loja | O que está na fachada |
 | Tem cardápio visível? | Impresso, adesivado, na vitrine |
 | WhatsApp na fachada? | É o sinal do teste 3 |
-| Está no iFood? | Busca no app, ali mesmo |
+| Está em aplicativo? | Busca no app, ali mesmo |
+
+Ausente é **não**, e não "não sei": quem preenche está parado na frente da
+loja. Se não há cardápio na vitrine, isso é a resposta.
 
 O bairro está pronto quando você contar **quinze ou mais** lojas candidatas
 numa área que dá para andar. Quinze, e não dez, porque nem toda visita fecha —
 e um bairro em que você precisa converter 100% para bater a meta é um bairro
 que não bate.
 
-Duas colunas viram argumento na hora da visita:
+As colunas viram a **ordem da visita** e o **argumento de abertura**, e as duas
+coisas são calculadas por `src/lib/prospects.ts`:
 
-- **Sem cardápio visível** → a dor é vitrine. Mostre a página de outra loja.
-- **No iFood** → a dor é comissão. Abra a conta em `/cadastrar` com o
-  faturamento dele.
+- **Em aplicativo** → a dor é comissão, e ela fecha sozinha numa conta. Ganha de
+  qualquer outra, inclusive de não ter cardápio online — porque ele tem um, o do
+  aplicativo.
+- **Sem cardápio visível** → a dor é vitrine. Mostre a página de outra loja no
+  celular.
+- **Com cardápio e WhatsApp** → o ganho é o pedido chegar escrito, sem ida e
+  volta.
+- **Sem WhatsApp na fachada** → o encaixe é menor. Confirme como o cliente pede
+  hoje antes de gastar a visita.
+
+A lista da tela já vem nessa ordem. As primeiras visitas de um bairro são as que
+decidem se o fundador continua, e por isso elas são as de conversa mais curta.
 
 ---
 

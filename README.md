@@ -11,6 +11,7 @@ sem dados de pagamento. A loja paga uma mensalidade fixa para estar no catálogo
 - Como colocar uma loja real no ar: [docs/onboarding.md](docs/onboarding.md)
 - Preço, planos e o porquê de cada número: [docs/precos.md](docs/precos.md)
 - O que a marca diz, e com que palavras: [docs/marca.md](docs/marca.md)
+- Onde gastar atenção e dinheiro: [docs/marketing.md](docs/marketing.md)
 - Onde abrir primeiro: [docs/bairro-de-estreia.md](docs/bairro-de-estreia.md)
 
 ## Stack

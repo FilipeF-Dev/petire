@@ -419,6 +419,64 @@ await check("anon não lê indicações", async () => {
   return "bloqueado";
 });
 
+console.log("\nLevantamento de rua");
+
+// A fila de prospecção é a lista de quem o Petire está prestes a abordar, com o
+// estado de cada conversa. Nem o gerente nem o visitante têm o que fazer com
+// ela — e o gerente que a lesse saberia quais concorrentes vamos convidar.
+
+await check("anon não lê a prospecção", async () => {
+  const { data, error } = await anon.from("prospects").select("id");
+  assert(error || (data ?? []).length === 0, "anon enxergou prospects");
+  return "bloqueado";
+});
+
+await check("gerente logado também não enxerga", async () => {
+  const { data, error } = await ze.from("prospects").select("id");
+  assert(error || (data ?? []).length === 0, "gerente enxergou prospects");
+  return "bloqueado";
+});
+
+await check("gerente NÃO anota loja na fila", async () => {
+  const { error } = await ze.from("prospects").insert({
+    name: "Lanchonete inventada",
+    city: "Juiz de Fora",
+    neighborhood: "Benfica",
+  });
+
+  assert(error, "gerente escreveu em prospects");
+  return "bloqueado";
+});
+
+await check("o slug do bairro é gerado pelo banco", async () => {
+  // É o que casa o levantamento com as lojas que já existem. Deixar o app
+  // calcular seria a mesma divergência que city_slug resolve em stores.
+  const admin = serviceClient();
+  const { data, error } = await admin
+    .from("prospects")
+    .insert({
+      name: "Bar do Teste",
+      city: "Juiz de Fora",
+      neighborhood: "São Pedro",
+    })
+    .select("neighborhood_slug, status")
+    .single();
+
+  assert(!error, error?.message ?? "");
+  assert(
+    data.neighborhood_slug === "sao-pedro",
+    `esperava sao-pedro, veio ${data.neighborhood_slug}`,
+  );
+  assert(
+    data.status === "a_visitar",
+    `esperava a_visitar, veio ${data.status}`,
+  );
+
+  await admin.from("prospects").delete().eq("name", "Bar do Teste");
+  return data.neighborhood_slug;
+});
+
+
 console.log("\nMensalidade");
 
 await check("gerente lê os próprios pagamentos", async () => {
