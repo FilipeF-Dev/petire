@@ -7,6 +7,10 @@
 #
 # Sem isso, uma migration esquecida no commit só aparece em produção — foi
 # exatamente assim que o carrinho começou a sumir.
+#
+# Node 22 e não 20: o `@supabase/supabase-js` precisa de WebSocket nativo, que
+# só existe a partir do 22. Com 20 o `check:rls` nem chega a rodar a primeira
+# verificação — ele quebra ao criar o cliente.
 # =============================================================================
 
 name: CI
@@ -34,7 +38,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
@@ -42,6 +46,10 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      # `npm run typecheck` chama `next typegen` antes do tsc: `PageProps` e
+      # `LayoutProps` são gerados pelo Next a partir da árvore de rotas, e sem
+      # isso o tsc não os encontra. Na máquina de quem desenvolve eles já
+      # existem de um `next dev` anterior — num clone limpo, e no CI, não.
       - name: Tipos
         run: npm run typecheck
 
@@ -56,7 +64,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - uses: supabase/setup-cli@v1
