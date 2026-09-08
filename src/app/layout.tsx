@@ -14,7 +14,7 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Petire — peça direto da loja, sem taxa",
+    default: "Petire — peça direto da loja, sem taxa de serviço",
     template: "%s · Petire",
   },
   description:

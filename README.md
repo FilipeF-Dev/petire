@@ -9,6 +9,9 @@ sem dados de pagamento. A loja paga uma mensalidade fixa para estar no catálogo
 - Conceito: [docs/Petire CoreV1.txt](docs/Petire%20CoreV1.txt)
 - Escopo e modelo de dados do MVP: [docs/MVP.md](docs/MVP.md)
 - Como colocar uma loja real no ar: [docs/onboarding.md](docs/onboarding.md)
+- Preço, planos e o porquê de cada número: [docs/precos.md](docs/precos.md)
+- O que a marca diz, e com que palavras: [docs/marca.md](docs/marca.md)
+- Onde abrir primeiro: [docs/bairro-de-estreia.md](docs/bairro-de-estreia.md)
 
 ## Stack
 

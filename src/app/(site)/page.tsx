@@ -3,6 +3,12 @@ import Link from "next/link";
 import { InstallPrompt } from "@/components/install-prompt";
 import { LocationHero } from "@/components/location-bar";
 import { OrderAgain } from "@/components/order-again";
+import { formatCents } from "@/lib/money";
+import {
+  BASIC_PRICE_CENTS,
+  FOUNDER_PRICE_CENTS,
+  FOUNDER_SLOTS,
+} from "@/lib/pricing";
 import { viewRows, type PublicPlace } from "@/lib/storefront";
 import { createPublicClient } from "@/lib/supabase/public";
 
@@ -102,8 +108,9 @@ export default async function HomePage() {
       <section className="rounded-xl border border-neutral-200 bg-surface p-5 dark:border-neutral-800">
         <h2 className="font-medium">Tem uma lanchonete ou distribuidora?</h2>
         <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-          Sem comissão por pedido: mensalidade fixa, e o cliente fala direto
-          com você.
+          Sem comissão por pedido: {formatCents(BASIC_PRICE_CENTS)} por mês, e
+          o cliente fala direto com você. As {FOUNDER_SLOTS} primeiras de cada
+          bairro entram por {formatCents(FOUNDER_PRICE_CENTS)}.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
           <Link href="/cadastrar" className="underline underline-offset-4">
