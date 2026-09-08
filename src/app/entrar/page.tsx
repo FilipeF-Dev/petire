@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { supportWhatsapp } from "@/lib/env";
+
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
@@ -25,9 +27,40 @@ export default async function EntrarPage({
 
       <LoginForm next={next} />
 
-      <p className="mt-8 text-xs text-neutral-500 dark:text-neutral-400">
-        Ainda não tem loja aqui? Fale com a gente pelo WhatsApp.
-      </p>
+      {/*
+        Esta página recebe dois tipos de gente perdida: quem tem conta e não
+        entra, e quem nunca teve. A frase antiga falava com os dois e não
+        oferecia saída para nenhum — prometia um WhatsApp que não era link e
+        ignorava que o autocadastro existe.
+      */}
+      <div className="mt-8 flex flex-col gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+        <p>
+          Ainda não tem loja aqui?{" "}
+          <Link href="/cadastrar" className="underline underline-offset-4">
+            Cadastre a sua
+          </Link>
+          , leva um minuto.
+        </p>
+
+        {/* Sem número configurado o convite some, em vez de virar um link que
+            não vai a lugar nenhum — foi assim que ele nasceu quebrado. */}
+        {supportWhatsapp ? (
+          <p>
+            Perdeu o acesso?{" "}
+            <a
+              href={`https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(
+                "Olá! Não estou conseguindo entrar no painel do Petire.",
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-4"
+            >
+              Fale com a gente no WhatsApp
+            </a>
+            .
+          </p>
+        ) : null}
+      </div>
 
       <Link
         href="/"
