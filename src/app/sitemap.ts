@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { siteUrl } from "@/lib/env";
-import { viewRows, type PublicStoreLocation } from "@/lib/storefront";
+import { fetchAllRows, type PublicStoreLocation } from "@/lib/storefront";
 import { createPublicClient } from "@/lib/supabase/public";
 
 export const revalidate = 3600;
@@ -11,11 +11,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // stores_public já filtra por ativa e não suspensa — loja suspensa não pode
   // continuar no sitemap depois de sair do ar.
-  const { data } = await supabase
-    .from("stores_public")
-    .select("slug, city, city_slug, neighborhood, neighborhood_slug");
-
-  const stores = viewRows<PublicStoreLocation>(data);
+  //
+  // Paginado, e ordenado por slug: sem isso o PostgREST cortava na milésima
+  // loja sem avisar, e o que o Google via era um sitemap que parecia completo.
+  // A ordem é o que faz a paginação não repetir uma loja e pular outra.
+  const stores = await fetchAllRows<PublicStoreLocation>((from, to) =>
+    supabase
+      .from("stores_public")
+      .select("slug, city, city_slug, neighborhood, neighborhood_slug")
+      .order("slug")
+      .range(from, to),
+  );
 
   // Chaveado pelo slug: duas lojas com a mesma cidade escrita diferente não
   // podem virar duas URLs no sitemap.
