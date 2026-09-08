@@ -562,6 +562,53 @@ await check("store_manager_limit responde pelo plano", async () => {
   return `${data} login`;
 });
 
+console.log("\nRetenção de events");
+
+await check("gerente lê o mês somado da própria loja", async () => {
+  // Antes de somar não há linha nenhuma; o que interessa é que a leitura é
+  // permitida e limitada à própria loja.
+  const { data, error } = await ze
+    .from("store_month_metrics")
+    .select("store_id, month");
+  assert(!error, error?.message ?? "");
+  assert(
+    (data ?? []).every((row) => row.store_id === STORE_ZE),
+    "vazou mês somado de outra loja",
+  );
+  return `${(data ?? []).length} meses`;
+});
+
+await check("gerente NÃO escreve no mês somado", async () => {
+  // A soma é da rotina de manutenção. Se o lojista pudesse escrever aqui, ele
+  // reescreveria o próprio histórico — e é esse histórico que sustenta a
+  // conversa de renovação.
+  const { error } = await ze.from("store_month_metrics").insert({
+    store_id: STORE_ZE,
+    month: "2026-01-01",
+    store_views: 99999,
+  });
+
+  assert(error, "gerente escreveu no mês somado");
+  return "bloqueado";
+});
+
+await check("anon não lê mês somado de ninguém", async () => {
+  const { data, error } = await anon
+    .from("store_month_metrics")
+    .select("store_id");
+  assert(error || (data ?? []).length === 0, "anon enxergou o mês somado");
+  return "bloqueado";
+});
+
+await check("maintain_events não é executável pelo browser", async () => {
+  // Poda de dados: só a rotina do banco chama.
+  const asAnon = await anon.rpc("maintain_events");
+  const asManager = await ze.rpc("maintain_events");
+  assert(asAnon.error, "anon executou maintain_events");
+  assert(asManager.error, "gerente executou maintain_events");
+  return "bloqueado nos dois";
+});
+
 console.log("\nResumo do cardápio no admin");
 
 await check("gerente NÃO lê o resumo de todas as lojas", async () => {

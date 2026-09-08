@@ -124,23 +124,23 @@ export default async function RelatorioPage({
 
   const previousMonth = shiftMonth(month, -1);
   const range = monthRange(month);
-  const previousRange = monthRange(previousMonth);
 
+  // Lê a soma do mês, com o cru como reserva: `store_month_report` devolve a
+  // linha já somada quando ela existe, e conta na hora quando não — o mês que
+  // acabou de fechar, antes de a rotina da madrugada passar. Sem isso, o
+  // relatório zeraria os meses além da retenção de 90 dias.
   const [current, before, top, confirmations] = await Promise.all([
-    supabase.rpc("store_metrics_between", {
+    supabase.rpc("store_month_report", {
       target: session.storeId,
-      from_at: range.from,
-      to_at: range.to,
+      month_start: `${month}-01`,
     }),
-    supabase.rpc("store_metrics_between", {
+    supabase.rpc("store_month_report", {
       target: session.storeId,
-      from_at: previousRange.from,
-      to_at: previousRange.to,
+      month_start: `${previousMonth}-01`,
     }),
-    supabase.rpc("store_top_products_between", {
+    supabase.rpc("store_month_top", {
       target: session.storeId,
-      from_at: range.from,
-      to_at: range.to,
+      month_start: `${month}-01`,
       max_rows: 10,
     }),
     supabase

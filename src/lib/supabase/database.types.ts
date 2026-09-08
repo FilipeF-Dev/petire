@@ -563,6 +563,94 @@ export type Database = {
           },
         ]
       }
+      store_month_metrics: {
+        Row: {
+          cart_adds: number
+          created_at: string
+          month: string
+          store_id: string
+          store_views: number
+          whatsapp_clicks: number
+        }
+        Insert: {
+          cart_adds?: number
+          created_at?: string
+          month: string
+          store_id: string
+          store_views?: number
+          whatsapp_clicks?: number
+        }
+        Update: {
+          cart_adds?: number
+          created_at?: string
+          month?: string
+          store_id?: string
+          store_views?: number
+          whatsapp_clicks?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_month_metrics_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_month_metrics_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_month_top_products: {
+        Row: {
+          adds: number
+          month: string
+          name: string
+          product_id: string | null
+          store_id: string
+        }
+        Insert: {
+          adds: number
+          month: string
+          name: string
+          product_id?: string | null
+          store_id: string
+        }
+        Update: {
+          adds?: number
+          month?: string
+          name?: string
+          product_id?: string | null
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_month_top_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_month_top_products_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_month_top_products_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_slug_history: {
         Row: {
           created_at: string
@@ -872,6 +960,7 @@ export type Database = {
         }[]
       }
       is_admin: { Args: never; Returns: boolean }
+      maintain_events: { Args: { retention_days?: number }; Returns: number }
       manages_store: { Args: { target: string }; Returns: boolean }
       slugify: { Args: { input: string }; Returns: string }
       storage_store_id: { Args: { object_name: string }; Returns: string }
@@ -905,6 +994,22 @@ export type Database = {
           cart_adds: number
           store_views: number
           whatsapp_clicks: number
+        }[]
+      }
+      store_month_report: {
+        Args: { month_start: string; target: string }
+        Returns: {
+          cart_adds: number
+          store_views: number
+          whatsapp_clicks: number
+        }[]
+      }
+      store_month_top: {
+        Args: { max_rows?: number; month_start: string; target: string }
+        Returns: {
+          adds: number
+          name: string
+          product_id: string
         }[]
       }
       store_pending_confirmation: {
