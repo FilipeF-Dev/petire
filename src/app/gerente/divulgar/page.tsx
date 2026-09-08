@@ -7,8 +7,9 @@ import { siteUrl } from "@/lib/env";
 import { qrSvgPath } from "@/lib/qr";
 import { createClient } from "@/lib/supabase/server";
 
+import { Artes } from "./artes";
 import { CopyButton } from "./copy-button";
-import { PrintButton } from "./print-button";
+import { Printables } from "./printables";
 
 export const metadata: Metadata = {
   title: "Divulgar",
@@ -21,7 +22,12 @@ export const metadata: Metadata = {
  * As dez primeiras lojas entram num catálogo que ainda não tem movimento: elas
  * trazem os próprios clientes ou não recebem pedido nenhum, e uma loja que não
  * recebe pedido não renova. Aqui está o que ela precisa para isso, pronto para
- * copiar — o link, o texto e um cartaz com o QR para o balcão.
+ * copiar, publicar ou imprimir.
+ *
+ * As peças estão na ordem do alcance que cada uma tem, e não na ordem do
+ * trabalho que dão: o status do WhatsApp fala com a lista inteira de contatos
+ * hoje, o cartaz fala com quem já está na loja, e o adesivo vai para dentro da
+ * casa de quem já comprou.
  */
 export default async function DivulgarPage() {
   const session = await requireManager();
@@ -41,8 +47,9 @@ export default async function DivulgarPage() {
   // transformando em link sozinho.
   const shortUrl = url.replace(/^https?:\/\//, "");
 
-  const whatsappText = `Nosso cardápio está no Petire 🧡\n\nVocê monta o pedido e ele chega aqui pelo WhatsApp, já pronto. Sem app, sem cadastro.\n\n${url}`;
+  const whatsappText = `Nosso cardápio está no Petire 🧡\n\nVocê monta o pedido pelo celular e ele chega aqui no nosso WhatsApp, já pronto. Sem app e sem cadastro.\n\n${url}`;
   const bioText = `Cardápio e pedidos: ${shortUrl}`;
+  const instagramText = `Agora dá para pedir ${store.name} pelo celular 🧡\n\nVocê abre o cardápio, monta o pedido e ele cai direto no nosso WhatsApp — já escrito, com o endereço. Sem baixar app e sem fazer cadastro.\n\nO link está na bio: ${shortUrl}`;
 
   const qr = qrSvgPath(url);
 
@@ -51,7 +58,7 @@ export default async function DivulgarPage() {
       <div className="print:hidden">
         <PageHeader
           title="Divulgar"
-          description="Seu link, o texto pronto e um cartaz para o balcão."
+          description="Seu link, as artes prontas e o que imprimir para o balcão."
         />
       </div>
 
@@ -67,12 +74,26 @@ export default async function DivulgarPage() {
         </Card>
 
         <Card className="p-4 print:hidden">
+          <Artes storeName={store.name} url={url} shortUrl={shortUrl} />
+        </Card>
+
+        <Card className="p-4 print:hidden">
           <p className="text-sm font-medium">Mensagem para o WhatsApp</p>
           <p className="mt-2 rounded-lg bg-background p-3 text-sm whitespace-pre-line">
             {whatsappText}
           </p>
           <div className="mt-3">
             <CopyButton text={whatsappText} label="Copiar mensagem" />
+          </div>
+        </Card>
+
+        <Card className="p-4 print:hidden">
+          <p className="text-sm font-medium">Legenda do post</p>
+          <p className="mt-2 rounded-lg bg-background p-3 text-sm whitespace-pre-line">
+            {instagramText}
+          </p>
+          <div className="mt-3">
+            <CopyButton text={instagramText} label="Copiar legenda" />
           </div>
         </Card>
 
@@ -86,50 +107,12 @@ export default async function DivulgarPage() {
           </div>
         </Card>
 
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-            <p className="text-sm font-medium">Cartaz para o balcão</p>
-            <PrintButton />
-          </div>
-
-          {/*
-            O cartaz é a única coisa que vai para o papel. Fundo branco e tinta
-            preta fixos: o cliente aponta a câmera para o papel, e um QR claro
-            sobre fundo escuro não lê na maioria dos aparelhos.
-          */}
-          <div className="rounded-xl border border-neutral-200 bg-white p-8 text-center text-neutral-900 dark:border-neutral-800 print:border-0">
-            <p className="text-sm tracking-wide uppercase">Peça pelo celular</p>
-            <p className="mt-1 text-2xl font-semibold tracking-tight">
-              {store.name}
-            </p>
-
-            <svg
-              // Zona de silêncio de 4 módulos, como manda a especificação:
-              // QR colado sem margem no papel escaneia mal.
-              viewBox={`-4 -4 ${qr.size + 8} ${qr.size + 8}`}
-              className="mx-auto my-6 size-56 print:size-72"
-              shapeRendering="crispEdges"
-              role="img"
-              aria-label={`QR code para ${url}`}
-            >
-              <rect
-                x={-4}
-                y={-4}
-                width={qr.size + 8}
-                height={qr.size + 8}
-                fill="#ffffff"
-              />
-              <path d={qr.path} fill="#000000" />
-            </svg>
-
-            <p className="text-base font-medium">{shortUrl}</p>
-            <p className="mt-2 text-sm text-neutral-600">
-              Cardápio completo e pedido direto no nosso WhatsApp.
-              <br />
-              Sem app e sem cadastro.
-            </p>
-          </div>
-        </div>
+        <Printables
+          storeName={store.name}
+          shortUrl={shortUrl}
+          url={url}
+          qr={qr}
+        />
       </div>
     </div>
   );

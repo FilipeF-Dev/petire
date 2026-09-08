@@ -34,3 +34,27 @@ export function qrSvgPath(text: string): { path: string; size: number } {
 
   return { path: parts.join(""), size };
 }
+
+/**
+ * O mesmo QR, como matriz de módulos.
+ *
+ * As artes do kit de divulgação são desenhadas em `<canvas>` e viram PNG, que
+ * é o que o celular salva na galeria e o que o WhatsApp aceita no status. Um
+ * canvas não sabe desenhar o `path` acima; ele desenha retângulos, e é isso
+ * que esta função entrega.
+ *
+ * Converter o SVG em imagem no browser seria o caminho curto, e é o que
+ * quebra: a fonte do texto não é embutida na serialização, então a arte sai
+ * com outra letra — ou sem letra nenhuma — no aparelho de quem for salvar.
+ */
+export function qrModules(text: string): boolean[][] {
+  const qr = qrcode(0, "M");
+  qr.addData(text);
+  qr.make();
+
+  const size = qr.getModuleCount();
+
+  return Array.from({ length: size }, (_, row) =>
+    Array.from({ length: size }, (_, column) => qr.isDark(row, column)),
+  );
+}
