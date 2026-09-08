@@ -536,8 +536,17 @@ com ele.
 
 O plano abre **recurso**, nunca desconta comissão — comissão zero é a razão de a
 loja estar aqui, e cobrar mais de quem vende mais seria comissão com outro nome.
-Hoje o Plus abre dois: mais de um acesso (`/gerente/equipe`) e o relatório do mês
-fechado (`/gerente/relatorio`).
+Hoje o Plus abre quatro: o teto de itens do cardápio (`store_item_limit()`), a
+promoção que se repete por dia da semana (`store_schedules_promotions()`), mais
+de um acesso (`/gerente/equipe`) e o relatório do mês fechado
+(`/gerente/relatorio`).
+
+A repetição por dia da semana é **por dia, não por hora**, e isso é uma decisão
+e não uma limitação preguiçosa: `/loja/[slug]` é estática com `revalidate` de
+uma hora e resolve o preço no render, enquanto o carrinho relê do banco na hora.
+Uma janela por dia vira na meia-noite, quando o desencontro entre os dois não
+machuca ninguém. Uma janela por hora viraria às 18h, com o cardápio mostrando um
+preço e o carrinho cobrando outro no pico. Ver `docs/precos.md`.
 
 Nada disso toca a vitrine. O cliente não vê plano nenhum e a ordem da lista
 continua sendo por distância — vender posição gastaria a confiança que traz o

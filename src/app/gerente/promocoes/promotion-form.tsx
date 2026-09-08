@@ -7,6 +7,7 @@ import { useFormStatus } from "react-dom";
 import { Button, Field, FormError, inputClass } from "@/components/ui";
 import { endsAtToDay, startsAtToDay } from "@/lib/promotions";
 import { emptyFormState } from "@/lib/validation";
+import { WEEKDAYS } from "@/lib/weekdays";
 
 import { deletePromotion, savePromotion } from "./actions";
 
@@ -17,6 +18,7 @@ export type EditablePromotion = {
   value: number;
   starts_at: string;
   ends_at: string | null;
+  weekdays: number[] | null;
 };
 
 function Submit({ label }: { label: string }) {
@@ -26,6 +28,14 @@ function Submit({ label }: { label: string }) {
       {pending ? "Salvando…" : label}
     </Button>
   );
+}
+
+function dayClass(active: boolean, enabled: boolean) {
+  return `cursor-pointer rounded-lg border px-3 py-2 text-sm transition select-none ${
+    active
+      ? "border-neutral-900 font-medium dark:border-neutral-200"
+      : "border-neutral-200 bg-surface hover:bg-surface-hover dark:border-neutral-800"
+  } ${enabled ? "" : "cursor-not-allowed opacity-60"}`;
 }
 
 function kindClass(active: boolean) {
@@ -46,14 +56,26 @@ function valueToInput(promotion: EditablePromotion): string {
 export function PromotionForm({
   products,
   promotion,
+  canSchedule,
 }: {
   products: { id: string; name: string }[];
   promotion?: EditablePromotion;
+  /** O plano Plus abre a repetição por dia da semana. */
+  canSchedule: boolean;
 }) {
   const [state, formAction] = useActionState(savePromotion, emptyFormState);
   const [kind, setKind] = useState<"percent" | "fixed">(
     promotion?.kind ?? "percent",
   );
+  const [days, setDays] = useState<number[]>(promotion?.weekdays ?? []);
+
+  function toggleDay(day: number) {
+    setDays((current) =>
+      current.includes(day)
+        ? current.filter((other) => other !== day)
+        : [...current, day],
+    );
+  }
 
   return (
     <div className="flex max-w-lg flex-col gap-6">
@@ -166,9 +188,45 @@ export function PromotionForm({
           </Field>
         </div>
 
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">Repete só em</span>
+          <div className="flex flex-wrap gap-2">
+            {WEEKDAYS.map((name, index) => (
+              <label key={name} className={dayClass(days.includes(index), canSchedule)}>
+                <input
+                  type="checkbox"
+                  name="weekdays"
+                  value={index}
+                  checked={days.includes(index)}
+                  disabled={!canSchedule}
+                  onChange={() => toggleDay(index)}
+                  className="sr-only"
+                />
+                {name.slice(0, 3)}
+              </label>
+            ))}
+          </div>
+
+          {canSchedule ? (
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+              Nenhum dia marcado: vale todos os dias do prazo. Ela liga e
+              desliga sozinha — não precisa pausar e retomar toda semana.
+            </span>
+          ) : (
+            /*
+              Desligado e visível, não escondido: um recurso que some do
+              formulário não é uma oferta, é uma dúvida. Ver PlanLocked.
+            */
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+              Repetir por dia da semana é do plano Plus. No seu plano, a
+              promoção vale todos os dias do prazo.
+            </span>
+          )}
+        </div>
+
         <p className="text-xs text-neutral-500 dark:text-neutral-400">
           O dia final conta inteiro. Promoção agendada pode levar até uma hora
-          para aparecer no cardápio.
+          para aparecer no cardápio, e a virada do dia da semana também.
         </p>
 
         <FormError message={state.error} />

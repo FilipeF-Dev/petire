@@ -47,7 +47,7 @@ export const getStorePage = cache(async (slug: string) => {
         .order("opens_at"),
       supabase
         .from("promotions")
-        .select("product_id, kind, value, starts_at, ends_at")
+        .select("product_id, kind, value, starts_at, ends_at, weekdays")
         .eq("store_id", store.id)
         .eq("is_active", true),
     ]);

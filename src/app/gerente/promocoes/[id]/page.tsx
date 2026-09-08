@@ -21,10 +21,10 @@ export default async function EditarPromocaoPage({
 
   const supabase = await createClient();
 
-  const [promotionResult, productsResult] = await Promise.all([
+  const [promotionResult, productsResult, storeResult] = await Promise.all([
     supabase
       .from("promotions")
-      .select("id, product_id, kind, value, starts_at, ends_at")
+      .select("id, product_id, kind, value, starts_at, ends_at, weekdays")
       .eq("id", id)
       .eq("store_id", session.storeId)
       .maybeSingle(),
@@ -34,6 +34,11 @@ export default async function EditarPromocaoPage({
       .eq("store_id", session.storeId)
       .order("sort_order")
       .order("created_at"),
+    supabase
+      .from("stores")
+      .select("plan")
+      .eq("id", session.storeId)
+      .maybeSingle(),
   ]);
 
   const promotion = promotionResult.data as EditablePromotion | null;
@@ -45,6 +50,7 @@ export default async function EditarPromocaoPage({
       <PromotionForm
         products={productsResult.data ?? []}
         promotion={promotion}
+        canSchedule={storeResult.data?.plan === "plus"}
       />
     </div>
   );

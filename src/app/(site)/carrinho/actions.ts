@@ -121,7 +121,7 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
       .in("id", productIds),
     supabase
       .from("promotions")
-      .select("store_id, product_id, kind, value, starts_at, ends_at")
+      .select("store_id, product_id, kind, value, starts_at, ends_at, weekdays")
       .in("store_id", storeIds)
       .eq("is_active", true),
     // Para responder "e quando abre?" à loja que está fechada agora.

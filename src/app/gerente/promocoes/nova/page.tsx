@@ -17,12 +17,20 @@ export default async function NovaPromocaoPage() {
   if (!session.storeId) notFound();
 
   const supabase = await createClient();
-  const { data: products } = await supabase
-    .from("products")
-    .select("id, name")
-    .eq("store_id", session.storeId)
-    .order("sort_order")
-    .order("created_at");
+
+  const [productsResult, storeResult] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, name")
+      .eq("store_id", session.storeId)
+      .order("sort_order")
+      .order("created_at"),
+    supabase
+      .from("stores")
+      .select("plan")
+      .eq("id", session.storeId)
+      .maybeSingle(),
+  ]);
 
   return (
     <div>
@@ -30,7 +38,10 @@ export default async function NovaPromocaoPage() {
         title="Nova promoção"
         description="Vira selo no cardápio e já sai abatido no pedido."
       />
-      <PromotionForm products={products ?? []} />
+      <PromotionForm
+        products={productsResult.data ?? []}
+        canSchedule={storeResult.data?.plan === "plus"}
+      />
     </div>
   );
 }

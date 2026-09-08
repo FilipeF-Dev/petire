@@ -1,18 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  brazilWeekday,
   dayEndsAt,
   dayStartsAt,
   endsAtToDay,
+  parseWeekdays,
   priceOf,
   promotionStatus,
   startsAtToDay,
+  weekdaysLabel,
   type Promotion,
 } from "./promotions";
 
 const PRODUCT = "d1111111-1111-4111-8111-111111111111";
 const OTHER = "d2222222-2222-4222-8222-222222222222";
+/** Quarta-feira, 09:00 em Brasília. */
 const NOW = new Date("2026-09-02T12:00:00Z");
+const QUARTA = 3;
+const QUINTA = 4;
 
 function promo(overrides: Partial<Promotion> = {}): Promotion {
   return {
@@ -21,6 +27,7 @@ function promo(overrides: Partial<Promotion> = {}): Promotion {
     value: 10,
     starts_at: "2026-09-01T00:00:00Z",
     ends_at: null,
+    weekdays: null,
     ...overrides,
   };
 }
@@ -149,5 +156,120 @@ describe("promotionStatus", () => {
 
   it("chama de ativa a que está valendo agora", () => {
     expect(promotionStatus(janela, NOW)).toBe("ativa");
+  });
+});
+
+describe("dias da semana", () => {
+  it("aplica no dia marcado", () => {
+    const price = priceOf(
+      1000,
+      PRODUCT,
+      [promo({ weekdays: [QUARTA] })],
+      NOW,
+    );
+
+    expect(price.cents).toBe(900);
+  });
+
+  it("nao aplica fora do dia marcado", () => {
+    const price = priceOf(
+      1000,
+      PRODUCT,
+      [promo({ weekdays: [QUINTA] })],
+      NOW,
+    );
+
+    expect(price.cents).toBe(1000);
+    expect(price.label).toBeNull();
+  });
+
+  it("sem dias marcados, vale todo dia", () => {
+    expect(priceOf(1000, PRODUCT, [promo({ weekdays: null })], NOW).cents).toBe(
+      900,
+    );
+    expect(priceOf(1000, PRODUCT, [promo({ weekdays: [] })], NOW).cents).toBe(
+      900,
+    );
+  });
+
+  it("deixa a promocao do cardapio valer quando a do item nao e de hoje", () => {
+    // A do item continua sendo a mais especifica, mas hoje ela nao existe —
+    // entao quem vale e a da loja, e nao "nenhuma".
+    const price = priceOf(
+      1000,
+      PRODUCT,
+      [
+        promo({ weekdays: [QUINTA], value: 50 }),
+        promo({ product_id: null, value: 10 }),
+      ],
+      NOW,
+    );
+
+    expect(price.cents).toBe(900);
+  });
+});
+
+describe("brazilWeekday", () => {
+  it("conta o dia pelo relogio de Brasilia, e nao pelo UTC", () => {
+    // 22h de sexta em Brasilia ja e sabado em UTC. Sem o fuso, quem abre o
+    // cardapio nesse horario veria o desconto do dia seguinte.
+    expect(brazilWeekday(new Date("2026-09-05T01:00:00Z"))).toBe(5);
+  });
+});
+
+describe("parseWeekdays", () => {
+  it("ordena e tira repetido", () => {
+    expect(parseWeekdays(["6", "5", "5"])).toEqual([5, 6]);
+  });
+
+  it("trata nenhum e todos como sem restricao", () => {
+    expect(parseWeekdays([])).toBeNull();
+    expect(parseWeekdays(["0", "1", "2", "3", "4", "5", "6"])).toBeNull();
+  });
+
+  it("descarta o que nao e dia da semana", () => {
+    expect(parseWeekdays(["7", "-1", "abc", "2"])).toEqual([2]);
+  });
+});
+
+describe("weekdaysLabel", () => {
+  it("junta os dias com virgula e 'e'", () => {
+    expect(weekdaysLabel([5, 6])).toBe("sexta e sábado");
+    expect(weekdaysLabel([1, 3, 5])).toBe("segunda, quarta e sexta");
+  });
+
+  it("se cala quando nao ha restricao de dia", () => {
+    expect(weekdaysLabel(null)).toBeNull();
+    expect(weekdaysLabel([])).toBeNull();
+    expect(weekdaysLabel([0, 1, 2, 3, 4, 5, 6])).toBeNull();
+  });
+});
+
+describe("promotionStatus com dia da semana", () => {
+  it("chama de agendada a que esta no prazo mas nao e de hoje", () => {
+    const status = promotionStatus(
+      { ...promo({ weekdays: [QUINTA] }), is_active: true },
+      NOW,
+    );
+
+    expect(status).toBe("agendada");
+  });
+
+  it("chama de ativa a que e de hoje", () => {
+    const status = promotionStatus(
+      { ...promo({ weekdays: [QUARTA] }), is_active: true },
+      NOW,
+    );
+
+    expect(status).toBe("ativa");
+  });
+
+  it("pausada ganha do dia da semana", () => {
+    const status = promotionStatus(
+      { ...promo({ weekdays: [QUARTA] }), is_active: false },
+      NOW,
+    );
+
+    expect(status).toBe("pausada");
   });
 });
