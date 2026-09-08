@@ -557,6 +557,39 @@ existe: nenhuma quantidade de dias corridos responde "agosto", porque agosto tem
 31 e fevereiro tem 28. As janelas deslizantes do painel foram reescritas em cima
 dela, para não haver duas contagens capazes de divergir.
 
+## `events` não cresce para sempre
+
+`events` é a única prova de valor que existe, porque o pedido fecha no WhatsApp,
+fora do sistema. Por isso nunca foi apagado — e a tabela acumulava sem teto.
+
+Apagar direto o que passa de 90 dias tinha um problema, e é ele que decide o
+desenho: o **relatório mensal navega meses para trás**. Com poda seca, agosto
+viraria zero em novembro, sem erro nenhum na tela — a mentira silenciosa de
+sempre, e num recurso do plano pago.
+
+Então `maintain_events()` **soma antes de apagar**, e a ordem importa:
+
+| O que | Por quanto tempo |
+|---|---|
+| linha crua em `events` | 90 dias |
+| mês somado em `store_month_metrics` | para sempre, ~1 linha por loja por mês |
+| itens do mês em `store_month_top_products` | os 10 mais, por loja e mês |
+
+O relatório lê por *read-through*: `store_month_report()` devolve a soma quando
+ela existe e conta na hora quando não — o mês que acabou de fechar, antes de a
+rotina da madrugada passar. Assim não há buraco de um dia.
+
+Dois detalhes que estão no SQL e não são óbvios:
+
+- O `on conflict do nothing` **não** é `do update`. Depois da poda, recalcular
+  um mês antigo daria zero, e sobrescreveria a soma boa com esse zero.
+- O nome do item é guardado junto do id. Item apagado em setembro não pode sumir
+  do relatório de agosto.
+
+A rotina roda pelo `pg_cron`, às 04:17. As janelas curtas — os 30 e 60 dias do
+painel, a semana da confirmação — continuam lendo a linha crua, que sempre está
+dentro da retenção.
+
 ## Quantos pedidos realmente chegaram
 
 `whatsapp_click` mede intenção. O rótulo do painel já diz isso — mas isso resolve
