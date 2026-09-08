@@ -562,6 +562,84 @@ await check("store_manager_limit responde pelo plano", async () => {
   return `${data} login`;
 });
 
+console.log("\nLimite de itens do plano");
+
+// O teto mora no banco, e não no app, para valer mesmo se amanhã alguém
+// escrever outra tela que crie produto. Estas verificações são o que garante
+// que ele continua valendo — inclusive na importação, que insere em lote.
+
+const service = serviceClient();
+
+await check("store_item_limit responde pelo plano", async () => {
+  const { data, error } = await ze.rpc("store_item_limit", {
+    target: STORE_ZE,
+  });
+  assert(!error, error?.message ?? "");
+  assert(data === 100, `esperava 100 no plano básico, veio ${data}`);
+  return `${data} itens`;
+});
+
+await check("gerente NÃO passa do teto criando um a um", async () => {
+  // Enche até o limite com service_role e tenta o próximo pelo gerente.
+  const { count } = await service
+    .from("products")
+    .select("id", { count: "exact", head: true })
+    .eq("store_id", STORE_ZE);
+
+  const missing = 100 - (count ?? 0);
+  if (missing > 0) {
+    const filler = Array.from({ length: missing }, (_, index) => ({
+      store_id: STORE_ZE,
+      name: `Enchimento ${index + 1}`,
+      price_cents: 1000,
+    }));
+    const { error: fillError } = await service.from("products").insert(filler);
+    assert(!fillError, fillError?.message ?? "");
+  }
+
+  const { error } = await ze
+    .from("products")
+    .insert({ store_id: STORE_ZE, name: "Passa do teto", price_cents: 1000 });
+
+  assert(error, "gerente passou do teto do plano");
+  assert(
+    error.code === "PT422",
+    `esperava o código PT422, veio ${error.code}`,
+  );
+  return "PT422";
+});
+
+await check("nem em lote, que é o caso do cardápio colado", async () => {
+  // Um gatilho por linha não enxergaria as linhas anteriores do mesmo comando,
+  // e o cardápio colado passaria direto. Por isso ele é por statement.
+  const lote = Array.from({ length: 20 }, (_, index) => ({
+    store_id: STORE_ZE,
+    name: `Lote ${index + 1}`,
+    price_cents: 1000,
+  }));
+
+  const { error } = await ze.from("products").insert(lote);
+  assert(error, "lote passou do teto do plano");
+  assert(error.code === "PT422", `esperava PT422, veio ${error.code}`);
+  return "PT422";
+});
+
+await check("o plano de cima levanta o teto", async () => {
+  await service.from("stores").update({ plan: "plus" }).eq("id", STORE_ZE);
+
+  const { error } = await ze
+    .from("products")
+    .insert({ store_id: STORE_ZE, name: "Cabe no Plus", price_cents: 1000 });
+
+  assert(!error, error?.message ?? "");
+
+  // Devolve a loja ao estado do seed, para o script continuar repetível.
+  await service.from("stores").update({ plan: "basico" }).eq("id", STORE_ZE);
+  await service.from("products").delete().like("name", "Enchimento %");
+  await service.from("products").delete().like("name", "Cabe no Plus");
+  return "liberado";
+});
+
 console.log("\nConfirmação de pedidos");
 
 // A semana confirmada é única por loja, e é isso que se quer. Limpar antes faz
