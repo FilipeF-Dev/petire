@@ -80,6 +80,9 @@ export default async function AdminPage() {
                 </Button>
               </Link>
             ) : null}
+            <Link href="/admin/prospeccao">
+              <Button variant="secondary">Levantamento</Button>
+            </Link>
             <Link href="/admin/material">
               <Button variant="secondary">Material de visita</Button>
             </Link>
