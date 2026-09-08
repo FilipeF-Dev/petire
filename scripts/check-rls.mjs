@@ -24,6 +24,7 @@ const env = Object.fromEntries(
 
 const URL_ = env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SERVICE = env.SUPABASE_SERVICE_ROLE_KEY;
 
 const STORE_ZE = "11111111-1111-4111-8111-111111111111";
 const STORE_DIST = "22222222-2222-4222-8222-222222222222";
@@ -49,6 +50,17 @@ function assert(condition, message) {
 
 function anonClient() {
   return createClient(URL_, ANON, { auth: { persistSession: false } });
+}
+
+/**
+ * Só para limpar o que este script escreveu.
+ *
+ * Uma verificação que só passa na primeira execução é uma armadilha: quem
+ * rodar duas vezes seguidas vê "FALHA" e vai procurar um bug de RLS que não
+ * existe. Mesmo motivo da limpeza dos arquivos no bucket, mais abaixo.
+ */
+function serviceClient() {
+  return createClient(URL_, SERVICE, { auth: { persistSession: false } });
 }
 
 async function managerClient(email) {
@@ -551,6 +563,13 @@ await check("store_manager_limit responde pelo plano", async () => {
 });
 
 console.log("\nConfirmação de pedidos");
+
+// A semana confirmada é única por loja, e é isso que se quer. Limpar antes faz
+// o bloco valer em qualquer execução, e não só logo depois de um db:reset.
+await serviceClient()
+  .from("order_confirmations")
+  .delete()
+  .eq("store_id", STORE_ZE);
 
 await check("gerente confirma a semana da própria loja", async () => {
   // Segunda-feira qualquer, no passado.

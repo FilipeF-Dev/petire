@@ -39,10 +39,21 @@ export function PlacePicker({ onClose }: { onClose: () => void }) {
   );
 
   const [label, setLabel] = useState("");
+  const [number, setNumber] = useState("");
+  const [complement, setComplement] = useState("");
+  const [recipient, setRecipient] = useState("");
+
   const { cep, setCep, status, setStatus, submit } = useCepLookup(
     (location) => {
-      savePlace(location, label);
+      savePlace(location, label, {
+        recipient: recipient.trim(),
+        number: number.trim(),
+        complement: complement.trim(),
+      });
       setLabel("");
+      setNumber("");
+      setComplement("");
+      setRecipient("");
       onClose();
       router.push(storesUrl(location));
     },
@@ -185,6 +196,68 @@ export function PlacePicker({ onClose }: { onClose: () => void }) {
             />
           </label>
 
+          {/*
+            O número entra aqui e não só no fechamento do pedido: endereço sem
+            número não é endereço, e é o que o entregador precisa. Perguntado
+            agora, o pedido seguinte não pergunta mais nada — o pop-up do
+            carrinho vira conferência em vez de formulário.
+
+            O campo grande da home continua pedindo só o CEP, de propósito:
+            quem está chegando quer ver se existe lanchonete no bairro, e
+            cobrar número antes disso é pedir compromisso antes de entregar
+            valor. Quem entra por lá completa no primeiro pedido.
+          */}
+          <div className="grid grid-cols-[1fr_2fr] gap-3">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                Número
+              </span>
+              <input
+                value={number}
+                onChange={(event) => setNumber(event.target.value)}
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="120"
+                className={field}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                Complemento{" "}
+                <span className="text-neutral-500 dark:text-neutral-400">
+                  (opcional)
+                </span>
+              </span>
+              <input
+                value={complement}
+                onChange={(event) => setComplement(event.target.value)}
+                maxLength={80}
+                placeholder="Apto 42, portão azul"
+                className={field}
+              />
+            </label>
+          </div>
+
+          {/* Opcional: em "Casa" quem recebe é sempre você, mas em "Casa da
+              mãe" não. Vazio aqui só faz o pop-up do carrinho perguntar uma
+              vez, e a resposta fica salva neste endereço. */}
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm text-neutral-600 dark:text-neutral-400">
+              Quem recebe{" "}
+              <span className="text-neutral-500 dark:text-neutral-400">
+                (opcional)
+              </span>
+            </span>
+            <input
+              value={recipient}
+              onChange={(event) => setRecipient(event.target.value)}
+              maxLength={80}
+              placeholder="Seu nome"
+              className={field}
+            />
+          </label>
+
           {status === "erro" ? (
             <span className="text-xs text-red-600 dark:text-red-400">
               CEP não encontrado
@@ -194,7 +267,11 @@ export function PlacePicker({ onClose }: { onClose: () => void }) {
           <div className="flex gap-2">
             <button
               type="submit"
-              disabled={status === "buscando" || cepDigits(cep).length !== 8}
+              disabled={
+                status === "buscando" ||
+                cepDigits(cep).length !== 8 ||
+                number.trim() === ""
+              }
               className="flex-1 rounded-lg bg-neutral-900 px-4 py-3 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-neutral-900"
             >
               {status === "buscando" ? "Buscando…" : "Usar este endereço"}
