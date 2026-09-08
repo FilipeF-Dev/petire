@@ -6,7 +6,7 @@ import { siteUrl } from "@/lib/env";
 import { formatDeliveryTime } from "@/lib/delivery";
 import { formatCents, formatDeliveryFee } from "@/lib/money";
 import { priceOf, type Promotion } from "@/lib/promotions";
-import { viewRows } from "@/lib/storefront";
+import { fetchAllRows } from "@/lib/storefront";
 import { createPublicClient } from "@/lib/supabase/public";
 import { hhmm, SCHEMA_WEEKDAYS, WEEKDAYS } from "@/lib/weekdays";
 
@@ -19,10 +19,24 @@ import { TrackStoreView } from "./track-view";
 // que o cardápio muda — ver refreshMenu() em gerente/cardapio/actions.ts.
 export const revalidate = 3600;
 
+/**
+ * Todas as lojas ganham página estática no build.
+ *
+ * Paginado pelo mesmo motivo do sitemap: o PostgREST corta na milésima linha em
+ * silêncio, e a loja cortada perdia a versão pré-renderizada — continuaria
+ * abrindo, por ISR, só que mais devagar e sem estar pronta quando o Google
+ * passasse.
+ *
+ * Se um dia o catálogo crescer a ponto de o build incomodar, o caminho é
+ * pré-renderizar as mais movimentadas e deixar o resto sob demanda. Enquanto
+ * são centenas, gerar todas custa menos que decidir quais.
+ */
 export async function generateStaticParams() {
   const supabase = createPublicClient();
-  const { data } = await supabase.from("stores_public").select("slug");
-  return viewRows<{ slug: string }>(data);
+
+  return fetchAllRows<{ slug: string }>((from, to) =>
+    supabase.from("stores_public").select("slug").order("slug").range(from, to),
+  );
 }
 
 export async function generateMetadata({

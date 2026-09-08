@@ -80,3 +80,55 @@ export type PublicPlace = {
 /** As listas de colunas viram a string do `.select()`, para não divergirem. */
 export const CARD_SELECT = [...CARD_COLUMNS, "is_open_now"].join(", ");
 export const DETAIL_SELECT = [...DETAIL_COLUMNS, "is_open_now"].join(", ");
+
+/**
+ * O PostgREST devolve no máximo `max_rows` linhas por requisição — mil, tanto
+ * na nuvem quanto no config local. Acima disso ele corta **em silêncio**: não é
+ * erro, é uma resposta curta que parece completa.
+ */
+const PAGE_SIZE = 1000;
+
+/**
+ * Teto de segurança. Existe para um bug daqui virar uma lista truncada em vez
+ * de um laço infinito batendo no banco.
+ */
+const MAX_PAGES = 50;
+
+/**
+ * Lê uma listagem inteira, em páginas.
+ *
+ * Para o sitemap e para o `generateStaticParams`, "inteira" é o requisito: os
+ * dois existem para dizer ao Google **todas** as páginas que o Petire tem, e
+ * busca orgânica é o canal de aquisição que o produto tem de graça. Uma loja
+ * cortada aqui é uma loja que não é indexada — e ninguém percebe, porque a
+ * página dela continua abrindo normalmente para quem tem o link.
+ *
+ * **A consulta precisa vir ordenada.** Sem `ORDER BY`, o Postgres não promete
+ * ordem estável entre requisições, e paginar por deslocamento passa a repetir
+ * uma loja e pular outra. É o tipo de defeito que só aparece quando o catálogo
+ * cresce, que é exatamente quando ninguém está olhando para isto.
+ */
+export async function fetchAllRows<T>(
+  page: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: unknown[] | null; error: unknown }>,
+): Promise<T[]> {
+  const all: T[] = [];
+
+  for (let index = 0; index < MAX_PAGES; index += 1) {
+    const from = index * PAGE_SIZE;
+    const { data, error } = await page(from, from + PAGE_SIZE - 1);
+
+    // Metade de um sitemap é pior do que um sitemap velho: o Google trata a
+    // ausência como remoção. Melhor devolver o que já veio e deixar o
+    // `revalidate` tentar de novo do que publicar uma lista incompleta como se
+    // fosse a lista.
+    if (error || !data) break;
+
+    all.push(...viewRows<T>(data));
+    if (data.length < PAGE_SIZE) break;
+  }
+
+  return all;
+}
