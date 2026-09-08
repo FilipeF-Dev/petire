@@ -1,0 +1,101 @@
+# =============================================================================
+# Petire — verificação de cada mudança
+#
+# O trabalho mais importante daqui é o segundo job: ele levanta um banco do
+# zero, **só a partir das migrations**, e constrói o site contra ele. É o que
+# prova que o schema versionado no repositório é suficiente para o código rodar.
+#
+# Sem isso, uma migration esquecida no commit só aparece em produção — foi
+# exatamente assim que o carrinho começou a sumir.
+# =============================================================================
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Push novo na mesma branch cancela a verificação anterior: ninguém precisa do
+# resultado de um commit que já foi substituído.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  qualidade:
+    name: Lint, tipos e testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Testes da lógica pura
+        run: npm test
+
+  banco:
+    name: Migrations, RLS e build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - run: npm ci
+
+      # Banco vazio + migrations + seed. Se uma migration não aplicar numa base
+      # limpa, o passo falha aqui e não em produção.
+      - name: Subir o Supabase local
+        run: supabase start
+
+      - name: Aplicar migrations do zero
+        run: supabase db reset
+
+      # As chaves do stack local mudam a cada versão do CLI, então são lidas
+      # dele em vez de ficarem escritas aqui.
+      - name: Ler as chaves do stack local
+        run: |
+          supabase status -o env \
+            | sed 's/^API_URL=/NEXT_PUBLIC_SUPABASE_URL=/' \
+            | sed 's/^ANON_KEY=/NEXT_PUBLIC_SUPABASE_ANON_KEY=/' \
+            | sed 's/^SERVICE_ROLE_KEY=/SUPABASE_SERVICE_ROLE_KEY=/' \
+            | grep -E '^(NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY)=' \
+            | tr -d '"' >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SITE_URL=http://localhost:3000" >> "$GITHUB_ENV"
+
+      # Bug de RLS não quebra nada: só faz uma loja enxergar o cardápio da
+      # outra. Por isso o script exercita os caminhos que precisam falhar.
+      - name: Políticas de acesso
+        run: |
+          printf 'NEXT_PUBLIC_SUPABASE_URL=%s\nNEXT_PUBLIC_SUPABASE_ANON_KEY=%s\nSUPABASE_SERVICE_ROLE_KEY=%s\n' \
+            "$NEXT_PUBLIC_SUPABASE_URL" \
+            "$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+            "$SUPABASE_SERVICE_ROLE_KEY" > .env.local
+          npm run check:rls
+
+      # O build gera /loja/[slug] estaticamente, então ele consulta o banco de
+      # verdade. É a prova final de que schema e código combinam.
+      - name: Build
+        run: npm run build
