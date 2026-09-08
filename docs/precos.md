@@ -11,7 +11,7 @@ adivinhar a razão deles depois.
 | | Mensalidade | O que abre |
 |---|---|---|
 | **Básico** | R$ 49 | Cardápio no ar até 100 itens, painel, promoções, métricas, kit de divulgação |
-| **Plus** | R$ 79 | Tudo do Básico + cardápio até 1000 itens, mais de um login (`/gerente/equipe`) e o relatório do mês fechado (`/gerente/relatorio`) |
+| **Plus** | R$ 79 | Tudo do Básico + cardápio até 1000 itens, promoção que se repete por dia da semana, mais de um login (`/gerente/equipe`) e o relatório do mês fechado (`/gerente/relatorio`) |
 | **Fundador** | R$ 29, travada | Básico, para as 10 primeiras lojas de cada bairro |
 
 As lojas fundadoras entram com **90 dias grátis**, contados de quando a loja
@@ -81,15 +81,32 @@ Quem aperta "Colocar no ar" é o admin, então a data existe e é confiável.
 
 ## O que sustenta o degrau do Plus
 
-O Plus abre três coisas: mais de um login (`/gerente/equipe`), o relatório do
-mês fechado (`/gerente/relatorio`) e o teto de itens do cardápio — 100 no
-Básico, 1000 no Plus (`store_item_limit()`).
+O Plus abre quatro coisas: o teto de itens do cardápio — 100 no Básico, 1000 no
+Plus (`store_item_limit()`) —, a promoção que se repete por dia da semana
+(`store_schedules_promotions()`), mais de um login (`/gerente/equipe`) e o
+relatório do mês fechado (`/gerente/relatorio`).
 
-O teto é o único dos três que segmenta sozinho, e é isso que faz o degrau
-existir: 100 itens cobrem qualquer lanchonete com folga, e nenhuma
-distribuidora de bebidas cabe neles. Na prática, lanchonete é Básico e
-distribuidora é Plus — o que é defensável, porque a distribuidora é também
-quem mais usa o catálogo.
+Os dois primeiros seguram o degrau, e por motivos diferentes.
+
+**O teto segmenta sozinho**: 100 itens cobrem qualquer lanchonete com folga, e
+nenhuma distribuidora de bebidas cabe neles. Na prática, lanchonete é Básico e
+distribuidora é Plus — o que é defensável, porque a distribuidora é também quem
+mais usa o catálogo. Mas ele só fala com metade do público.
+
+**A promoção que se repete fala com a outra metade.** A dor estava escrita no
+próprio código, no comentário de `setPromotionActive`: *"refazer a mesma janela
+toda sexta é o tipo de trabalho que o lojista abandona"*. Até aqui a saída era
+pausar e retomar na mão toda semana — e quem esquece de retomar perde a
+promoção, quem esquece de pausar dá desconto na segunda-feira. É trabalho
+recorrente que some, que é a única coisa que a lanchonete de bairro compra sem
+pensar.
+
+**Dia da semana, e não faixa de horário.** `/loja/[slug]` é estática com
+`revalidate` de uma hora e o preço é resolvido no render, enquanto o carrinho
+relê do banco na hora. Numa janela por dia o desencontro cai na virada da
+meia-noite e não machuca ninguém; numa janela por hora ele cairia às 18h, com o
+cardápio mostrando um preço e o carrinho cobrando outro no horário de pico.
+Happy hour por hora exige resolver a revalidação antes, e é outra entrega.
 
 Regra que nenhum degrau futuro pode quebrar: **nada que mexa na ordem da
 vitrine**. Vender posição gasta a confiança que traz o cliente de volta (ver
@@ -107,12 +124,10 @@ Por isso, na fase de fundação de um bairro: **loja fundadora entra com o teto
 do Plus, pagando o preço de fundador.** O teto vira cobrança só quando o
 Básico for vendido a preço cheio, para quem chega depois.
 
-Ainda faltam degraus para o Plus se sustentar fora do caso da distribuidora.
-Candidatos, em ordem de dor:
+Candidatos para os próximos, em ordem de dor:
 
-1. **Promoção programada.** `promotions` já tem janela de vigência; falta
-   deixar o lojista agendar sem estar na tela. "Toda sexta, chopp com 20%" é
-   trabalho recorrente que hoje é feito na mão.
+1. **Happy hour por faixa de horário.** É o pedido natural depois do dia da
+   semana, e depende de resolver a revalidação da vitrine.
 2. **Mais de um ponto sob o mesmo login.** A loja com duas unidades hoje
    precisa de dois cadastros e dois cardápios.
 3. **Cartaz e artes com a marca da loja.** O kit de divulgação é o mesmo para

@@ -400,6 +400,7 @@ export type Database = {
           store_id: string
           updated_at: string
           value: number
+          weekdays: number[] | null
         }
         Insert: {
           created_at?: string
@@ -412,6 +413,7 @@ export type Database = {
           store_id: string
           updated_at?: string
           value: number
+          weekdays?: number[] | null
         }
         Update: {
           created_at?: string
@@ -424,6 +426,7 @@ export type Database = {
           store_id?: string
           updated_at?: string
           value?: number
+          weekdays?: number[] | null
         }
         Relationships: [
           {
@@ -1020,6 +1023,7 @@ export type Database = {
           week_start: string
         }[]
       }
+      store_schedules_promotions: { Args: { target: string }; Returns: boolean }
       store_top_products: {
         Args: { max_rows?: number; target: string; window_days?: number }
         Returns: {

@@ -722,6 +722,81 @@ await check("o plano de cima levanta o teto", async () => {
   return "liberado";
 });
 
+console.log("\nPromoção que se repete por dia da semana");
+
+// Terceiro degrau de plano. Como os outros, quem garante é o banco: o
+// formulário desabilita os dias fora do Plus, mas isso é conforto, não regra.
+
+// Limpa antes para o bloco valer em qualquer execução, e não só logo depois de
+// um db:reset.
+await service.from("promotions").delete().eq("store_id", STORE_ZE);
+
+await check("store_schedules_promotions responde pelo plano", async () => {
+  const { data, error } = await ze.rpc("store_schedules_promotions", {
+    target: STORE_ZE,
+  });
+  assert(!error, error?.message ?? "");
+  assert(data === false, `esperava false no plano básico, veio ${data}`);
+  return "fechado no básico";
+});
+
+await check("gerente NÃO marca dia da semana fora do Plus", async () => {
+  const { error } = await ze.from("promotions").insert({
+    store_id: STORE_ZE,
+    kind: "percent",
+    value: 10,
+    weekdays: [5, 6],
+  });
+
+  assert(error, "gerente do básico marcou dia da semana");
+  assert(error.code === "PT422", `esperava PT422, veio ${error.code}`);
+  return "PT422";
+});
+
+await check("sem dias marcados, o básico cria promoção normal", async () => {
+  const { error } = await ze.from("promotions").insert({
+    store_id: STORE_ZE,
+    kind: "percent",
+    value: 10,
+  });
+
+  assert(!error, error?.message ?? "");
+  await service.from("promotions").delete().eq("store_id", STORE_ZE);
+  return "liberado";
+});
+
+await check("o plano de cima abre a repetição", async () => {
+  await service.from("stores").update({ plan: "plus" }).eq("id", STORE_ZE);
+
+  const { error } = await ze.from("promotions").insert({
+    store_id: STORE_ZE,
+    kind: "percent",
+    value: 10,
+    weekdays: [5, 6],
+  });
+
+  assert(!error, error?.message ?? "");
+  return "liberado";
+});
+
+await check("quem caiu de plano ainda pausa o que já tinha", async () => {
+  // O gatilho só olha os dias quando eles mudam. Sem isso, uma loja que
+  // voltasse ao básico não conseguiria nem pausar nem apagar o que criou — e
+  // descobriria isso no painel, sem entender o motivo.
+  await service.from("stores").update({ plan: "basico" }).eq("id", STORE_ZE);
+
+  const { error } = await ze
+    .from("promotions")
+    .update({ is_active: false })
+    .eq("store_id", STORE_ZE);
+
+  assert(!error, error?.message ?? "");
+
+  // Devolve a loja ao estado do seed, para o script continuar repetível.
+  await service.from("promotions").delete().eq("store_id", STORE_ZE);
+  return "pausou";
+});
+
 console.log("\nConfirmação de pedidos");
 
 // A semana confirmada é única por loja, e é isso que se quer. Limpar antes faz
