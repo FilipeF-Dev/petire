@@ -8,6 +8,11 @@
  *
  * Os dois lados usam a mesma régua de propósito. O admin vê para saber com quem
  * falar; o lojista vê para agir antes de alguém precisar falar com ele.
+ *
+ * Como cada um descobre a data é que muda: o painel lê o produto mais recente
+ * da própria loja, e o admin recebe a data já somada por
+ * `store_menu_summary()`. Agregar no app exigia ler a tabela de produtos
+ * inteira, e era isso que estourava o teto de mil linhas do PostgREST.
  */
 
 /** A partir de quantos dias parado o cardápio merece um empurrão. */
@@ -17,16 +22,4 @@ export const STALE_DAYS = 45;
 export function daysSince(iso: string | null | undefined): number | null {
   if (!iso) return null;
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-}
-
-/** A edição mais recente de um conjunto de itens. */
-export function lastEditedAt(
-  items: { updated_at: string }[],
-): string | null {
-  if (items.length === 0) return null;
-
-  return items.reduce(
-    (newest, item) => (item.updated_at > newest ? item.updated_at : newest),
-    items[0].updated_at,
-  );
 }

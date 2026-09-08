@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
-import { daysSince, lastEditedAt, STALE_DAYS } from "@/lib/freshness";
+import { daysSince, STALE_DAYS } from "@/lib/freshness";
 import { daysUntil, STATUS_LABEL } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -38,9 +38,10 @@ export default async function AdminPage() {
       )
       .order("created_at", { ascending: false }),
     supabase.from("managers").select("id, store_id, email").eq("role", "manager"),
-    // updated_at alimenta o sinal de frescor: cardápio parado é o risco número
-    // dois do próprio MVP, e até aqui nada envelhecia sozinho.
-    supabase.from("products").select("store_id, is_available, updated_at"),
+    // Uma linha por loja, somada no banco. Ler a tabela de produtos inteira
+    // esbarrava no `max_rows` do PostgREST — mil linhas — e a página passava a
+    // mentir a partir da 25ª loja, sem dar erro nenhum.
+    supabase.rpc("store_menu_summary"),
   ]);
 
   // A fila mora atrás de service_role: `store_applications` não tem policy,
@@ -53,7 +54,11 @@ export default async function AdminPage() {
   const pending = pendingCount ?? 0;
   const stores = storesResult.data ?? [];
   const managers = managersResult.data ?? [];
-  const products = productsResult.data ?? [];
+  // Indexado por loja: a lista tem uma linha por loja, e procurar dentro dela
+  // a cada card seria varrer o mesmo array mil vezes.
+  const menu = new Map(
+    (productsResult.data ?? []).map((row) => [row.store_id, row]),
+  );
 
   const live = stores.filter(
     (store) => store.is_active && store.subscription_status !== "suspended",
@@ -100,9 +105,10 @@ export default async function AdminPage() {
         <ul className="flex flex-col gap-3">
           {stores.map((store) => {
             const manager = managers.find((m) => m.store_id === store.id);
-            const items = products.filter((p) => p.store_id === store.id);
-            const available = items.filter((p) => p.is_available).length;
-            const stale = daysSince(lastEditedAt(items));
+            const summary = menu.get(store.id);
+            const items = Number(summary?.items ?? 0);
+            const available = Number(summary?.available ?? 0);
+            const stale = daysSince(summary?.last_edit);
             const remaining = daysUntil(store.subscription_until);
             const isLive =
               store.is_active && store.subscription_status !== "suspended";
@@ -145,11 +151,11 @@ export default async function AdminPage() {
 
                       <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
                         {manager?.email ?? "sem gerente vinculado"} ·{" "}
-                        {available} de {items.length}{" "}
-                        {items.length === 1 ? "item" : "itens"} disponíveis
+                        {available} de {items}{" "}
+                        {items === 1 ? "item" : "itens"} disponíveis
                       </p>
 
-                      {items.length === 0 ? (
+                      {items === 0 ? (
                         <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
                           Sem cardápio. Colocar no ar assim atrapalha mais do
                           que ajuda.
