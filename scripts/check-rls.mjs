@@ -562,6 +562,41 @@ await check("store_manager_limit responde pelo plano", async () => {
   return `${data} login`;
 });
 
+console.log("\nResumo do cardápio no admin");
+
+await check("gerente NÃO lê o resumo de todas as lojas", async () => {
+  // A função é somada sobre a tabela inteira. Sem o `is_admin()` dentro dela,
+  // um gerente receberia contagem e data de edição de todo cardápio público —
+  // o ritmo de trabalho do concorrente, de bandeja.
+  const { data, error } = await ze.rpc("store_menu_summary");
+  assert(!error, error?.message ?? "");
+  assert(
+    (data ?? []).length === 0,
+    `gerente enxergou ${(data ?? []).length} lojas no resumo`,
+  );
+  return "lista vazia";
+});
+
+await check("admin lê uma linha por loja com cardápio", async () => {
+  const admin = await managerClient("admin@petire.local");
+  const { data, error } = await admin.rpc("store_menu_summary");
+  assert(!error, error?.message ?? "");
+  assert(data.length > 0, "resumo veio vazio para o admin");
+
+  // O ponto da função: uma linha por loja. Se voltasse uma por produto, o teto
+  // de mil linhas do PostgREST voltaria junto.
+  const lojas = new Set(data.map((row) => row.store_id));
+  assert(
+    lojas.size === data.length,
+    "veio mais de uma linha para a mesma loja",
+  );
+
+  const ze_ = data.find((row) => row.store_id === STORE_ZE);
+  assert(ze_, "a Lanchonete do Zé não apareceu no resumo");
+  assert(Number(ze_.items) > 0, "contagem de itens veio zerada");
+  return `${data.length} lojas, ${ze_.items} itens no Zé`;
+});
+
 console.log("\nLimite de itens do plano");
 
 // O teto mora no banco, e não no app, para valer mesmo se amanhã alguém
