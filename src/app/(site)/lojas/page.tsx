@@ -207,6 +207,8 @@ export default async function LojasPage({
       */}
       {unmet ? (
         <SuggestStore
+          reason={unmet}
+          term={unmet === "search_empty" ? (search?.trim() ?? null) : null}
           place={place}
           citySlug={city ? slugify(city) : null}
           neighborhoodSlug={

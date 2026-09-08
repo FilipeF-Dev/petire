@@ -22,10 +22,21 @@ import { suggestStore } from "./actions";
  * Nada é pedido sobre quem indicou. O contato é o da loja, e é público.
  */
 export function SuggestStore({
+  reason,
+  term,
   place,
   citySlug,
   neighborhoodSlug,
 }: {
+  /**
+   * Por que a lista veio vazia. As duas causas pedem frases diferentes: dizer
+   * "ainda não chegamos aqui" a quem procurou "hambúrguer" numa cidade que tem
+   * lanchonete é informação errada — e o cliente vai embora achando que o
+   * Petire não atende ali.
+   */
+  reason: "search_empty" | "area_uncovered";
+  /** O que a pessoa procurou. Só em `search_empty`. */
+  term: string | null;
   /** Nome da cidade como o cliente leu na página. Nulo quando não veio na URL. */
   place: string | null;
   citySlug: string | null;
@@ -51,11 +62,18 @@ export function SuggestStore({
   return (
     <section className="rounded-xl border border-neutral-200 bg-surface p-5 dark:border-neutral-800">
       <h2 className="font-medium">
-        {place ? `Ainda não chegamos em ${place}.` : "Ainda não chegamos aqui."}
+        {reason === "search_empty"
+          ? term
+            ? `Nenhuma loja com “${term}”.`
+            : "Nenhuma loja com esse termo."
+          : place
+            ? `Ainda não chegamos em ${place}.`
+            : "Ainda não chegamos aqui."}
       </h2>
       <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-        O Petire abre um bairro por vez. Qual loja você queria pedir daqui? A
-        gente fala com ela.
+        {reason === "search_empty"
+          ? "Qual loja você queria pedir? A gente fala com ela."
+          : "O Petire abre um bairro por vez. Qual loja você queria pedir daqui? A gente fala com ela."}
       </p>
 
       <form action={formAction} className="mt-4 flex flex-col gap-3">
