@@ -20,7 +20,7 @@ sem dados de pagamento. A loja paga uma mensalidade fixa para estar no catálogo
 
 ## Rodando local
 
-Requisitos: Node 20+, Docker rodando.
+Requisitos: Node 22+, Docker rodando.
 
 ```bash
 npm install
