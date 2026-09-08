@@ -1,18 +1,17 @@
 /**
- * Quem recebe o pedido e onde, exatamente.
+ * A chave antiga de "quem recebe e em que número".
  *
- * O CEP dá rua, bairro e cidade; falta o que nenhum CEP sabe — o nome de quem
- * vai atender a porta, o número da casa e o complemento. É o que mais faz
- * entrega dar errado quando vem errado, e digitar isso no meio da conversa do
- * WhatsApp é onde o cliente se perde.
+ * Isto existia sozinho enquanto o cliente tinha um endereço só: um nome, um
+ * número e um complemento, guardados à parte do CEP. Com a lista de endereços
+ * os três passaram a morar **dentro** de cada endereço — porque trocar de
+ * endereço mantendo o número do anterior manda o pedido para a porta errada, e
+ * esse é o erro mais caro que estas telas sabem cometer.
  *
- * Fica **só no browser dele**, como o CEP e pelo mesmo motivo: o Petire não
- * tem cadastro e não tem por que guardar nome e endereço de ninguém. Daqui a
- * informação vai para a mensagem e do aparelho dele direto para a loja.
+ * Sobrou como fonte de migração: `customer-location.ts` lê isto uma vez, ao
+ * encontrar a chave antiga, para quem já usava o Petire não perder o que tinha
+ * digitado. Nada escreve aqui.
  *
- * Guardar entre pedidos é o que faz o segundo pedido custar um toque. Chave
- * separada da do CEP de propósito: o cliente pode trocar de endereço sem
- * perder o nome, e um formato antigo de uma não estraga a leitura da outra.
+ * Some quando não houver mais ninguém com a chave antiga no aparelho.
  */
 
 const KEY = "petire.contato.v1";
@@ -26,7 +25,7 @@ export type CustomerContact = {
   complement: string;
 };
 
-export const EMPTY_CONTACT: CustomerContact = {
+const EMPTY_CONTACT: CustomerContact = {
   recipient: "",
   number: "",
   complement: "",
@@ -53,14 +52,5 @@ export function readContact(): CustomerContact {
     return isContact(parsed) ? parsed : EMPTY_CONTACT;
   } catch {
     return EMPTY_CONTACT;
-  }
-}
-
-export function saveContact(contact: CustomerContact): void {
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(contact));
-  } catch {
-    // Modo anônimo com storage bloqueado: o pedido sai igual, só não é
-    // lembrado no próximo.
   }
 }
