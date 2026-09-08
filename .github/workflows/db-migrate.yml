@@ -1,0 +1,68 @@
+# =============================================================================
+# Petire — aplicar as migrations em produção
+#
+# O problema que isto resolve: o deploy do código era automático e o do banco
+# era manual. Bastava esquecer o `db:push` para o site subir pedindo colunas que
+# o banco ainda não tinha — e foi assim que o carrinho do cliente começou a ser
+# apagado.
+#
+# ORDEM. A Vercel também dispara no push para `main`, então os dois correm
+# juntos. Isso é seguro porque **as migrations do Petire são aditivas**: coluna,
+# tabela, função e policy novas. Código antigo ignora coluna nova, então o banco
+# adiantado nunca quebra o site — só o contrário quebra. Manter essa disciplina
+# é o que torna a corrida inofensiva.
+#
+# Se algum dia uma migration precisar remover ou renomear algo em uso, ela tem
+# de ser partida em duas entregas: primeiro o código para de usar, depois a
+# coluna sai. Não existe atalho para isso aqui.
+# =============================================================================
+
+name: Migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+  # Para aplicar a mão quando for preciso — inclusive na primeira vez, para
+  # colocar o banco de produção em dia.
+  workflow_dispatch:
+
+# Duas migrations ao mesmo tempo no mesmo banco é como corromper o histórico.
+# Sem cancelar a que já está rodando: metade aplicada é pior do que atrasada.
+concurrency:
+  group: db-migrate-producao
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    name: supabase db push
+    runs-on: ubuntu-latest
+    # O ambiente permite exigir aprovação manual antes de tocar em produção,
+    # se um dia isso fizer sentido. Ver Settings → Environments.
+    environment: producao
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Ligar ao projeto de produção
+        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}"
+
+      # Mostra o que está pendente antes de aplicar. Quando algo der errado, o
+      # log já diz qual migration estava entrando.
+      - name: O que falta aplicar
+        run: supabase migration list --linked
+
+      - name: Aplicar
+        run: supabase db push

@@ -82,6 +82,46 @@ teste) em <http://127.0.0.1:54324>.
 Rode `npm run db:types` sempre que mexer no schema — os tipos do banco não são
 inferidos em tempo de build.
 
+## Deploy e migrations
+
+O deploy do código sempre foi automático; o do banco era manual. Bastou esquecer
+um `db:push` para o site subir pedindo uma coluna que o banco ainda não tinha —
+e o sintoma foi o carrinho do cliente sendo apagado. Agora os dois andam juntos.
+
+| Workflow | Quando roda | O que faz |
+|---|---|---|
+| `.github/workflows/ci.yml` | todo PR e todo push em `main` | lint, tipos, testes; e um banco levantado do zero **só a partir das migrations**, com `check:rls` e o build por cima dele |
+| `.github/workflows/db-migrate.yml` | push em `main` que toque `supabase/migrations/**`, ou manualmente | `supabase db push` no projeto de produção |
+
+O job `banco` do CI é o que mais protege: se uma migration não aplicar numa base
+limpa, ou se o código passar a depender de algo que nenhuma migration cria, ele
+falha no PR — não em produção.
+
+### Segredos que o repositório precisa
+
+Em **Settings → Secrets and variables → Actions**:
+
+| Segredo | Onde encontrar |
+|---|---|
+| `SUPABASE_ACCESS_TOKEN` | <https://supabase.com/dashboard/account/tokens> |
+| `SUPABASE_PROJECT_ID` | a referência do projeto, o mesmo trecho que aparece em `NEXT_PUBLIC_SUPABASE_URL` |
+| `SUPABASE_DB_PASSWORD` | senha do banco do projeto (Settings → Database) |
+
+### A ordem, e por que ela é segura
+
+A Vercel também dispara no push para `main`, então o deploy do código e o das
+migrations correm juntos. Isso é seguro por uma razão só, e ela precisa ser
+mantida de propósito:
+
+**As migrations do Petire são aditivas.** Coluna, tabela, função e policy novas.
+Código antigo ignora coluna nova, então o banco adiantado nunca quebra o site —
+só o contrário quebra, que é o caso que este pipeline elimina.
+
+Se um dia for preciso remover ou renomear algo que está em uso, a mudança tem de
+ser partida em duas entregas: primeiro o código para de usar, depois a coluna
+sai. Não há atalho, e juntar as duas num commit só reintroduz exatamente o bug
+que motivou tudo isto.
+
 ## Como o acesso é controlado
 
 Quatro clientes Supabase, quatro níveis de poder:
