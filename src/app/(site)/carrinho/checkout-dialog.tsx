@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 
 import {
-  readContact,
-  saveContact,
-  type CustomerContact,
-} from "@/lib/customer-contact";
+  readActiveContact,
+  saveActiveContact,
+  type PlaceContact,
+} from "@/lib/customer-location";
 import type { Delivery } from "@/lib/order-message";
 
 /**
@@ -17,8 +17,9 @@ import type { Delivery } from "@/lib/order-message";
  * mensagem, e o cliente tinha de completar no meio da conversa, com a loja
  * esperando. É onde o pedido esfria.
  *
- * O que ele digita aqui fica no aparelho dele (ver src/lib/customer-contact.ts)
- * e vem preenchido no pedido seguinte.
+ * O que ele digita aqui fica no aparelho dele (ver src/lib/customer-location.ts)
+ * e vem preenchido no pedido seguinte — junto do endereço a que pertence, e
+ * não numa gaveta separada: número sem rua entrega no lugar errado.
  */
 export function CheckoutDialog({
   storeName,
@@ -30,9 +31,9 @@ export function CheckoutDialog({
   /** Endereço vindo do CEP. Nulo quando o cliente não informou nenhum. */
   address: Omit<Delivery, "recipient" | "number" | "complement"> | null;
   onCancel: () => void;
-  onConfirm: (contact: CustomerContact) => void;
+  onConfirm: (contact: PlaceContact) => void;
 }) {
-  const [contact, setContact] = useState<CustomerContact>(readContact);
+  const [contact, setContact] = useState<PlaceContact>(readActiveContact);
   const [touched, setTouched] = useState(false);
 
   useEffect(() => {
@@ -59,13 +60,13 @@ export function CheckoutDialog({
     setTouched(true);
     if (!isValid) return;
 
-    const clean: CustomerContact = {
+    const clean: PlaceContact = {
       recipient,
       number,
       complement: contact.complement.trim(),
     };
 
-    saveContact(clean);
+    saveActiveContact(clean);
     onConfirm(clean);
   }
 

@@ -6,7 +6,8 @@ import { useEffect, useState, useTransition } from "react";
 import { useCustomerLocation } from "@/components/location-bar";
 import { useCart } from "@/components/use-cart";
 import { clearStore, removeLine, setQuantity } from "@/lib/cart";
-import type { CustomerContact } from "@/lib/customer-contact";
+
+import type { PlaceContact } from "@/lib/customer-location";
 import { siteUrl } from "@/lib/env";
 import { formatCents, formatDeliveryFee } from "@/lib/money";
 import {
@@ -56,7 +57,7 @@ function StoreOrder({
 
   // `send` roda no clique de "Enviar no WhatsApp" dentro do diálogo, que é um
   // gesto direto do cliente — é o que o iOS exige para não barrar a saída.
-  function send(contact: CustomerContact) {
+  function send(contact: PlaceContact) {
     reportWhatsappClick(store.storeId);
 
     // "Peça novamente", na home. Registrado no envio e não na visita: a lista

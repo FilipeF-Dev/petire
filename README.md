@@ -155,17 +155,19 @@ src/
   components/
     address-fields.tsx    endereço com busca por CEP
     install-prompt.tsx    convite a instalar, só para quem já pediu
-    location-bar.tsx      barra de CEP do cliente
+    location-bar.tsx      barra de endereço do cliente
+    place-picker.tsx      lista de endereços salvos
     order-again.tsx       lojas de onde o cliente já pediu
     track-demand.tsx      busca vazia e cidade sem loja
     ui.tsx                primitivas visuais do painel
+    use-cep-lookup.ts     consulta de CEP, compartilhada pelas três telas
   lib/
     auth.ts               requireManager / requireAdmin
     env.ts                leitura das variáveis de ambiente
     cart.ts               carrinho no localStorage
     cep.ts                consulta ao ViaCEP
-    customer-contact.ts   nome e número de quem recebe, só no browser dele
-    customer-location.ts  CEP do cliente, só no browser dele
+    customer-contact.ts   chave antiga de contato, só para migrar
+    customer-location.ts  endereços do cliente, só no browser dele
     delivery.ts           tempo de entrega, do jeito que o cliente lê
     freshness.ts          há quanto tempo ninguém mexe no cardápio
     opening.ts            quando a loja fechada volta a abrir
@@ -250,14 +252,29 @@ indexável, transformaria em dado de cadastro o que hoje não sai do aparelho.
 mensagem do WhatsApp. O que nenhum CEP sabe — quem recebe, o número e o
 complemento — é perguntado numa tela antes do envio, e não no meio da conversa
 com a loja esperando, que é onde o pedido esfria. Essas três respostas ficam no
-aparelho do cliente (`src/lib/customer-contact.ts`), então o segundo pedido
-custa um toque.
+aparelho do cliente, então o segundo pedido custa um toque.
+
+**Vários endereços, não um.** Pedir de casa é o caso que se imagina; pedir do
+trabalho, da casa de um amigo ou para entregar na casa da mãe é o resto da
+semana. Com um slot só, cada um desses obrigava a redigitar o CEP.
+
+E — isto é o que decide o desenho — **o número e o complemento moram dentro de
+cada endereço**, não ao lado deles. Um slot de contato compartilhado faria a
+troca de endereço mandar a rua nova com o número do endereço anterior: o pedido
+sai, a loja entrega, e ninguém descobre até bater na porta errada. Trocar de
+endereço troca o pacote inteiro (`src/lib/customer-location.ts`).
+
+O apelido ("Casa", "Trabalho") só é pedido a partir do **segundo** endereço. No
+primeiro ele não distingue nada, e batizar coisas é a última vontade de quem
+acabou de chegar e quer ver as lojas. Em cidade de CEP único ele é o que separa
+casa de trabalho, porque o CEP é o mesmo nos dois — por isso o mesmo CEP com
+apelidos diferentes conta como dois endereços, de propósito.
 
 **Pagamento não entra na mensagem.** Quem cobra é a loja, e ela pergunta do
 jeito dela. O Petire não vê dinheiro nenhum e não deveria dar a entender que
 vê.
 
-O CEP fica **só no browser do cliente** (`src/lib/customer-location.ts`).
+Tudo isso fica **só no browser do cliente** (`src/lib/customer-location.ts`).
 Endereço residencial é dado pessoal, o Petire não tem cadastro e não tem por
 que guardar isso. Por isso `resolveCart()` devolve o número do WhatsApp em vez
 do link pronto: a mensagem é montada no cliente e vai do aparelho dele direto
