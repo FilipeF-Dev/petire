@@ -210,6 +210,7 @@ src/
     customer-location.ts  endereços do cliente, só no browser dele
     delivery.ts           tempo de entrega, do jeito que o cliente lê
     freshness.ts          há quanto tempo ninguém mexe no cardápio
+    image-resize.ts       encolhe a foto no browser, antes de subir
     opening.ts            quando a loja fechada volta a abrir
     slug.ts               normalização, gêmea da do banco
     money.ts              centavos ↔ texto
@@ -662,6 +663,24 @@ formulário usa como `defaultValue`. Como o reset leva o campo de volta ao
 O browser envia direto para o Storage — a policy do bucket já limita o gerente
 à pasta `<store_id>/`, então os bytes não precisam passar pelo servidor do Next.
 O formulário carrega só a URL.
+
+**A foto é encolhida antes de subir** (`src/lib/image-resize.ts`). O lojista
+fotografa o lanche com o celular e o arquivo tem 2 a 4 MB; o que vai para o
+Storage é o que ele mandou, e fica lá para sempre. Sem encolher, um cardápio de
+40 itens ocupa uns 100 MB, e quarenta lojas enchem um plano pago sozinhas.
+
+O maior lado vira 1024px, em WebP a 80% — na medição, uma foto de 3024×4032 com
+3,3 MB virou 232 KB, catorze vezes menor. O tamanho é generoso de propósito:
+hoje a foto aparece a 80px na vitrine e 44px no painel, mas o original é o que
+sobra, e não dá para pedir a ninguém que reenvie o que já mandou se um dia o
+cardápio ganhar uma foto grande. O que o cliente baixa continua sendo a versão
+que o `next/image` gera para a tela dele.
+
+Detalhes que a conta esconde: o EXIF é respeitado na decodificação, senão foto
+tirada de lado sobe deitada; sem WebP o fallback é JPEG com fundo branco, senão
+PNG transparente vira foto de fundo preto; e o resultado só substitui o
+original quando é **menor** que ele, porque imagem já pequena costuma crescer ao
+ser reencodada.
 
 Os `remotePatterns` de `next.config.ts` são literais de propósito. Derivá-los de
 `NEXT_PUBLIC_SUPABASE_URL` funciona no build, mas o valor não chega ao processo

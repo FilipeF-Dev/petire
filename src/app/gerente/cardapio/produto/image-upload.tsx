@@ -4,15 +4,24 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui";
+import { MAX_INPUT_BYTES, resizeImage } from "@/lib/image-resize";
 import { createClient } from "@/lib/supabase/client";
 
 const BUCKET = "store-images";
-const MAX_BYTES = 5 * 1024 * 1024;
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/avif"];
 
 /**
  * Envia a foto direto do browser para o Storage, sem passar pelo servidor do
  * Next — a policy do bucket já limita o gerente à pasta da própria loja.
+ *
+ * A foto é **encolhida antes de subir** (ver src/lib/image-resize.ts). O
+ * lojista fotografa com o celular e o arquivo tem 2 a 4 MB; o que fica no
+ * Storage é o que ele mandou, para sempre. Encolher aqui é o que faz um
+ * cardápio de 40 itens ocupar 6 MB em vez de 100.
+ *
+ * Por isso o limite de 5 MB do bucket deixou de ser o que se cobra do lojista:
+ * o que entra já sai pequeno, e o que se recusa é só o que nem dá para abrir
+ * sem travar o celular dele.
  *
  * O que vai para o formulário é só a URL, no input escondido. Se o lojista
  * enviar e desistir de salvar, o arquivo fica órfão no bucket; a limpeza de
@@ -39,20 +48,29 @@ export function ImageUpload({
       setError("Use uma imagem JPG, PNG, WebP ou AVIF.");
       return;
     }
-    if (file.size > MAX_BYTES) {
-      setError("A imagem passou de 5 MB. Tente uma foto menor.");
+    if (file.size > MAX_INPUT_BYTES) {
+      setError("Essa imagem é grande demais para abrir. Tente outra foto.");
       return;
     }
 
     setIsUploading(true);
     try {
+      // Se o redimensionamento falhar — formato exótico, canvas bloqueado —
+      // sobe o original. Foto pesada é melhor do que lojista sem foto.
+      let upload = file;
+      try {
+        upload = await resizeImage(file);
+      } catch {
+        upload = file;
+      }
+
       const supabase = createClient();
-      const extension = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const extension = upload.name.split(".").pop()?.toLowerCase() ?? "jpg";
       const path = `${storeId}/produtos/${crypto.randomUUID()}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
         .from(BUCKET)
-        .upload(path, file, { contentType: file.type, upsert: false });
+        .upload(path, upload, { contentType: upload.type, upsert: false });
 
       if (uploadError) {
         setError("Não foi possível enviar a imagem. Tente de novo.");
@@ -129,7 +147,8 @@ export function ImageUpload({
           </div>
 
           <p className="text-xs text-neutral-500 dark:text-neutral-400">
-            JPG, PNG ou WebP, até 5 MB. Quadrada fica melhor.
+            JPG, PNG ou WebP. Pode mandar a foto do celular como está — ela é
+            reduzida aqui antes de subir. Quadrada fica melhor.
           </p>
           {error ? (
             <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
