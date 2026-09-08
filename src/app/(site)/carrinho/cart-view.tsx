@@ -305,6 +305,7 @@ export function CartView() {
       }
     : null;
   const [cart, setCart] = useState<ResolvedCart | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -313,23 +314,56 @@ export function CartView() {
     startTransition(async () => {
       const resolved = await resolveCart(lines);
 
-      // Item que saiu do cardápio ou esgotou some do carrinho — deixá-lo ali
-      // só produziria um pedido que a loja não consegue atender.
-      for (const id of resolved.dropped) removeLine(id);
+      // Leitura que falhou não descarta nada. O que estiver no aparelho do
+      // cliente continua lá para a próxima tentativa — só o item que
+      // comprovadamente saiu do cardápio é removido.
+      if (!resolved.failed) {
+        // Item que saiu do cardápio ou esgotou some do carrinho — deixá-lo ali
+        // só produziria um pedido que a loja não consegue atender.
+        for (const id of resolved.dropped) removeLine(id);
+      }
 
       setCart(resolved);
     });
-  }, [lines]);
+  }, [lines, attempt]);
 
   // Carrinho vazio é derivado das linhas, não de estado: o servidor ainda nem
-  // precisa ser consultado para saber que não há nada.
-  const isEmpty = lines.length === 0 || cart?.stores.length === 0;
+  // precisa ser consultado para saber que não há nada. Uma leitura que falhou
+  // não conta como vazio — os itens continuam no aparelho do cliente.
+  const isEmpty =
+    lines.length === 0 ||
+    (cart !== null && !cart.failed && cart.stores.length === 0);
 
   if (!isEmpty && cart === null) {
     return (
       <p className="text-sm text-neutral-500 dark:text-neutral-400">
         Carregando o carrinho…
       </p>
+    );
+  }
+
+  // Dizer que deu erro é melhor do que dizer que o carrinho está vazio. A
+  // segunda é mentira, faz o cliente remontar o pedido do zero, e some com o
+  // único sinal de que existe alguma coisa quebrada.
+  if (cart?.failed) {
+    return (
+      <div className="rounded-xl border border-amber-300 bg-amber-50 px-6 py-10 text-center dark:border-amber-900 dark:bg-amber-950/40">
+        <p className="font-medium">Não consegui carregar seu carrinho agora.</p>
+        <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-600 dark:text-neutral-400">
+          Seus itens continuam guardados — nada foi perdido. Deve ser coisa de
+          instantes.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setCart(null);
+            setAttempt((value) => value + 1);
+          }}
+          className="mt-4 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+        >
+          Tentar de novo
+        </button>
+      </div>
     );
   }
 
