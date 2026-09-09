@@ -26,15 +26,30 @@ const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/avif"];
  * O que vai para o formulário é só a URL, no input escondido. Se o lojista
  * enviar e desistir de salvar, o arquivo fica órfão no bucket; a limpeza de
  * verdade acontece quando o produto é salvo ou apagado.
+ *
+ * Serve a foto do produto, a logo e a capa. O que muda entre elas é a pasta
+ * dentro do bucket e o formato do preview — e o preview importa: ele é o
+ * único lugar onde o lojista descobre que a capa vai ser cortada em 3 por 1
+ * antes de a loja inteira ver o resultado.
  */
 export function ImageUpload({
   storeId,
   name,
   defaultUrl,
+  label = "Foto",
+  folder = "produtos",
+  aspect = "square",
+  hint = "JPG, PNG ou WebP. Pode mandar a foto do celular como está — ela é reduzida aqui antes de subir. Quadrada fica melhor.",
 }: {
   storeId: string;
   name: string;
   defaultUrl: string | null;
+  label?: string;
+  /** Pasta dentro de `<store_id>/`. Separa a logo das fotos do cardápio. */
+  folder?: string;
+  /** O preview imita o recorte da tela pública: quadrado ou 3 por 1. */
+  aspect?: "square" | "wide";
+  hint?: string;
 }) {
   const [url, setUrl] = useState(defaultUrl ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +81,9 @@ export function ImageUpload({
 
       const supabase = createClient();
       const extension = upload.name.split(".").pop()?.toLowerCase() ?? "jpg";
-      const path = `${storeId}/produtos/${crypto.randomUUID()}.${extension}`;
+      // Nome sorteado, e não `logo.webp` fixo: sobrescrever mantém a URL, e a
+      // URL que não muda continua servindo a imagem antiga do cache da CDN.
+      const path = `${storeId}/${folder}/${crypto.randomUUID()}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
         .from(BUCKET)
@@ -86,23 +103,27 @@ export function ImageUpload({
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-sm font-medium">Foto</span>
+      <span className="text-sm font-medium">{label}</span>
       <input type="hidden" name={name} value={url} />
 
-      <div className="flex items-start gap-4">
-        <div className="relative size-24 shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="flex flex-wrap items-start gap-4">
+        <div
+          className={`relative shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 ${
+            aspect === "wide" ? "aspect-[3/1] w-72" : "size-24"
+          }`}
+        >
           {url ? (
             <Image
               src={url}
               alt=""
               fill
-              sizes="96px"
+              sizes={aspect === "wide" ? "288px" : "96px"}
               className="object-cover"
               unoptimized={isUploading}
             />
           ) : (
             <span className="flex h-full items-center justify-center text-xs text-neutral-400">
-              sem foto
+              sem imagem
             </span>
           )}
         </div>
@@ -130,8 +151,8 @@ export function ImageUpload({
               {isUploading
                 ? "Enviando…"
                 : url
-                  ? "Trocar foto"
-                  : "Escolher foto"}
+                  ? `Trocar ${label.toLowerCase()}`
+                  : `Escolher ${label.toLowerCase()}`}
             </Button>
 
             {url ? (
@@ -147,8 +168,7 @@ export function ImageUpload({
           </div>
 
           <p className="text-xs text-neutral-500 dark:text-neutral-400">
-            JPG, PNG ou WebP. Pode mandar a foto do celular como está — ela é
-            reduzida aqui antes de subir. Quadrada fica melhor.
+            {hint}
           </p>
           {error ? (
             <p className="text-xs text-red-600 dark:text-red-400">{error}</p>

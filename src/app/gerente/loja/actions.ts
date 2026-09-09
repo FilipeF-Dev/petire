@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireManager } from "@/lib/auth";
+import { removeStoreImage } from "@/lib/store-images";
 import { createClient } from "@/lib/supabase/server";
 import {
   storeHoursSchema,
@@ -46,10 +47,19 @@ export async function saveStore(
     freeDelivery: formData.get("freeDelivery") === "on",
     deliveryMinutes: formData.get("deliveryMinutes") ?? "",
     minOrder: formData.get("minOrder") ?? "0",
+    logoUrl: formData.get("logoUrl") ?? "",
+    coverUrl: formData.get("coverUrl") ?? "",
   });
   if (!parsed.success) return toFormState(parsed.error, formValues(formData));
 
   const supabase = await createClient();
+
+  // O que está lá agora, para saber o que virou lixo depois da troca.
+  const { data: current } = await supabase
+    .from("stores")
+    .select("logo_url, cover_url")
+    .eq("id", session.storeId)
+    .maybeSingle();
 
   // is_active, subscription_status e subscription_until não estão aqui de
   // propósito: authenticated não tem GRANT UPDATE nessas colunas.
@@ -71,11 +81,24 @@ export async function saveStore(
       free_delivery: parsed.data.freeDelivery,
       delivery_minutes: parsed.data.deliveryMinutes,
       min_order_cents: parsed.data.minOrder,
+      logo_url: parsed.data.logoUrl,
+      cover_url: parsed.data.coverUrl,
     })
     .eq("id", session.storeId);
 
   if (error) {
     return { error: "Não foi possível salvar. Confira o número do WhatsApp." };
+  }
+
+  // Só depois de gravar: apagar antes deixaria a loja apontando para um
+  // arquivo que não existe mais se o update falhasse.
+  for (const [before, after] of [
+    [current?.logo_url, parsed.data.logoUrl],
+    [current?.cover_url, parsed.data.coverUrl],
+  ]) {
+    if (before && before !== after) {
+      await removeStoreImage(supabase, session.storeId, before);
+    }
   }
 
   refreshStore(session.storeSlug);
@@ -134,7 +157,10 @@ export async function addStoreHours(
       opens_at: parsed.data.opensAt,
       closes_at: parsed.data.closesAt,
     })),
-    { onConflict: "store_id,weekday,opens_at,closes_at", ignoreDuplicates: true },
+    {
+      onConflict: "store_id,weekday,opens_at,closes_at",
+      ignoreDuplicates: true,
+    },
   );
 
   if (error) return { error: "Não foi possível salvar o horário." };

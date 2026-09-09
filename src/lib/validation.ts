@@ -101,15 +101,13 @@ const money = (label: string) =>
  * "Frutos do mar" viraria "frutos do mar" e nunca casaria com o "frutos-do-mar"
  * do catálogo — a loja ficaria cadastrada num tipo que o filtro não encontra.
  */
-const cuisineTagsField = z
-  .string()
-  .transform((value) =>
-    value
-      .split(",")
-      .map((tag) => slugify(tag))
-      .filter(Boolean)
-      .slice(0, 10),
-  );
+const cuisineTagsField = z.string().transform((value) =>
+  value
+    .split(",")
+    .map((tag) => slugify(tag))
+    .filter(Boolean)
+    .slice(0, 10),
+);
 
 /**
  * Tempo médio de entrega, em minutos. Vazio é resposta válida: a loja que não
@@ -122,7 +120,8 @@ const deliveryMinutesField = z
     value === "" ? null : Number.parseInt(value.replace(/\D/g, ""), 10),
   )
   .refine(
-    (value) => value === null || (Number.isFinite(value) && value >= 5 && value <= 240),
+    (value) =>
+      value === null || (Number.isFinite(value) && value >= 5 && value <= 240),
     "Informe de 5 a 240 minutos.",
   );
 
@@ -137,7 +136,10 @@ const ufField = z
   .string()
   .trim()
   .transform((value) => (value === "" ? null : value.toUpperCase()))
-  .refine((value) => value === null || /^[A-Z]{2}$/.test(value), "UF inválida.");
+  .refine(
+    (value) => value === null || /^[A-Z]{2}$/.test(value),
+    "UF inválida.",
+  );
 
 /** Código do município no IBGE, como o ViaCEP devolve. */
 const ibgeField = z
@@ -177,7 +179,10 @@ export const productSchema = z.object({
   price: money("Preço"),
   categoryId: optionalUuid,
   imageUrl: optionalText(600),
-  isAvailable: z.string().nullable().transform((value) => value === "on"),
+  isAvailable: z
+    .string()
+    .nullable()
+    .transform((value) => value === "on"),
 });
 
 // -----------------------------------------------------------------------------
@@ -207,13 +212,10 @@ export const optionGroupSchema = z
       .min(1, "O limite precisa ser ao menos 1.")
       .max(20, "Limite alto demais."),
   })
-  .refine(
-    (value) => value.selection === "single" || value.maxSelect >= 2,
-    {
-      message: "Com múltipla escolha o limite precisa ser 2 ou mais.",
-      path: ["maxSelect"],
-    },
-  )
+  .refine((value) => value.selection === "single" || value.maxSelect >= 2, {
+    message: "Com múltipla escolha o limite precisa ser 2 ou mais.",
+    path: ["maxSelect"],
+  })
   .transform((value) => ({
     name: value.name,
     // Obrigatório é o mesmo que "escolhe ao menos 1" — não existe coluna
@@ -356,12 +358,18 @@ export const storeSchema = z.object({
    * ninguém prometeu. Aqui o lojista diz.
    */
   freeDelivery: z.boolean(),
+  /**
+   * URLs prontas, vindas do `ImageUpload` — o arquivo já subiu ao Storage
+   * antes de o formulário ser enviado. Aqui só se guarda o endereço dele,
+   * pelo mesmo caminho de `products.image_url`.
+   */
+  logoUrl: optionalText(600),
+  coverUrl: optionalText(600),
 });
 
 // -----------------------------------------------------------------------------
 // Admin
 // -----------------------------------------------------------------------------
-
 
 export const newStoreSchema = z.object({
   name: requiredText("Nome da loja"),
@@ -551,9 +559,7 @@ export const paymentSchema = z.object({
 // Horário
 // -----------------------------------------------------------------------------
 
-const time = z
-  .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Horário inválido.");
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Horário inválido.");
 
 /**
  * Uma faixa de horário aplicada a um ou mais dias da semana.

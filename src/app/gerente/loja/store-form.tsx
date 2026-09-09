@@ -5,14 +5,18 @@ import { useFormStatus } from "react-dom";
 
 import { AddressFields } from "@/components/address-fields";
 import { CuisinePicker } from "@/components/cuisine-picker";
+import { ImageUpload } from "@/components/image-upload";
 import { Button, Field, FormError, inputClass } from "@/components/ui";
 import { emptyFormState } from "@/lib/validation";
 
 import { saveStore } from "./actions";
 
 type Store = {
+  id: string;
   name: string;
   description: string | null;
+  logo_url: string | null;
+  cover_url: string | null;
   whatsapp_e164: string;
   address: string | null;
   cep: string | null;
@@ -82,6 +86,31 @@ export function StoreForm({ store }: { store: Store }) {
         />
       </Field>
 
+      {/*
+        Logo e capa logo depois do nome e da descrição: as quatro coisas são a
+        mesma pergunta — quem é esta loja — e é o bloco que o cliente vê antes
+        de qualquer preço. A logo tem peso maior porque é ela que aparece na
+        lista; a capa só existe dentro da página da loja.
+      */}
+      <ImageUpload
+        storeId={store.id}
+        name="logoUrl"
+        defaultUrl={store.logo_url}
+        label="Logo"
+        folder="loja"
+        hint="Quadrada, com a marca no centro. É ela que aparece na lista de lojas — sem ela, a loja entra como a primeira letra do nome."
+      />
+
+      <ImageUpload
+        storeId={store.id}
+        name="coverUrl"
+        defaultUrl={store.cover_url}
+        label="Capa"
+        folder="loja"
+        aspect="wide"
+        hint="A faixa larga no topo da página da loja. Ela é cortada em 3 por 1 — o que estiver nas beiradas some."
+      />
+
       <Field
         label="WhatsApp"
         hint="É para cá que o pedido do cliente é enviado. Confira com cuidado."
@@ -89,7 +118,9 @@ export function StoreForm({ store }: { store: Store }) {
       >
         <input
           name="whatsapp"
-          defaultValue={state.values?.whatsapp ?? formatWhatsapp(store.whatsapp_e164)}
+          defaultValue={
+            state.values?.whatsapp ?? formatWhatsapp(store.whatsapp_e164)
+          }
           required
           inputMode="tel"
           placeholder="(11) 98765-4321"
@@ -122,10 +153,7 @@ export function StoreForm({ store }: { store: Store }) {
           </select>
         </Field>
 
-        <Field
-          label="Tipo de culinária"
-          error={state.fieldErrors?.cuisineTags}
-        >
+        <Field label="Tipo de culinária" error={state.fieldErrors?.cuisineTags}>
           <CuisinePicker
             name="cuisineTags"
             ariaLabel="Tipo de culinária"
@@ -145,7 +173,10 @@ export function StoreForm({ store }: { store: Store }) {
           >
             <input
               name="deliveryFee"
-              defaultValue={state.values?.deliveryFee ?? centsToInput(store.delivery_fee_cents)}
+              defaultValue={
+                state.values?.deliveryFee ??
+                centsToInput(store.delivery_fee_cents)
+              }
               inputMode="decimal"
               className={inputClass}
             />
@@ -172,7 +203,6 @@ export function StoreForm({ store }: { store: Store }) {
           </label>
         </div>
 
-
         <Field
           label="Tempo médio de entrega"
           hint="Em minutos, depois que você confirma o pedido. Em branco não mostra nada."
@@ -184,7 +214,9 @@ export function StoreForm({ store }: { store: Store }) {
             placeholder="40"
             defaultValue={
               state.values?.deliveryMinutes ??
-              (store.delivery_minutes === null ? "" : String(store.delivery_minutes))
+              (store.delivery_minutes === null
+                ? ""
+                : String(store.delivery_minutes))
             }
             className={inputClass}
           />
@@ -193,7 +225,9 @@ export function StoreForm({ store }: { store: Store }) {
         <Field label="Pedido mínimo" error={state.fieldErrors?.minOrder}>
           <input
             name="minOrder"
-            defaultValue={state.values?.minOrder ?? centsToInput(store.min_order_cents)}
+            defaultValue={
+              state.values?.minOrder ?? centsToInput(store.min_order_cents)
+            }
             inputMode="decimal"
             className={inputClass}
           />
