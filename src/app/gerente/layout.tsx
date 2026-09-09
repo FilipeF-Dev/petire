@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { signOut } from "@/app/entrar/actions";
-import { PageTransition } from "@/components/page-transition";
 import { requireManager } from "@/lib/auth";
 import { supportWhatsapp } from "@/lib/env";
 
@@ -47,8 +46,16 @@ export default async function GerenteLayout({
         <GerenteNav />
       </div>
 
+      {/*
+        Sem a animação de entrada aqui, e de propósito — ela continua na
+        vitrine. Ela roda *depois* de o dado chegar, então no painel, onde o
+        lojista troca de aba o dia inteiro, seriam 320ms somados a cada troca
+        para anunciar uma mudança que o esqueleto de carregamento já anunciou.
+        Na vitrine ela paga o próprio custo: lá a troca de tela é rara e o
+        movimento é o que diz ao cliente que a página é outra.
+      */}
       <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
-        <PageTransition>{children}</PageTransition>
+        {children}
       </div>
 
       {/*
