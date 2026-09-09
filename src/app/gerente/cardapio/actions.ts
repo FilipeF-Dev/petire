@@ -16,7 +16,7 @@ import {
   type FormState,
 } from "@/lib/validation";
 
-import { removeStoreImage } from "./storage";
+import { removeStoreImage } from "@/lib/store-images";
 
 /**
  * Toda action aqui repete dois cuidados:

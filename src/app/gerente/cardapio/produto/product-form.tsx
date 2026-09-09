@@ -8,7 +8,7 @@ import { Button, Field, FormError, inputClass } from "@/components/ui";
 import { emptyFormState } from "@/lib/validation";
 
 import { deleteProduct, saveProduct } from "../actions";
-import { ImageUpload } from "./image-upload";
+import { ImageUpload } from "@/components/image-upload";
 
 type Product = {
   id: string;

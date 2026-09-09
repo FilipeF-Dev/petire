@@ -24,7 +24,7 @@ export default async function LojaPage() {
     supabase
       .from("stores")
       .select(
-        "name, description, whatsapp_e164, address, cep, state_uf, ibge_code, city, neighborhood, cuisine_tags, kind, delivery_fee_cents, free_delivery, delivery_minutes, min_order_cents, is_open_manual",
+        "id, name, description, logo_url, cover_url, whatsapp_e164, address, cep, state_uf, ibge_code, city, neighborhood, cuisine_tags, kind, delivery_fee_cents, free_delivery, delivery_minutes, min_order_cents, is_open_manual",
       )
       .eq("id", session.storeId)
       .single(),
@@ -61,7 +61,9 @@ export default async function LojaPage() {
       </section>
 
       <section>
-        <h2 className="mb-1 text-base font-semibold">Horário de funcionamento</h2>
+        <h2 className="mb-1 text-base font-semibold">
+          Horário de funcionamento
+        </h2>
         <p className="mb-3 text-sm text-neutral-500 dark:text-neutral-400">
           Horário de Brasília.
         </p>
