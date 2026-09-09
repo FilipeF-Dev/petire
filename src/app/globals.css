@@ -66,9 +66,49 @@ body {
   animation: page-enter 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
+/**
+ * Entrada do pop-up.
+ *
+ * O fundo escurece e a caixa sobe alguns pixels enquanto aparece. Sem isso ela
+ * surgia pronta, no mesmo quadro, e a tela parecia ter trocado de assunto
+ * sozinha — a animação é o que liga o clique ao que apareceu.
+ *
+ * O fundo é mais rápido que a caixa de propósito: primeiro a tela recua,
+ * depois o pop-up chega.
+ */
+@keyframes modal-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.modal-overlay {
+  animation: modal-overlay-in 160ms ease-out both;
+}
+
+.modal-panel {
+  animation: modal-panel-in 220ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
 /* Movimento é o gatilho mais comum de enjoo; quem pediu menos, recebe menos. */
 @media (prefers-reduced-motion: reduce) {
-  .page-enter {
+  .page-enter,
+  .modal-overlay,
+  .modal-panel {
     animation: none;
   }
 }
