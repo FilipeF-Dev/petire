@@ -3,6 +3,11 @@ import Link from "next/link";
 
 import { TrackDemand } from "@/components/track-demand";
 import { sortByPopularity } from "@/lib/cuisines";
+import {
+  hasLivePromotion,
+  priceOf,
+  type Promotion,
+} from "@/lib/promotions";
 import { humanizePlace, searchTerms, slugify } from "@/lib/slug";
 import {
   CARD_SELECT,
@@ -38,6 +43,9 @@ export default async function LojasPage({
   const kind = first(params.tipo);
   const tag = first(params.tag);
   const onlyOpen = first(params.aberto) === "1";
+  const onlyFreeDelivery = first(params.frete) === "1";
+  const onlyPromo = first(params.promo) === "1";
+  const order = first(params.ordem);
 
   const supabase = createPublicClient();
 
@@ -54,6 +62,8 @@ export default async function LojasPage({
   }
   if (tag) query = query.contains("cuisine_tags", [tag]);
   if (onlyOpen) query = query.eq("is_open_now", true);
+  // Coluna declarada pela loja, nao a taxa zerada: zero e "nao informei".
+  if (onlyFreeDelivery) query = query.eq("free_delivery", true);
 
   if (kind === "food") query = query.in("kind", ["food", "both"]);
   if (kind === "drinks") query = query.in("kind", ["drinks", "both"]);
@@ -76,11 +86,21 @@ export default async function LojasPage({
   // As duas coisas juntas também são a defesa que o `sanitizeSearch` escrito a
   // mão era: o que sobra é `[a-z0-9]`, então um `%`, um `_` ou uma vírgula
   // digitados não viram curinga do LIKE nem separador de filtro do PostgREST.
+  //
+  // O preço e o id vêm junto porque a ordenação por menor preço precisa deles:
+  // o preço da loja é o do item mais barato que casou com a busca.
   const terms = search ? searchTerms(search) : [];
-  let productMatches: { store_id: string; name: string }[] = [];
+  let productMatches: {
+    id: string;
+    store_id: string;
+    name: string;
+    price_cents: number;
+  }[] = [];
 
   if (terms.length > 0) {
-    let hitsQuery = supabase.from("products").select("store_id, name");
+    let hitsQuery = supabase
+      .from("products")
+      .select("id, store_id, name, price_cents");
     for (const term of terms) {
       hitsQuery = hitsQuery.like("name_slug", `%${term}%`);
     }
@@ -125,13 +145,93 @@ export default async function LojasPage({
   const near = first(params.perto);
   const nearSlug = near ? slugify(near) : null;
 
-  const stores = nearSlug
+  const nearby = nearSlug
     ? [...allStores].sort((a, b) => {
         const rank = (store: PublicStoreCard) =>
           store.neighborhood_slug === nearSlug ? 0 : 1;
         return rank(a) - rank(b);
       })
     : allStores;
+
+  /**
+   * Desconto e preço só são lidos quando alguém pediu por eles.
+   *
+   * As promoções de uma loja não cabem na view da vitrine — elas dependem da
+   * hora e do dia da semana — então a conta é aqui, e só para as lojas que já
+   * passaram pelos outros filtros. Sem chip de desconto e sem ordenação, esta
+   * consulta nem sai.
+   */
+  // Ordenar por preço também precisa delas: o preço que ordena é o que o
+  // cliente vê no card, já com o desconto aplicado.
+  const needsPromotions = onlyPromo || Boolean(order);
+
+  const livePromotions = new Map<string, Promotion[]>();
+  if (needsPromotions && nearby.length > 0) {
+    const { data: rows } = await supabase
+      .from("promotions")
+      .select("store_id, product_id, kind, value, starts_at, ends_at, weekdays")
+      .in(
+        "store_id",
+        nearby.map((store) => store.id),
+      )
+      .eq("is_active", true);
+
+    for (const row of rows ?? []) {
+      const list = livePromotions.get(row.store_id) ?? [];
+      livePromotions.set(row.store_id, [...list, row as Promotion]);
+    }
+  }
+
+  const withPromo = onlyPromo
+    ? nearby.filter((store) =>
+        hasLivePromotion(livePromotions.get(store.id) ?? []),
+      )
+    : nearby;
+
+  /**
+   * O preço da loja, para ordenar, é o do **item mais barato que casou com a
+   * busca** — já com a promoção aplicada, que é o preço que o cliente vê no
+   * card. Loja não tem um preço só, e inventar uma média seria ordenar por um
+   * número que não aparece em lugar nenhum da tela.
+   *
+   * Por isso a ordenação por preço só existe junto de uma busca: sem item que
+   * casou, não há o que comparar.
+   */
+  const priced = new Map<string, { cheapest: number; bestOff: number }>();
+  for (const hit of productMatches) {
+    const promotions = livePromotions.get(hit.store_id) ?? [];
+    const price = priceOf(hit.price_cents, hit.id, promotions);
+
+    const off =
+      price.originalCents === null
+        ? 0
+        : (price.originalCents - price.cents) / price.originalCents;
+
+    const current = priced.get(hit.store_id);
+    priced.set(hit.store_id, {
+      cheapest: Math.min(current?.cheapest ?? Infinity, price.cents),
+      bestOff: Math.max(current?.bestOff ?? 0, off),
+    });
+  }
+
+  const stores =
+    order === "preco-asc" || order === "preco-desc" || order === "desconto"
+      ? [...withPromo].sort((a, b) => {
+          const left = priced.get(a.id);
+          const right = priced.get(b.id);
+
+          // Loja sem item que casou fica no fim em qualquer ordenação: ela
+          // entrou pelo nome, e não tem preço nem desconto para comparar.
+          if (!left && !right) return 0;
+          if (!left) return 1;
+          if (!right) return -1;
+
+          if (order === "desconto") return right.bestOff - left.bestOff;
+          return order === "preco-asc"
+            ? left.cheapest - right.cheapest
+            : right.cheapest - left.cheapest;
+        })
+      : withPromo;
 
   // Só os tipos que existem entre as lojas encontradas — um chip que não
   // devolve nada é uma promessa quebrada. A ordem é a do catálogo, que é a de
@@ -162,7 +262,8 @@ export default async function LojasPage({
   // A demanda que o catálogo não atendeu. Lista vazia por causa de um chip
   // marcado não é demanda descoberta — é filtro, e o cliente desmarca. O que
   // interessa é a busca que não achou nada e a cidade onde ainda não há loja.
-  const hasChips = Boolean(tag) || Boolean(kind) || onlyOpen;
+  const hasChips =
+    Boolean(tag) || Boolean(kind) || onlyOpen || onlyFreeDelivery || onlyPromo;
 
   const unmet: "search_empty" | "area_uncovered" | null =
     stores.length > 0 || hasChips

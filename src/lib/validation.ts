@@ -348,6 +348,14 @@ export const storeSchema = z.object({
   deliveryFee: money("Taxa de entrega"),
   deliveryMinutes: deliveryMinutesField,
   minOrder: money("Pedido mínimo"),
+  /**
+   * Entrega grátis é uma afirmação da loja, não a ausência de um número.
+   *
+   * A taxa nasce zerada no cadastro, então zero quer dizer "não informei" na
+   * maioria das lojas — anunciar grátis por causa dele seria prometer o que
+   * ninguém prometeu. Aqui o lojista diz.
+   */
+  freeDelivery: z.boolean(),
 });
 
 // -----------------------------------------------------------------------------

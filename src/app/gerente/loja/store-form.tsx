@@ -23,6 +23,7 @@ type Store = {
   cuisine_tags: string[];
   kind: "food" | "drinks" | "both";
   delivery_fee_cents: number;
+  free_delivery: boolean;
   delivery_minutes: number | null;
   min_order_cents: number;
 };
@@ -136,18 +137,40 @@ export function StoreForm({ store }: { store: Store }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label="Taxa de entrega"
-          hint="0 se for grátis ou combinada na hora."
-          error={state.fieldErrors?.deliveryFee}
-        >
-          <input
-            name="deliveryFee"
-            defaultValue={state.values?.deliveryFee ?? centsToInput(store.delivery_fee_cents)}
-            inputMode="decimal"
-            className={inputClass}
-          />
-        </Field>
+        <div className="flex flex-col gap-2">
+          <Field
+            label="Taxa de entrega"
+            hint="Em branco ou 0 aparece como “a combinar”."
+            error={state.fieldErrors?.deliveryFee}
+          >
+            <input
+              name="deliveryFee"
+              defaultValue={state.values?.deliveryFee ?? centsToInput(store.delivery_fee_cents)}
+              inputMode="decimal"
+              className={inputClass}
+            />
+          </Field>
+
+          {/*
+            Marcar é diferente de deixar a taxa em zero. Zero é "não informei",
+            e é assim que a maioria das lojas nasce; grátis é uma promessa, e o
+            cliente filtra por ela na lista.
+          */}
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="freeDelivery"
+              defaultChecked={store.free_delivery}
+              className="mt-0.5 size-4"
+            />
+            <span>
+              Entrego de graça
+              <span className="block text-xs text-neutral-500 dark:text-neutral-400">
+                Aparece como “entrega grátis” e entra no filtro da lista.
+              </span>
+            </span>
+          </label>
+        </div>
 
 
         <Field

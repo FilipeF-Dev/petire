@@ -112,15 +112,24 @@ export default async function HomePage() {
           o cliente fala direto com você. As {FOUNDER_SLOTS} primeiras de cada
           bairro entram por {formatCents(FOUNDER_PRICE_CENTS)}.
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-          <Link href="/cadastrar" className="underline underline-offset-4">
+        {/*
+          Eram dois links sublinhados. Minimalismo não é o mesmo que esconder a
+          ação: o lojista que chegou até aqui já decidiu ler, e precisa ver onde
+          clicar sem procurar. O peso separa os dois — cadastrar é a ação da
+          página, entrar é para quem já é de casa.
+        */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Link
+            href="/cadastrar"
+            className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+          >
             Cadastrar minha loja
           </Link>
           <Link
             href="/entrar"
-            className="text-neutral-500 underline-offset-4 hover:underline dark:text-neutral-400"
+            className="inline-flex items-center justify-center rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium transition hover:bg-surface-hover dark:border-neutral-700"
           >
-            já tenho conta
+            Já tenho conta
           </Link>
         </div>
       </section>

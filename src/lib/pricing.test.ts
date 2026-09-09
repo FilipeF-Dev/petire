@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  founderDiscountPercent,
+  founderFirstBillingMonth,
   BASIC_PRICE_CENTS,
   FOUNDER_PRICE_CENTS,
   monthlyPriceCents,
@@ -88,5 +90,22 @@ describe("monthlyPriceCents", () => {
     expect(monthlyPriceCents({ plan: "plus", isFounder: true })).toBe(
       PLUS_PRICE_CENTS,
     );
+  });
+});
+
+describe("founderDiscountPercent", () => {
+  it("sai da diferença entre o Básico e o preço travado", () => {
+    // R$ 49 → R$ 29 são 40,8%, que arredondam para 41.
+    expect(founderDiscountPercent()).toBe(41);
+  });
+
+  it("é inteiro, porque é isso que a vitrine mostra", () => {
+    expect(Number.isInteger(founderDiscountPercent())).toBe(true);
+  });
+});
+
+describe("founderFirstBillingMonth", () => {
+  it("noventa dias grátis põem a primeira conta no quarto mês", () => {
+    expect(founderFirstBillingMonth()).toBe(4);
   });
 });

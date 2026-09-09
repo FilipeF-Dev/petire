@@ -33,6 +33,20 @@ function isLive(promotion: Promotion, now: Date): boolean {
   return true;
 }
 
+/**
+ * A loja tem alguma promoção valendo agora?
+ *
+ * É o que o chip "Com desconto" da lista precisa saber. Vale a mesma régua do
+ * cardápio — janela de datas e dia da semana — porque uma loja que aparece com
+ * desconto na lista e sem desconto no cardápio é pior do que não ter o filtro.
+ */
+export function hasLivePromotion(
+  promotions: Promotion[],
+  now: Date = new Date(),
+): boolean {
+  return promotions.some((promotion) => isLive(promotion, now));
+}
+
 /** "10% OFF" ou "R$ 5,00 OFF" — o selo do cardápio e o rótulo do painel. */
 export function discountLabel(kind: Promotion["kind"], value: number): string {
   return kind === "percent" ? `${value}% OFF` : `${formatCents(value)} OFF`;

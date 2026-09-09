@@ -6,6 +6,8 @@ import {
   FOUNDER_PRICE_CENTS,
   FOUNDER_SLOTS,
   FOUNDER_TRIAL_DAYS,
+  founderDiscountPercent,
+  founderFirstBillingMonth,
 } from "@/lib/pricing";
 
 import { ApplicationForm } from "./application-form";
@@ -38,7 +40,7 @@ export const metadata: Metadata = {
 const STEPS = [
   {
     title: "Você manda o cardápio como ele já existe",
-    body: "Bloco de notas, PDF, foto, ou a mensagem que você já manda no WhatsApp. Dá para colar o texto inteiro de uma vez no painel.",
+    body: "Bloco de notas, PDF, foto, ou a mensagem que você já manda no WhatsApp. Ou, se preferir, você mesmo cadastra os produtos um a um.",
   },
   {
     title: "A gente confere e coloca no ar",
@@ -86,12 +88,12 @@ export default function CadastrarPage() {
         <div className="mt-5 rounded-xl border border-brand/30 bg-brand/5 p-4">
           <p className="text-sm font-medium">
             As {FOUNDER_SLOTS} primeiras lojas de cada bairro entram com{" "}
-            {FOUNDER_TRIAL_DAYS} dias grátis e mensalidade de{" "}
-            {formatCents(FOUNDER_PRICE_CENTS)} travada.
+            {FOUNDER_TRIAL_DAYS} dias grátis, e a partir do{" "}
+            {founderFirstBillingMonth()}º mês a mensalidade é de apenas{" "}
+            {formatCents(FOUNDER_PRICE_CENTS)}.
           </p>
-          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-            É o que paga o risco de entrar num catálogo que ainda está
-            começando no seu bairro. O preço travado não sobe depois.
+          <p className="mt-1 text-sm font-medium text-brand">
+            Ou seja, {founderDiscountPercent()}% de desconto — para sempre.
           </p>
         </div>
       </section>

@@ -774,6 +774,7 @@ export type Database = {
           delivery_fee_cents: number
           delivery_minutes: number | null
           description: string | null
+          free_delivery: boolean
           ibge_code: string | null
           id: string
           is_active: boolean
@@ -808,6 +809,7 @@ export type Database = {
           delivery_fee_cents?: number
           delivery_minutes?: number | null
           description?: string | null
+          free_delivery?: boolean
           ibge_code?: string | null
           id?: string
           is_active?: boolean
@@ -842,6 +844,7 @@ export type Database = {
           delivery_fee_cents?: number
           delivery_minutes?: number | null
           description?: string | null
+          free_delivery?: boolean
           ibge_code?: string | null
           id?: string
           is_active?: boolean
@@ -936,6 +939,7 @@ export type Database = {
           delivery_fee_cents: number | null
           delivery_minutes: number | null
           description: string | null
+          free_delivery: boolean | null
           id: string | null
           is_open_manual: boolean | null
           is_open_now: boolean | null
@@ -962,6 +966,7 @@ export type Database = {
           delivery_fee_cents?: number | null
           delivery_minutes?: number | null
           description?: string | null
+          free_delivery?: boolean | null
           id?: string | null
           is_open_manual?: boolean | null
           is_open_now?: never
@@ -988,6 +993,7 @@ export type Database = {
           delivery_fee_cents?: number | null
           delivery_minutes?: number | null
           description?: string | null
+          free_delivery?: boolean | null
           id?: string | null
           is_open_manual?: boolean | null
           is_open_now?: never
