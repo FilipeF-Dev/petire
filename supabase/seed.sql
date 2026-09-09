@@ -20,7 +20,7 @@ insert into public.stores (
   id, slug, name, description, whatsapp_e164,
   address, cep, state_uf, ibge_code, city, neighborhood, lat, lng,
   cuisine_tags, kind, delivery_fee_cents, delivery_minutes, min_order_cents,
-  is_active, subscription_status, subscription_until
+  is_active, published_at, subscription_status, subscription_until
 ) values
 (
   '11111111-1111-4111-8111-111111111111',
@@ -39,6 +39,7 @@ insert into public.stores (
   40,
   2000,
   true,
+  now(),
   'trial',
   current_date + 90
 ),
@@ -59,6 +60,7 @@ insert into public.stores (
   25,
   1500,
   true,
+  now(),
   'active',
   current_date + 30
 );

@@ -8,6 +8,7 @@ import { emptyFormState } from "@/lib/validation";
 
 import {
   resetManagerPassword,
+  setFounder,
   setPlan,
   setSubscription,
   type NewStoreState,
@@ -123,6 +124,59 @@ export function PlanForm({
 
       {state.savedAt && !state.error ? (
         <span className="pb-2.5 text-sm text-green-700 dark:text-green-400">
+          salvo
+        </span>
+      ) : null}
+      {state.error ? <FormError message={state.error} /> : null}
+    </form>
+  );
+}
+
+/**
+ * A loja fundadora.
+ *
+ * Fica ao lado do plano, e não da assinatura, porque é da mesma natureza: não
+ * é sobre estar pagando, é sobre o que a loja tem direito. O que ela abre é o
+ * preço travado e o teto de itens do Plus — os degraus que são oferta
+ * continuam sendo do plano.
+ *
+ * O contador de vagas é lido do banco e mostrado aqui porque é o número que a
+ * visita usa: "restam três no seu bairro" só pode ser dito se for verdade.
+ */
+export function FounderForm({
+  storeId,
+  isFounder,
+  slotsLeft,
+}: {
+  storeId: string;
+  isFounder: boolean;
+  slotsLeft: number | null;
+}) {
+  const [state, formAction] = useActionState(setFounder, emptyFormState);
+
+  return (
+    <form action={formAction} className="flex flex-wrap items-center gap-3">
+      <input type="hidden" name="storeId" value={storeId} />
+      <input
+        type="hidden"
+        name="isFounder"
+        value={isFounder ? "false" : "true"}
+      />
+
+      <Submit label={isFounder ? "Desmarcar fundadora" : "Marcar fundadora"} />
+
+      <span className="text-sm text-neutral-500 dark:text-neutral-400">
+        {isFounder
+          ? "Preço travado e teto de itens do Plus."
+          : slotsLeft === null
+            ? null
+            : slotsLeft > 0
+              ? `${slotsLeft} ${slotsLeft === 1 ? "vaga" : "vagas"} no bairro.`
+              : "O bairro já esgotou as vagas."}
+      </span>
+
+      {state.savedAt && !state.error ? (
+        <span className="text-sm text-green-700 dark:text-green-400">
           salvo
         </span>
       ) : null}

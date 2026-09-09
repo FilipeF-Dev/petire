@@ -419,6 +419,185 @@ await check("anon não lê indicações", async () => {
   return "bloqueado";
 });
 
+console.log("\nLoja fundadora");
+
+// A vaga de fundadora é a peça que faz o lojista decidir hoje em vez de pensar.
+// Escassez que ninguém conta é escassez que se gasta, então quem conta é o
+// banco — e é isto que garante que "restam três no seu bairro" seja verdade.
+
+const BAIRRO_TESTE = "vaga-cheia-teste";
+
+async function limpaBairroTeste() {
+  const admin = serviceClient();
+  await admin.from("stores").delete().like("slug", "fundadora-teste-%");
+}
+
+await limpaBairroTeste();
+
+await check("gerente NÃO se marca como fundadora", async () => {
+  const { error } = await ze
+    .from("stores")
+    .update({ is_founder: true })
+    .eq("id", STORE_ZE);
+
+  assert(error, "gerente marcou a própria loja como fundadora");
+  return "bloqueado";
+});
+
+await check("o contador de vagas não é executável pelo browser", async () => {
+  const alvo = { target_city: "juiz-de-fora", target_neighborhood: "benfica" };
+  const comoAnon = await anon.rpc("founder_slots_left", alvo);
+  const comoGerente = await ze.rpc("founder_slots_left", alvo);
+
+  assert(comoAnon.error, "anon executou founder_slots_left");
+  assert(comoGerente.error, "gerente executou founder_slots_left");
+  return "bloqueado nos dois";
+});
+
+await check("o banco recusa a fundadora número onze", async () => {
+  const admin = serviceClient();
+
+  const dez = Array.from({ length: 10 }, (_, index) => ({
+    slug: `fundadora-teste-${index + 1}`,
+    name: `Fundadora ${index + 1}`,
+    whatsapp_e164: "5532988887777",
+    city: "Juiz de Fora",
+    neighborhood: BAIRRO_TESTE,
+    is_founder: true,
+  }));
+
+  const { error: cheiaError } = await admin.from("stores").insert(dez);
+  assert(!cheiaError, cheiaError?.message ?? "");
+
+  const { error } = await admin.from("stores").insert({
+    slug: "fundadora-teste-11",
+    name: "Fundadora 11",
+    whatsapp_e164: "5532988887777",
+    city: "Juiz de Fora",
+    neighborhood: BAIRRO_TESTE,
+    is_founder: true,
+  });
+
+  assert(error, "o bairro aceitou a décima primeira fundadora");
+  assert(error.code === "PT422", `esperava PT422, veio ${error.code}`);
+  return "PT422";
+});
+
+await check("marcar uma loja comum no bairro cheio também é recusado", async () => {
+  const admin = serviceClient();
+
+  const { data: comum } = await admin
+    .from("stores")
+    .insert({
+      slug: "fundadora-teste-comum",
+      name: "Loja comum",
+      whatsapp_e164: "5532988887777",
+      city: "Juiz de Fora",
+      neighborhood: BAIRRO_TESTE,
+    })
+    .select("id")
+    .single();
+
+  const { error } = await admin
+    .from("stores")
+    .update({ is_founder: true })
+    .eq("id", comum.id);
+
+  assert(error, "o bairro cheio aceitou mais uma fundadora por update");
+  assert(error.code === "PT422", `esperava PT422, veio ${error.code}`);
+  return "PT422";
+});
+
+await check("a fundadora entra com o teto do Plus", async () => {
+  const admin = serviceClient();
+
+  const { data: antes } = await admin.rpc("store_item_limit", {
+    target: STORE_ZE,
+  });
+  assert(antes === 100, `esperava 100 no básico, veio ${antes}`);
+
+  await admin.from("stores").update({ is_founder: true }).eq("id", STORE_ZE);
+  const { data: depois } = await admin.rpc("store_item_limit", {
+    target: STORE_ZE,
+  });
+  assert(depois === 1000, `esperava 1000 para a fundadora, veio ${depois}`);
+
+  // Devolve a loja ao estado do seed, para o script continuar repetível.
+  await admin.from("stores").update({ is_founder: false }).eq("id", STORE_ZE);
+  return "1000 itens";
+});
+
+await check("o teste desliza para o dia em que a loja entra no ar", async () => {
+  // Trinta dias concedidos no cadastro. Como a loja nasce fora do ar, eles
+  // valem a partir da publicação — senão quem demora a mandar o cardápio
+  // queima o teste esperando por si mesmo.
+  const admin = serviceClient();
+  const hoje = new Date();
+  const cadastro = new Date(hoje.getTime() - 20 * 24 * 60 * 60 * 1000);
+  const venceEm = new Date(cadastro.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const dia = (d) => d.toISOString().slice(0, 10);
+
+  const { data: nova, error: criarError } = await admin
+    .from("stores")
+    .insert({
+      slug: "fundadora-teste-trial",
+      name: "Teste do teste",
+      whatsapp_e164: "5532988887777",
+      city: "Juiz de Fora",
+      neighborhood: "Benfica",
+      created_at: cadastro.toISOString(),
+      subscription_status: "trial",
+      subscription_until: dia(venceEm),
+    })
+    .select("subscription_until")
+    .single();
+
+  assert(!criarError, criarError?.message ?? "");
+  assert(
+    nova.subscription_until === dia(venceEm),
+    "o vencimento mudou antes da publicação",
+  );
+
+  const { data: noAr, error: arError } = await admin
+    .from("stores")
+    .update({ is_active: true })
+    .eq("slug", "fundadora-teste-trial")
+    .select("subscription_until, published_at")
+    .single();
+
+  assert(!arError, arError?.message ?? "");
+  assert(noAr.published_at, "publicar não marcou published_at");
+
+  const esperado = dia(new Date(hoje.getTime() + 30 * 24 * 60 * 60 * 1000));
+  assert(
+    noAr.subscription_until === esperado,
+    `esperava ${esperado}, veio ${noAr.subscription_until}`,
+  );
+
+  // Republicar não pode dar dias de graça.
+  await admin
+    .from("stores")
+    .update({ is_active: false })
+    .eq("slug", "fundadora-teste-trial");
+  const { data: devolta } = await admin
+    .from("stores")
+    .update({ is_active: true })
+    .eq("slug", "fundadora-teste-trial")
+    .select("subscription_until")
+    .single();
+
+  assert(
+    devolta.subscription_until === esperado,
+    "republicar esticou o teste de novo",
+  );
+
+  await admin.from("stores").delete().eq("slug", "fundadora-teste-trial");
+  return `venceu em ${esperado}`;
+});
+
+await limpaBairroTeste();
+
+
 console.log("\nLevantamento de rua");
 
 // A fila de prospecção é a lista de quem o Petire está prestes a abordar, com o

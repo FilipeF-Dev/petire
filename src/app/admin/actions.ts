@@ -612,6 +612,49 @@ export async function setPlan(
 }
 
 /**
+ * Marca ou desmarca a loja como fundadora.
+ *
+ * Quem conta a vaga é o banco: `enforce_founder_slots()` recusa a décima
+ * primeira do bairro com PT422. A escassez que a venda promete precisa ser
+ * verdade — "só restam duas vagas no seu bairro" dito por cima de um campo que
+ * não limita nada é a primeira coisa que gasta a confiança do lojista, e ela
+ * não volta.
+ *
+ * Não chama `refreshStorefront()`: `is_founder` não sai em `stores_public`,
+ * então nenhuma página pública muda. O cliente não vê plano nem preço.
+ */
+export async function setFounder(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+
+  const storeId = uuid.safeParse(formData.get("storeId"));
+  if (!storeId.success) return { error: "Loja inválida." };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("stores")
+    .update({ is_founder: formData.get("isFounder") === "true" })
+    .eq("id", storeId.data);
+
+  if (error) {
+    // PT422 = o bairro esgotou as vagas. A mensagem vem do banco com o número
+    // dele, e reescrevê-la aqui seria manter o mesmo texto em dois lugares.
+    return {
+      error:
+        error.code === "PT422"
+          ? error.message
+          : "Não foi possível mudar a loja.",
+    };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/loja/${storeId.data}`);
+  return { error: null, savedAt: Date.now() };
+}
+
+/**
  * Registra um pagamento e move o vencimento na mesma operação.
  *
  * Antes, "recebeu o PIX" e "mudou a data" eram dois atos separados na cabeça do

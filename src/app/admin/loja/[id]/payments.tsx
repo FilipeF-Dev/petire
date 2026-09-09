@@ -47,11 +47,20 @@ function Submit() {
 export function Payments({
   storeId,
   suggestedUntil,
+  priceCents,
   payments,
 }: {
   storeId: string;
   /** Um mês à frente do vencimento atual: é o caso normal, e poupa digitação. */
   suggestedUntil: string;
+  /**
+   * A mensalidade desta loja, do plano dela e de ser ou não fundadora.
+   *
+   * Já foi um "30,00" fixo, e ele sobreviveu à mudança de preço — que é o que
+   * um valor escrito à mão longe de `pricing.ts` sempre faz. Agora ele vem de
+   * lá, e a fundadora chega com R$ 29 preenchidos.
+   */
+  priceCents: number;
   payments: Payment[];
 }) {
   const [state, formAction] = useActionState(registerPayment, emptyFormState);
@@ -78,7 +87,10 @@ export function Payments({
             </span>
             <input
               name="amount"
-              defaultValue={state.values?.amount ?? "30,00"}
+              defaultValue={
+                state.values?.amount ??
+                (priceCents / 100).toFixed(2).replace(".", ",")
+              }
               inputMode="decimal"
               className={`${inputClass} w-28 py-2 text-sm`}
             />
