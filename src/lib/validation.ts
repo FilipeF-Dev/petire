@@ -555,9 +555,22 @@ const time = z
   .string()
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Horário inválido.");
 
-export const storeHourSchema = z
+/**
+ * Uma faixa de horário aplicada a um ou mais dias da semana.
+ *
+ * O plural é a forma útil: uma lanchonete costuma abrir no mesmo horário a
+ * semana inteira, e cadastrar dia a dia significava sete envios idênticos —
+ * motivo pelo qual as lojas em produção seguiam sem horário nenhum.
+ */
+export const storeHoursSchema = z
   .object({
-    weekday: z.coerce.number().int().min(0).max(6),
+    // Repetido e fora de ordem já sai limpo daqui, e não da action: os dias
+    // chegam como uma lista de strings do formulário, na ordem em que o
+    // navegador os enumerou.
+    weekdays: z
+      .array(z.coerce.number().int().min(0).max(6))
+      .min(1, "Marque pelo menos um dia.")
+      .transform((days) => [...new Set(days)].sort((a, b) => a - b)),
     opensAt: time,
     closesAt: time,
   })

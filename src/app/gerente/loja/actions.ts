@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
-  storeHourSchema,
+  storeHoursSchema,
   storeSchema,
   formValues,
   toFormState,
@@ -106,27 +106,36 @@ export async function setOpenOverride(formData: FormData): Promise<void> {
   refreshStore(session.storeSlug);
 }
 
-export async function addStoreHour(
+export async function addStoreHours(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const session = await requireManager();
-  if (!session.storeId) return { error: "Sua conta não tem loja." };
+  // Numa constante porque o `map` abaixo é um closure, e ali dentro o
+  // TypeScript já não sabe que a checagem acima aconteceu.
+  const storeId = session.storeId;
+  if (!storeId) return { error: "Sua conta não tem loja." };
 
-  const parsed = storeHourSchema.safeParse({
-    weekday: formData.get("weekday"),
+  const parsed = storeHoursSchema.safeParse({
+    weekdays: formData.getAll("weekdays"),
     opensAt: formData.get("opensAt"),
     closesAt: formData.get("closesAt"),
   });
   if (!parsed.success) return toFormState(parsed.error, formValues(formData));
 
   const supabase = await createClient();
-  const { error } = await supabase.from("store_hours").insert({
-    store_id: session.storeId,
-    weekday: parsed.data.weekday,
-    opens_at: parsed.data.opensAt,
-    closes_at: parsed.data.closesAt,
-  });
+  // Repetir uma faixa que o dia já tem não é erro — é o que acontece quando o
+  // lojista marca a semana inteira para preencher os dias que faltavam. O
+  // índice único de `store_hours` absorve os repetidos e grava só o que é novo.
+  const { error } = await supabase.from("store_hours").upsert(
+    parsed.data.weekdays.map((weekday) => ({
+      store_id: storeId,
+      weekday,
+      opens_at: parsed.data.opensAt,
+      closes_at: parsed.data.closesAt,
+    })),
+    { onConflict: "store_id,weekday,opens_at,closes_at", ignoreDuplicates: true },
+  );
 
   if (error) return { error: "Não foi possível salvar o horário." };
 
