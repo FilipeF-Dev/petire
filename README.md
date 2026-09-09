@@ -537,6 +537,13 @@ com ele.
 
 O plano abre **recurso**, nunca desconta comissão — comissão zero é a razão de a
 loja estar aqui, e cobrar mais de quem vende mais seria comissão com outro nome.
+A **loja fundadora** entra com o teto de itens do Plus sem estar no Plus
+(`stores.is_founder`), porque esse teto é defensivo: ele existe para o cardápio
+da distribuidora caber, e bater nele no primeiro dia é o que estraga o
+onboarding. Os degraus que são oferta continuam sendo do plano. A vaga é
+contada pelo banco — `enforce_founder_slots()` recusa a décima primeira do
+bairro, para a escassez que a venda promete ser verdade.
+
 Hoje o Plus abre quatro: o teto de itens do cardápio (`store_item_limit()`), a
 promoção que se repete por dia da semana (`store_schedules_promotions()`), mais
 de um acesso (`/gerente/equipe`) e o relatório do mês fechado

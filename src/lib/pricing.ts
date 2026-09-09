@@ -22,8 +22,32 @@ export const PLUS_PRICE_CENTS = 7900;
  */
 export const FOUNDER_PRICE_CENTS = 2900;
 
-/** Quantas lojas por bairro entram pelo preço de fundador. */
+/**
+ * Quantas lojas por bairro entram pelo preço de fundador.
+ *
+ * Gêmea de `public.founder_slots()` no banco, e as duas **precisam** concordar:
+ * esta é a que aparece na vitrine e no material de venda, aquela é a que recusa
+ * a fundadora número onze. Mesma relação de `slugify()`.
+ */
 export const FOUNDER_SLOTS = 10;
+
+export type StorePricing = {
+  plan: "basico" | "plus";
+  isFounder: boolean;
+};
+
+/**
+ * O que esta loja paga por mês.
+ *
+ * O plano é conferido **antes** do preço de fundador, e a ordem é a decisão:
+ * o preço travado é do Básico, que é o que foi prometido às dez primeiras. A
+ * fundadora que sobe para o Plus está comprando recurso novo, e paga por ele —
+ * o que ela não perde é o direito de voltar ao Básico pelos mesmos R$ 29.
+ */
+export function monthlyPriceCents({ plan, isFounder }: StorePricing): number {
+  if (plan === "plus") return PLUS_PRICE_CENTS;
+  return isFounder ? FOUNDER_PRICE_CENTS : BASIC_PRICE_CENTS;
+}
 
 /**
  * Dias grátis das primeiras lojas do bairro.

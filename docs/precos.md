@@ -15,7 +15,14 @@ adivinhar a razão deles depois.
 | **Fundador** | R$ 29, travada | Básico, para as 10 primeiras lojas de cada bairro |
 
 As lojas fundadoras entram com **90 dias grátis**, contados de quando a loja
-**entra no ar** — não do cadastro.
+**entra no ar** — não do cadastro. O banco cuida disso sozinho: o teste é
+concedido no cadastro e a janela desliza inteira para a data da publicação,
+mantendo os dias que foram dados.
+
+A vaga também é contada pelo banco. Marcar a décima primeira fundadora de um
+bairro é recusado, e isso é de propósito: a escassez é o que faz o lojista
+decidir na visita em vez de pensar, e uma promessa de vaga limitada que não
+limita nada é a primeira coisa que gasta a confiança dele.
 
 Nenhum plano toca comissão. Comissão zero não é um degrau: é a razão de a loja
 estar aqui.
@@ -124,6 +131,11 @@ Por isso, na fase de fundação de um bairro: **loja fundadora entra com o teto
 do Plus, pagando o preço de fundador.** O teto vira cobrança só quando o
 Básico for vendido a preço cheio, para quem chega depois.
 
+O que a fundadora **não** ganha são os degraus que existem para ser vendidos —
+equipe, relatório e promoção que se repete. A diferença é a natureza de cada
+um: o teto é defensivo, existe para o cardápio caber e não para ser comprado.
+Fundadora recebe o que a impediria de começar, não o que ela compraria.
+
 Candidatos para os próximos, em ordem de dor:
 
 1. **Happy hour por faixa de horário.** É o pedido natural depois do dia da
@@ -167,7 +179,9 @@ continua sendo.
 |---|---|
 | Valores num lugar só | `src/lib/pricing.ts` |
 | A conta da comissão na página do lojista | `/cadastrar` |
-| Contagem do teste a partir da publicação | **pendente** — hoje o campo de dias é preenchido a mão no cadastro |
-| Marcar a loja como fundadora | **pendente** — hoje o preço travado só existe no acordo, não no cadastro |
-| Teto do Plus para a loja fundadora | **pendente** — hoje `store_item_limit()` só olha `stores.plan` |
+| Contagem do teste a partir da publicação | `stamp_publication()` — a janela desliza para `published_at` |
+| Marcar a loja como fundadora | `stores.is_founder`, em `/admin/loja/[id]` |
+| A vaga de fundadora acabar de verdade | `enforce_founder_slots()` recusa a décima primeira do bairro |
+| Teto do Plus para a loja fundadora | `store_item_limit()` olha `plan` **ou** `is_founder` |
+| O valor sugerido da mensalidade | `monthlyPriceCents()`, do plano e de ser fundadora |
 | Cobrança | manual, PIX (`/admin/loja/[id]`), como no v1 |

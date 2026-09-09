@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   BASIC_PRICE_CENTS,
+  FOUNDER_PRICE_CENTS,
+  monthlyPriceCents,
+  PLUS_PRICE_CENTS,
   dailyCents,
   monthlySavings,
   type Savings,
@@ -63,5 +66,27 @@ describe("monthlySavings", () => {
 describe("dailyCents", () => {
   it("divide a mensalidade por trinta dias", () => {
     expect(dailyCents(4900)).toBe(163);
+  });
+});
+
+describe("monthlyPriceCents", () => {
+  it("cobra o preço travado da fundadora no básico", () => {
+    expect(monthlyPriceCents({ plan: "basico", isFounder: true })).toBe(
+      FOUNDER_PRICE_CENTS,
+    );
+  });
+
+  it("cobra o básico cheio de quem chegou depois", () => {
+    expect(monthlyPriceCents({ plan: "basico", isFounder: false })).toBe(
+      BASIC_PRICE_CENTS,
+    );
+  });
+
+  it("a fundadora que sobe para o Plus paga o Plus", () => {
+    // O preço travado é do Básico — foi o que a venda prometeu. Subir de plano
+    // é comprar recurso novo, e ela pode voltar aos R$ 29 quando quiser.
+    expect(monthlyPriceCents({ plan: "plus", isFounder: true })).toBe(
+      PLUS_PRICE_CENTS,
+    );
   });
 });

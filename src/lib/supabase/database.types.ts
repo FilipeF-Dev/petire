@@ -777,6 +777,7 @@ export type Database = {
           ibge_code: string | null
           id: string
           is_active: boolean
+          is_founder: boolean
           is_open_manual: boolean | null
           kind: Database["public"]["Enums"]["store_kind"]
           lat: number | null
@@ -788,6 +789,7 @@ export type Database = {
           neighborhood: string
           neighborhood_slug: string | null
           plan: Database["public"]["Enums"]["store_plan"]
+          published_at: string | null
           slug: string
           state_uf: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
@@ -809,6 +811,7 @@ export type Database = {
           ibge_code?: string | null
           id?: string
           is_active?: boolean
+          is_founder?: boolean
           is_open_manual?: boolean | null
           kind?: Database["public"]["Enums"]["store_kind"]
           lat?: number | null
@@ -820,6 +823,7 @@ export type Database = {
           neighborhood: string
           neighborhood_slug?: string | null
           plan?: Database["public"]["Enums"]["store_plan"]
+          published_at?: string | null
           slug: string
           state_uf?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
@@ -841,6 +845,7 @@ export type Database = {
           ibge_code?: string | null
           id?: string
           is_active?: boolean
+          is_founder?: boolean
           is_open_manual?: boolean | null
           kind?: Database["public"]["Enums"]["store_kind"]
           lat?: number | null
@@ -852,6 +857,7 @@ export type Database = {
           neighborhood?: string
           neighborhood_slug?: string | null
           plan?: Database["public"]["Enums"]["store_plan"]
+          published_at?: string | null
           slug?: string
           state_uf?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
@@ -1009,6 +1015,11 @@ export type Database = {
           kind: Database["public"]["Enums"]["demand_kind"]
           label: string
         }[]
+      }
+      founder_slots: { Args: never; Returns: number }
+      founder_slots_left: {
+        Args: { target_city: string; target_neighborhood: string }
+        Returns: number
       }
       is_admin: { Args: never; Returns: boolean }
       maintain_events: { Args: { retention_days?: number }; Returns: number }

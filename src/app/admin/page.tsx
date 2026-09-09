@@ -34,7 +34,7 @@ export default async function AdminPage() {
     supabase
       .from("stores")
       .select(
-        "id, slug, name, city, neighborhood, is_active, plan, subscription_status, subscription_until, created_at",
+        "id, slug, name, city, neighborhood, is_active, plan, is_founder, subscription_status, subscription_until, created_at",
       )
       .order("created_at", { ascending: false }),
     supabase.from("managers").select("id, store_id, email").eq("role", "manager"),
@@ -160,6 +160,15 @@ export default async function AdminPage() {
                         {available} de {items}{" "}
                         {items === 1 ? "item" : "itens"} disponíveis
                       </p>
+
+                      {/* O selo é da lista porque a pergunta "quantas
+                          fundadoras já tem este bairro?" se responde correndo
+                          o olho, e não abrindo dez lojas. */}
+                      {store.is_founder ? (
+                        <p className="mt-1 text-sm text-brand">
+                          Fundadora do bairro
+                        </p>
+                      ) : null}
 
                       {items === 0 ? (
                         <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
