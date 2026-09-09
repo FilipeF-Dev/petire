@@ -56,6 +56,28 @@ export function StoreFilters({ tags }: { tags: string[] }) {
         className="w-full rounded-lg border border-neutral-300 bg-surface px-3 py-2.5 text-base outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
       />
 
+      {/*
+        A ordenação só aparece com busca no ar, e é de propósito: "menor preço"
+        aqui quer dizer o item mais barato **que casa com o que foi procurado**.
+        Sem busca não há item para comparar, e ordenar lojas por um preço que
+        não existe seria inventar um número.
+      */}
+      {params.get("q") ? (
+        <label className="flex flex-wrap items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+          Ordenar por
+          <select
+            value={params.get("ordem") ?? ""}
+            onChange={(event) => update("ordem", event.target.value || null)}
+            className="rounded-lg border border-neutral-300 bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
+          >
+            <option value="">Mais perto</option>
+            <option value="preco-asc">Menor preço</option>
+            <option value="preco-desc">Maior preço</option>
+            <option value="desconto">Maior desconto</option>
+          </select>
+        </label>
+      ) : null}
+
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
         <button
           type="button"
@@ -64,6 +86,27 @@ export function StoreFilters({ tags }: { tags: string[] }) {
           className={chipClass(params.get("aberto") === "1")}
         >
           Aberta agora
+        </button>
+
+        <button
+          type="button"
+          onClick={() => toggle("frete", "1")}
+          aria-pressed={params.get("frete") === "1"}
+          className={chipClass(params.get("frete") === "1")}
+        >
+          Frete grátis
+        </button>
+
+        {/* "Com desconto", e não "maior desconto": o chip filtra, quem ordena
+            é o seletor acima. Chip que ordena e chip que filtra na mesma fila
+            fazem o cliente marcar os dois esperando coisas diferentes. */}
+        <button
+          type="button"
+          onClick={() => toggle("promo", "1")}
+          aria-pressed={params.get("promo") === "1"}
+          className={chipClass(params.get("promo") === "1")}
+        >
+          Com desconto
         </button>
 
         {KINDS.map((kind) => (

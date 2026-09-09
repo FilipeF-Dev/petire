@@ -31,6 +31,31 @@ export const FOUNDER_PRICE_CENTS = 2900;
  */
 export const FOUNDER_SLOTS = 10;
 
+/**
+ * Quanto a fundadora economiza, em pontos percentuais inteiros.
+ *
+ * Calculado, e não escrito à mão na tela: é a mesma razão de os preços morarem
+ * aqui. No dia em que o Básico ou o preço travado mudar, um número escrito na
+ * vitrine continuaria anunciando o desconto antigo — e ninguém lembraria de
+ * procurá-lo.
+ */
+export function founderDiscountPercent(): number {
+  return Math.round(
+    ((BASIC_PRICE_CENTS - FOUNDER_PRICE_CENTS) / BASIC_PRICE_CENTS) * 100,
+  );
+}
+
+/**
+ * Em que mês cai a primeira cobrança da fundadora.
+ *
+ * Os dias grátis são contados da publicação, então noventa dias são três meses
+ * inteiros e a conta chega no quarto. Sai daqui pelo mesmo motivo do
+ * percentual: mudar o teste sem mudar o texto anunciaria a data errada.
+ */
+export function founderFirstBillingMonth(): number {
+  return Math.floor(FOUNDER_TRIAL_DAYS / 30) + 1;
+}
+
 export type StorePricing = {
   plan: "basico" | "plus";
   isFounder: boolean;

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 
@@ -58,24 +59,42 @@ export function LocationHero() {
   if (place) {
     return (
       <>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <p className="flex items-center gap-2 text-base">
-            <HouseIcon />
-            <span>
-              {placeLabel(place)}
-              <span className="text-neutral-500 dark:text-neutral-400">
-                {" · "}
-                {formatCep(place.cep)}
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="flex items-center gap-2 text-base">
+              <HouseIcon />
+              <span>
+                {placeLabel(place)}
+                <span className="text-neutral-500 dark:text-neutral-400">
+                  {" · "}
+                  {formatCep(place.cep)}
+                </span>
               </span>
-            </span>
-          </p>
-          <button
-            type="button"
-            onClick={() => setIsPicking(true)}
-            className="text-sm text-neutral-500 underline underline-offset-4 dark:text-neutral-400"
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsPicking(true)}
+              className="text-sm text-neutral-500 underline underline-offset-4 dark:text-neutral-400"
+            >
+              {book.places.length > 1 ? "trocar endereço" : "trocar"}
+            </button>
+          </div>
+
+          {/*
+            Quem volta ao Petire já tem endereço, e a home passava a ser uma
+            tela sem saída: o CEP estava lá, mas a única forma de chegar às
+            lojas era o "Lojas" do topo — que não parece o caminho, porque a
+            pergunta da tela é sobre endereço, não sobre navegação.
+
+            Na primeira visita este botão não existe: lá o "Ver lojas" já está
+            colado no campo de CEP, e é o mesmo destino.
+          */}
+          <Link
+            href={storesUrl(place)}
+            className="inline-flex w-fit items-center justify-center rounded-lg bg-brand px-5 py-3 font-medium text-white transition hover:opacity-90"
           >
-            {book.places.length > 1 ? "trocar endereço" : "trocar"}
-          </button>
+            Ver lojas que entregam aqui
+          </Link>
         </div>
 
         {isPicking ? (

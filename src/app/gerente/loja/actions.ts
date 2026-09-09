@@ -43,6 +43,7 @@ export async function saveStore(
     cuisineTags: formData.get("cuisineTags") ?? "",
     kind: formData.get("kind"),
     deliveryFee: formData.get("deliveryFee") ?? "0",
+    freeDelivery: formData.get("freeDelivery") === "on",
     deliveryMinutes: formData.get("deliveryMinutes") ?? "",
     minOrder: formData.get("minOrder") ?? "0",
   });
@@ -67,6 +68,7 @@ export async function saveStore(
       cuisine_tags: parsed.data.cuisineTags,
       kind: parsed.data.kind,
       delivery_fee_cents: parsed.data.deliveryFee,
+      free_delivery: parsed.data.freeDelivery,
       delivery_minutes: parsed.data.deliveryMinutes,
       min_order_cents: parsed.data.minOrder,
     })

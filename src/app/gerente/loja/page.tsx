@@ -24,7 +24,7 @@ export default async function LojaPage() {
     supabase
       .from("stores")
       .select(
-        "name, description, whatsapp_e164, address, cep, state_uf, ibge_code, city, neighborhood, cuisine_tags, kind, delivery_fee_cents, delivery_minutes, min_order_cents, is_open_manual",
+        "name, description, whatsapp_e164, address, cep, state_uf, ibge_code, city, neighborhood, cuisine_tags, kind, delivery_fee_cents, free_delivery, delivery_minutes, min_order_cents, is_open_manual",
       )
       .eq("id", session.storeId)
       .single(),
