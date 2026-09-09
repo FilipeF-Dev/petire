@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { slugify } from "@/lib/slug";
+import { searchTerms, slugify } from "@/lib/slug";
 
 import { MenuItem, type MenuProduct } from "./menu-item";
 
@@ -52,8 +52,14 @@ export function MenuBrowser({
   const [active, setActive] = useState<string | null>(null);
 
   // Mesmo tratamento dos dois lados, como na busca de lojas: acento, caixa e
-  // pontuação saem de cena antes da comparação.
-  const term = slugify(query);
+  // pontuação saem de cena antes da comparação, e cada palavra é um filtro que
+  // precisa bater. Com o slug inteiro, quem digita "suco laranja" não acha
+  // "Suco de laranja 500ml" — o "de" no meio quebra a sequência.
+  //
+  // Memoizado porque é dependência de um `useMemo` e de um `useEffect`: um
+  // array novo a cada render refiltraria o cardápio e religaria o observador da
+  // barra de categorias sem nada ter mudado.
+  const terms = useMemo(() => searchTerms(query), [query]);
 
   const indexed = useMemo(
     () =>
@@ -68,18 +74,18 @@ export function MenuBrowser({
   );
 
   const visible = useMemo(() => {
-    if (!term) return sections;
+    if (terms.length === 0) return sections;
 
     return indexed
       .map((section) => ({
         id: section.id,
         name: section.name,
         items: section.items
-          .filter((entry) => entry.text.includes(term))
+          .filter((entry) => terms.every((term) => entry.text.includes(term)))
           .map((entry) => entry.product),
       }))
       .filter((section) => section.items.length > 0);
-  }, [indexed, sections, term]);
+  }, [indexed, sections, terms]);
 
   const found = visible.reduce((total, section) => total + section.items.length, 0);
 
@@ -89,7 +95,7 @@ export function MenuBrowser({
   const headings = useRef(new Map<string, HTMLElement>());
 
   useEffect(() => {
-    if (term) return;
+    if (terms.length > 0) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -106,9 +112,9 @@ export function MenuBrowser({
 
     for (const element of headings.current.values()) observer.observe(element);
     return () => observer.disconnect();
-  }, [term, sections]);
+  }, [terms, sections]);
 
-  const showIndex = !term && sections.length > 1;
+  const showIndex = terms.length === 0 && sections.length > 1;
 
   return (
     <div className="flex flex-col gap-6">
@@ -153,7 +159,7 @@ export function MenuBrowser({
           </nav>
         ) : null}
 
-        {term ? (
+        {terms.length > 0 ? (
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
             {found === 0
               ? "Nenhum item com esse nome."

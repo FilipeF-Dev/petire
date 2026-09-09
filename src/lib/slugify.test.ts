@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { humanizePlace, slugify } from "./slug";
+import { humanizePlace, searchTerms, slugify } from "./slug";
 import { normalizeWhatsapp } from "./validation";
 
 describe("slugify", () => {
@@ -59,5 +59,57 @@ describe("normalizeWhatsapp", () => {
     expect(normalizeWhatsapp("98765-4321")).toBeNull();
     expect(normalizeWhatsapp("")).toBeNull();
     expect(normalizeWhatsapp("11 9876543210987")).toBeNull();
+  });
+});
+
+describe("searchTerms", () => {
+  it("quebra a busca em palavras", () => {
+    expect(searchTerms("suco laranja")).toEqual(["suco", "laranja"]);
+  });
+
+  it("é o que faz 'suco laranja' achar 'Suco de laranja 500ml'", () => {
+    // Com o slug inteiro, "suco-laranja" não casa com "suco-de-laranja-500ml":
+    // o "de" no meio quebra a sequência. Palavra por palavra, casa.
+    const alvo = slugify("Suco de laranja 500ml");
+    const termos = searchTerms("suco laranja");
+
+    expect(alvo.includes("suco-laranja")).toBe(false);
+    expect(termos.every((termo) => alvo.includes(termo))).toBe(true);
+  });
+
+  it("continua achando o que já achava, com hífen no nome", () => {
+    const alvo = slugify("Coca-Cola lata 350ml");
+
+    expect(searchTerms("coca cola").every((t) => alvo.includes(t))).toBe(true);
+    expect(searchTerms("coca lata").every((t) => alvo.includes(t))).toBe(true);
+    expect(searchTerms("Coca-Cola").every((t) => alvo.includes(t))).toBe(true);
+  });
+
+  it("mais palavras estreitam, não afrouxam", () => {
+    // O risco de quebrar em palavras seria virar OR e trazer lixo. É AND.
+    const alvo = slugify("X-Salada");
+
+    expect(searchTerms("x salada").every((t) => alvo.includes(t))).toBe(true);
+    expect(searchTerms("x salada bacon").every((t) => alvo.includes(t))).toBe(
+      false,
+    );
+  });
+
+  it("derruba acento e pontuação, como o slug", () => {
+    expect(searchTerms("Açaí, 500ml!")).toEqual(["acai", "500ml"]);
+  });
+
+  it("busca vazia não vira filtro nenhum", () => {
+    // Sem isto, "!!!" viraria uma lista vazia de termos que casa com tudo —
+    // ou pior, um `%%` que devolve o catálogo inteiro.
+    expect(searchTerms("")).toEqual([]);
+    expect(searchTerms("   ")).toEqual([]);
+    expect(searchTerms("!!!")).toEqual([]);
+  });
+
+  it("não deixa a frase virar uma consulta sem fim", () => {
+    expect(searchTerms("um dois tres quatro cinco seis sete oito")).toHaveLength(
+      6,
+    );
   });
 });

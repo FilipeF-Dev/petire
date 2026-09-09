@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { TrackDemand } from "@/components/track-demand";
 import { sortByPopularity } from "@/lib/cuisines";
-import { humanizePlace, slugify } from "@/lib/slug";
+import { humanizePlace, searchTerms, slugify } from "@/lib/slug";
 import {
   CARD_SELECT,
   viewRows,
@@ -25,23 +25,6 @@ function first(value: string | string[] | undefined): string | null {
   const raw = Array.isArray(value) ? value[0] : value;
   const trimmed = raw?.trim();
   return trimmed ? trimmed : null;
-}
-
-/**
- * A busca compara slug com slug, não texto com texto.
- *
- * Comparar o texto digitado com o cadastrado quebra no caso mais comum que
- * existe: "coca cola" não acha "Coca-Cola", "acai" não acha "Açaí", "x salada"
- * não acha "X-Salada". `slugify` derruba acento, caixa e pontuação dos dois
- * lados, e o banco guarda o resultado em `name_slug` — coluna gerada, gêmea
- * desta função (ver 20260905120000_search_normalization.sql).
- *
- * Ela também é a defesa que o `sanitizeSearch` escrito a mão era: o que sobra
- * é `[a-z0-9-]`, então não há como um `%`, um `_` ou uma vírgula digitados
- * virarem curinga do LIKE ou separador de filtro do PostgREST.
- */
-function searchSlug(value: string): string {
-  return slugify(value);
 }
 
 export default async function LojasPage({
@@ -80,15 +63,29 @@ export default async function LojasPage({
   // procurando. Os produtos vêm primeiro, numa consulta separada, porque o
   // PostgREST não filtra a tabela principal por uma condição da tabela
   // aninhada: o embed traria a loja inteira com a lista de produtos vazia.
-  const clean = search ? searchSlug(search) : "";
+  //
+  // A comparação é slug com slug, dos dois lados: `slugify` derruba acento,
+  // caixa e pontuação, e o banco guarda o resultado em `name_slug` — coluna
+  // gerada, gêmea dela (ver 20260905120000_search_normalization.sql). É o que
+  // faz "acai" achar "Açaí".
+  //
+  // E é **uma palavra, um filtro**, todas precisando bater. Comparar o slug
+  // inteiro de uma vez casava só o que estivesse grudado: "suco laranja" não
+  // achava "Suco de laranja 500ml" por causa do "de" no meio.
+  //
+  // As duas coisas juntas também são a defesa que o `sanitizeSearch` escrito a
+  // mão era: o que sobra é `[a-z0-9]`, então um `%`, um `_` ou uma vírgula
+  // digitados não viram curinga do LIKE nem separador de filtro do PostgREST.
+  const terms = search ? searchTerms(search) : [];
   let productMatches: { store_id: string; name: string }[] = [];
 
-  if (clean) {
-    const { data: hits } = await supabase
-      .from("products")
-      .select("store_id, name")
-      .like("name_slug", `%${clean}%`)
-      .limit(200);
+  if (terms.length > 0) {
+    let hitsQuery = supabase.from("products").select("store_id, name");
+    for (const term of terms) {
+      hitsQuery = hitsQuery.like("name_slug", `%${term}%`);
+    }
+
+    const { data: hits } = await hitsQuery.limit(200);
 
     // O RLS de products já limita a lojas públicas, então o que volta aqui é o
     // mesmo universo da vitrine.
@@ -96,9 +93,19 @@ export default async function LojasPage({
 
     const storeIds = [...new Set(productMatches.map((hit) => hit.store_id))];
 
-    query = storeIds.length
-      ? query.or(`name_slug.like.%${clean}%,id.in.(${storeIds.join(",")})`)
-      : query.like("name_slug", `%${clean}%`);
+    // `and(...)` dentro do `or`: a loja entra se o **nome dela** casar com
+    // todas as palavras, ou se algum item do cardápio dela tiver casado acima.
+    const byName = `and(${terms
+      .map((term) => `name_slug.like.%${term}%`)
+      .join(",")})`;
+
+    if (storeIds.length) {
+      query = query.or(`${byName},id.in.(${storeIds.join(",")})`);
+    } else {
+      for (const term of terms) {
+        query = query.like("name_slug", `%${term}%`);
+      }
+    }
   }
 
   // Loja fechada continua na lista — o cliente quer ver o cardápio e o
@@ -160,7 +167,7 @@ export default async function LojasPage({
   const unmet: "search_empty" | "area_uncovered" | null =
     stores.length > 0 || hasChips
       ? null
-      : clean
+      : terms.length > 0
         ? "search_empty"
         : city
           ? "area_uncovered"
@@ -173,7 +180,7 @@ export default async function LojasPage({
           kind={unmet}
           citySlug={city ? slugify(city) : null}
           neighborhoodSlug={nearSlug ?? (neighborhood ? slugify(neighborhood) : null)}
-          term={unmet === "search_empty" ? clean : null}
+          term={unmet === "search_empty" ? terms.join(" ") : null}
         />
       ) : null}
 
