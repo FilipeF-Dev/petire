@@ -52,9 +52,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Versao fixa, e nao "latest": com "latest" a action pergunta a API do
+      # GitHub qual e a ultima release a cada execucao, sem autenticacao — e o
+      # limite de requisicoes derruba o CI por motivo nenhum, num erro que nao
+      # tem nada a ver com o codigo do PR. Fixar tambem torna a execucao
+      # reproduzivel: uma release nova do CLI deixa de poder quebrar o CI
+      # sozinha, e a subida passa a ser uma decisao com PR.
+      #
+      # Acompanha a versao do devDependency  no package.json.
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.116.0
 
       - name: Ligar ao projeto de produção
         run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}"
