@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
+import { Modal } from "@/components/modal";
 import { addToCart } from "@/lib/cart";
 import { formatCents } from "@/lib/money";
 
@@ -76,30 +77,15 @@ export function MenuItem({
     setQuantity(1);
   }
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-
-    // Sem isto, a página atrás do painel rola junto no celular.
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
-    };
-  }, [isOpen]);
-
   function toggleOption(group: MenuOptionGroup, optionId: string) {
     setSelected((current) => {
       const chosen = current[group.id] ?? [];
 
       if (chosen.includes(optionId)) {
-        return { ...current, [group.id]: chosen.filter((id) => id !== optionId) };
+        return {
+          ...current,
+          [group.id]: chosen.filter((id) => id !== optionId),
+        };
       }
       // Grupo de escolha única troca em vez de acumular.
       if (group.max_select === 1) {
@@ -205,17 +191,15 @@ export function MenuItem({
       </button>
 
       {isOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center"
-          onClick={() => setIsOpen(false)}
+        <Modal
+          label={product.name}
+          onClose={() => setIsOpen(false)}
+          // Sem recheio e sem rolagem no painel: aqui o recheio é de cada
+          // faixa, e quem rola é só a lista de opções — o cabeçalho e o botão
+          // de adicionar ficam parados.
+          panelClassName="w-full max-w-lg overflow-hidden"
         >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={product.name}
-            onClick={(event) => event.stopPropagation()}
-            className="flex max-h-[90dvh] w-full max-w-lg flex-col rounded-t-2xl bg-surface sm:rounded-2xl"
-          >
+          <>
             <div className="flex items-start justify-between gap-4 border-b border-neutral-200 p-5 dark:border-neutral-800">
               <div>
                 <h2 className="text-lg font-semibold">{product.name}</h2>
@@ -299,11 +283,15 @@ export function MenuItem({
                                 }}
                                 className="size-4"
                               />
-                              <span className="flex-1 text-sm">{option.name}</span>
+                              <span className="flex-1 text-sm">
+                                {option.name}
+                              </span>
                               {option.price_delta_cents !== 0 ? (
                                 <span className="text-sm text-neutral-500 tabular-nums dark:text-neutral-400">
                                   {option.price_delta_cents > 0 ? "+" : "−"}{" "}
-                                  {formatCents(Math.abs(option.price_delta_cents))}
+                                  {formatCents(
+                                    Math.abs(option.price_delta_cents),
+                                  )}
                                 </span>
                               ) : null}
                             </label>
@@ -367,8 +355,8 @@ export function MenuItem({
                 Loja fechada. Monte o pedido e envie quando ela abrir.
               </p>
             ) : null}
-          </div>
-        </div>
+          </>
+        </Modal>
       ) : null}
     </>
   );
