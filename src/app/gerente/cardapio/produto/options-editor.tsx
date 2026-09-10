@@ -3,7 +3,7 @@ import { formatCents } from "@/lib/money";
 
 import {
   deleteOption,
-  deleteOptionGroup,
+  detachOptionGroup,
   setOptionAvailability,
 } from "../actions";
 import { AvailabilityToggle } from "../availability-toggle";
@@ -11,6 +11,7 @@ import {
   NewOptionForm,
   NewOptionGroupForm,
   OptionGroupRuleForm,
+  ReuseOptionGroupForm,
 } from "./option-forms";
 
 type Option = {
@@ -25,6 +26,8 @@ type Group = {
   name: string;
   min_select: number;
   max_select: number;
+  /** Em quantos itens do cardápio este grupo está. */
+  usedBy: number;
   options: Option[];
 };
 
@@ -45,16 +48,19 @@ function priceLabel(cents: number): string {
 export function OptionsEditor({
   productId,
   groups,
+  reusable,
 }: {
   productId: string;
   groups: Group[];
+  reusable: { id: string; name: string; usedBy: number }[];
 }) {
   return (
     <section className="flex max-w-lg flex-col gap-4">
       <div>
         <h2 className="text-base font-semibold">Opções do item</h2>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          Tamanho, adicionais, o que dá para tirar.
+          Tamanho, adicionais, o que dá para tirar. Um grupo pode servir vários
+          itens — crie uma vez e use onde precisar.
         </p>
       </div>
 
@@ -67,14 +73,20 @@ export function OptionsEditor({
               ruleLabel={ruleLabel(group)}
             />
 
-            <form action={deleteOptionGroup}>
+            {/*
+              "Tirar deste item", e não "apagar", quando o grupo está em outros:
+              apagá-lo de dentro de um item mexeria no cardápio inteiro por um
+              botão que não avisou. Quando este é o único item que o usa, ele
+              some junto — ver detachOptionGroup.
+            */}
+            <form action={detachOptionGroup}>
               <input type="hidden" name="groupId" value={group.id} />
               <input type="hidden" name="productId" value={productId} />
               <button
                 type="submit"
-                className="rounded-md px-2 py-1 text-xs text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                className="rounded-md px-2 py-1 text-xs whitespace-nowrap text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
               >
-                apagar grupo
+                {group.usedBy > 1 ? "tirar deste item" : "apagar grupo"}
               </button>
             </form>
           </div>
@@ -120,6 +132,8 @@ export function OptionsEditor({
           <NewOptionForm groupId={group.id} productId={productId} />
         </Card>
       ))}
+
+      <ReuseOptionGroupForm productId={productId} groups={reusable} />
 
       <NewOptionGroupForm productId={productId} />
     </section>
