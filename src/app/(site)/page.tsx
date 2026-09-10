@@ -21,7 +21,9 @@ export default async function HomePage() {
 
   const { data } = await supabase
     .from("neighborhoods_public")
-    .select("city, city_slug, neighborhood, neighborhood_slug, state_uf, store_count")
+    .select(
+      "city, city_slug, neighborhood, neighborhood_slug, state_uf, store_count",
+    )
     .order("store_count", { ascending: false });
 
   const places = viewRows<PublicPlace>(data);
@@ -37,7 +39,12 @@ export default async function HomePage() {
           cadastro, propaganda ou burocracia.
         </p>
 
-        <div className="mt-6">
+        {/*
+          O bloco do endereço ganhou fundo tingido: é a primeira pergunta da
+          página e era um campo solto sobre o creme, indistinguível do resto.
+          A cor aqui não decora — ela diz onde a tela começa.
+        */}
+        <div className="mt-6 rounded-2xl border border-brand-line bg-brand-soft p-5">
           <LocationHero />
         </div>
       </section>
@@ -105,11 +112,14 @@ export default async function HomePage() {
         </p>
       )}
 
-      <section className="rounded-xl border border-neutral-200 bg-surface p-5 dark:border-neutral-800">
+      {/* O convite ao lojista fecha a página, e é o único bloco dela que fala
+          com outra pessoa. O tingimento o separa do que veio antes sem
+          precisar de linha divisória nem de tipografia maior. */}
+      <section className="rounded-2xl border border-brand-line bg-brand-soft p-5">
         <h2 className="font-medium">Tem uma lanchonete ou distribuidora?</h2>
         <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-          Sem comissão por pedido: {formatCents(BASIC_PRICE_CENTS)} por mês, e
-          o cliente fala direto com você. As {FOUNDER_SLOTS} primeiras de cada
+          Sem comissão por pedido: {formatCents(BASIC_PRICE_CENTS)} por mês, e o
+          cliente fala direto com você. As {FOUNDER_SLOTS} primeiras de cada
           bairro entram por {formatCents(FOUNDER_PRICE_CENTS)}.
         </p>
         {/*
