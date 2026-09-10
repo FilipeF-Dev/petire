@@ -46,8 +46,18 @@ jobs:
     environment: producao
 
     env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # A conexão com o banco, e só ela.
+      #
+      # Antes eram três segredos e um `supabase link`, que pergunta à API da
+      # plataforma qual é a conexão — e para isso exige um **token pessoal**.
+      # Isso pôs o deploy de produção na dependência de uma conta: o token
+      # expira, perde privilégio quando o papel na organização muda, e some
+      # junto com quem o criou. Foi exatamente assim que as migrations pararam
+      # de subir por dois dias enquanto o código continuava subindo.
+      #
+      # O `db push` fala direto com o Postgres. Sem token, sem project ref, sem
+      # papel de organização: se a string conecta, a migration aplica.
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
     steps:
       - uses: actions/checkout@v4
@@ -64,13 +74,20 @@ jobs:
         with:
           version: 2.116.0
 
-      - name: Ligar ao projeto de produção
-        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}"
+      # Falha cedo e com uma frase que se entende, em vez de deixar o CLI
+      # reclamar de uma string vazia lá na frente.
+      - name: Conferir o segredo
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "SUPABASE_DB_URL não está definido no ambiente 'producao'."
+            echo "Pegue a string em Project Settings → Database → Connection string."
+            exit 1
+          fi
 
       # Mostra o que está pendente antes de aplicar. Quando algo der errado, o
       # log já diz qual migration estava entrando.
       - name: O que falta aplicar
-        run: supabase migration list --linked
+        run: supabase migration list --db-url "$SUPABASE_DB_URL"
 
       - name: Aplicar
-        run: supabase db push
+        run: supabase db push --db-url "$SUPABASE_DB_URL"
