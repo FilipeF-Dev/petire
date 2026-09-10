@@ -180,6 +180,15 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
       <TrackStoreView storeId={store.id} />
 
       <header className="flex flex-col gap-4">
+        {/*
+          Sem capa, uma faixa da cor da marca no lugar do nada.
+
+          A loja que não subiu capa abria com o nome colado no topo branco, e
+          a página parecia inacabada antes de o cliente ler uma linha. A faixa
+          não finge ser foto — é lisa, e some atrás da capa de verdade assim
+          que o lojista mandar uma. É a mesma ideia da logo no lugar da foto
+          do item: o vazio vira presença da marca, não buraco.
+        */}
         {store.cover_url ? (
           <div className="relative -mx-4 aspect-[3/1] overflow-hidden sm:mx-0 sm:rounded-xl">
             <Image
@@ -191,7 +200,12 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
               className="object-cover"
             />
           </div>
-        ) : null}
+        ) : (
+          <div
+            aria-hidden
+            className="-mx-4 h-20 bg-gradient-to-b from-brand-soft to-background sm:mx-0 sm:rounded-xl"
+          />
+        )}
 
         <div className="flex items-start gap-4">
           <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">

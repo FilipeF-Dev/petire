@@ -9,22 +9,43 @@
  * layout vire um tabuleiro.
  */
 :root {
-  --background: #f5f4f2;
+  /* Creme, e não cinza. A diferença é de poucos graus de matiz e é o que
+     separa "aplicativo" de "lugar onde se come" — ver --brand-soft. */
+  --background: #faf6f1;
   --surface: #ffffff;
-  --surface-hover: #f1f0ed;
+  --surface-hover: #f4efe8;
   --foreground: #171717;
   /* Terracota da marca, a mesma dos ícones do PWA. */
   --brand: #c2410c;
+  /**
+   * A marca diluída, para tingir superfície — não para escrever em cima.
+   *
+   * Faltava cor ao Petire, e a saída não era inventar um segundo tom: era dar
+   * mais superfície ao que já existe. O terracota aparecia em dois botões e
+   * sumia; aqui ele vira o fundo do bloco de endereço, do convite ao lojista e
+   * da faixa da loja sem capa.
+   *
+   * `--brand-line` é a mesma cor um passo mais firme, para a borda desses
+   * blocos. Texto continua sendo `--foreground` sobre eles: os dois tons são
+   * claros o bastante para isso, e escrever em terracota sobre terracota seria
+   * bonito na paleta e ilegível no celular ao sol.
+   */
+  --brand-soft: #fdf0e6;
+  --brand-line: #f4d9c4;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0b;
+    --background: #0b0a09;
     --surface: #17171a;
-    --surface-hover: #1f1f24;
+    --surface-hover: #201d1b;
     --foreground: #ededed;
     /* O terracota fica ilegível sobre preto; no escuro a marca clareia. */
     --brand: #fb923c;
+    /* No escuro o tingimento é por calor, não por claridade: um marrom fundo,
+       que não compete com o texto nem vira um retângulo brilhante. */
+    --brand-soft: #241812;
+    --brand-line: #3a271c;
   }
 }
 
@@ -33,6 +54,8 @@
   --color-surface: var(--surface);
   --color-surface-hover: var(--surface-hover);
   --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-line: var(--brand-line);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
