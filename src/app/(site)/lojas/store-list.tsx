@@ -75,8 +75,8 @@ export function StoreList({
       ) : nearName && nearCount > 0 ? (
         <p className="text-sm text-neutral-500 dark:text-neutral-400">
           {nearCount === 1
-            ? `1 loja no ${nearName}, mostrada primeiro.`
-            : `${nearCount} lojas no ${nearName}, mostradas primeiro.`}{" "}
+            ? `1 loja em ${nearName}, mostrada primeiro.`
+            : `${nearCount} lojas em ${nearName}, mostradas primeiro.`}{" "}
           As outras também podem entregar aí.
         </p>
       ) : null}
