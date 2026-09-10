@@ -107,9 +107,27 @@ Em **Settings → Secrets and variables → Actions**:
 
 | Segredo | Onde encontrar |
 |---|---|
-| `SUPABASE_ACCESS_TOKEN` | <https://supabase.com/dashboard/account/tokens> |
-| `SUPABASE_PROJECT_ID` | a referência do projeto, o mesmo trecho que aparece em `NEXT_PUBLIC_SUPABASE_URL` |
-| `SUPABASE_DB_PASSWORD` | senha do banco do projeto (Settings → Database) |
+| `SUPABASE_DB_URL` | Project Settings → Database → Connection string, com a senha no lugar de `[YOUR-PASSWORD]` |
+
+Um só, e é de propósito. Antes eram três, e um deles era um **token pessoal**:
+o `supabase link` pergunta à API da plataforma qual é a conexão do projeto, e
+para isso precisa de uma conta. O resultado é que o deploy do banco passava a
+depender de uma pessoa — o token expira, perde privilégio quando o papel na
+organização muda, e some junto com quem o criou. Foi assim que as migrations
+ficaram dois dias sem subir enquanto o código continuava subindo, e as lojas
+passaram uma tarde no ar sem cardápio.
+
+O `db push` conversa direto com o Postgres. Se a string conecta, a migration
+aplica.
+
+> **A senha vai percent-encoded.** É uma URL: uma senha com `@`, `#`, `/` ou
+> `:` quebra o endereço em silêncio, e o erro que aparece é de conexão, não de
+> senha. `@` vira `%40`, `#` vira `%23`, `/` vira `%2F`, `:` vira `%3A`.
+
+> Se o job falhar por não alcançar o banco, troque a string pela do **Session
+> pooler** (a mesma página, porta 5432). A conexão direta do Supabase é IPv6, e
+> nem todo runner do GitHub tem IPv6 — o pooler responde em IPv4. O que **não**
+> serve é a de *Transaction pooler*: migration é DDL em transação.
 
 ### A ordem, e por que ela é segura
 
