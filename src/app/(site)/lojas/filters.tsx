@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { cuisineLabel } from "@/lib/cuisines";
 
@@ -9,6 +9,20 @@ const KINDS = [
   { value: "food", label: "Comida" },
   { value: "drinks", label: "Bebida" },
 ] as const;
+
+/**
+ * Quanto o campo espera antes de ir ao servidor.
+ *
+ * A busca reescrevia a URL a cada tecla, e `/lojas` é renderizada no servidor a
+ * cada visita: digitar "hamburguer" eram dez renderizações, cada uma com uma
+ * consulta de até 200 produtos, uma de lojas e uma de promoções. Nove delas
+ * eram sobre palavras que ninguém quis procurar.
+ *
+ * O número é o mesmo tipo de escolha do `SETTLE_MS` do sinal de demanda, mas
+ * mais curto: aqui a espera atrasa o resultado que a pessoa está olhando, e lá
+ * ela só atrasa um registro que ninguém vê.
+ */
+const ESPERA_MS = 300;
 
 function chipClass(active: boolean) {
   return active
@@ -43,16 +57,48 @@ export function StoreFilters({ tags }: { tags: string[] }) {
     update(key, params.get(key) === value ? null : value);
   }
 
+  /*
+    O campo responde na hora; a URL espera.
+
+    Só a busca tem espera. Chip é clique deliberado — quem marca "Aberta agora"
+    quer o resultado agora, e adiar isso seria a tela parecer travada.
+
+    O efeito não reescreve estado nenhum: ele só agenda a navegação e a cancela
+    se vier outra tecla. Quando a URL alcança o que foi digitado, ele volta sem
+    fazer nada — é o que impede o laço entre digitar e navegar.
+  */
+  const naUrl = params.get("q") ?? "";
+  const [digitado, setDigitado] = useState(naUrl);
+
+  useEffect(() => {
+    if (digitado === naUrl) return;
+
+    const timer = window.setTimeout(() => {
+      const next = new URLSearchParams(params);
+      if (digitado) next.set("q", digitado);
+      else next.delete("q");
+
+      const query = next.toString();
+      startTransition(() => {
+        router.replace(query ? `${pathname}?${query}` : pathname, {
+          scroll: false,
+        });
+      });
+    }, ESPERA_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [digitado, naUrl, params, pathname, router]);
+
   return (
     <div
       className={`flex flex-col gap-3 ${isPending ? "opacity-60" : ""} transition-opacity`}
     >
       <input
         type="search"
-        defaultValue={params.get("q") ?? ""}
+        value={digitado}
         placeholder="Buscar loja ou item do cardápio"
         aria-label="Buscar loja ou item do cardápio"
-        onChange={(event) => update("q", event.target.value || null)}
+        onChange={(event) => setDigitado(event.target.value)}
         className="w-full rounded-lg border border-neutral-300 bg-surface px-3 py-2.5 text-base outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300"
       />
 
