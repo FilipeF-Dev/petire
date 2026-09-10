@@ -106,30 +106,33 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
   const storeIds = [...new Set(lines.map((line) => line.storeId))];
   const productIds = [...new Set(lines.map((line) => line.productId))];
 
-  const [storesResult, productsResult, promotionsResult, hoursResult] = await Promise.all([
-    // stores_public só devolve loja ativa e não suspensa — uma loja que saiu
-    // do ar some do carrinho junto.
-    supabase
-      .from("stores_public")
-      .select(`${CARD_SELECT}, whatsapp_e164, is_open_manual`)
-      .in("id", storeIds),
-    supabase
-      .from("products")
-      .select(
-        "id, store_id, name, price_cents, image_url, is_available, option_groups(id, name, options(id, name, price_delta_cents, is_available))",
-      )
-      .in("id", productIds),
-    supabase
-      .from("promotions")
-      .select("store_id, product_id, kind, value, starts_at, ends_at, weekdays")
-      .in("store_id", storeIds)
-      .eq("is_active", true),
-    // Para responder "e quando abre?" à loja que está fechada agora.
-    supabase
-      .from("store_hours")
-      .select("store_id, weekday, opens_at")
-      .in("store_id", storeIds),
-  ]);
+  const [storesResult, productsResult, promotionsResult, hoursResult] =
+    await Promise.all([
+      // stores_public só devolve loja ativa e não suspensa — uma loja que saiu
+      // do ar some do carrinho junto.
+      supabase
+        .from("stores_public")
+        .select(`${CARD_SELECT}, whatsapp_e164, is_open_manual`)
+        .in("id", storeIds),
+      supabase
+        .from("products")
+        .select(
+          "id, store_id, name, price_cents, image_url, is_available, product_option_groups(option_groups(id, name, options(id, name, price_delta_cents, is_available)))",
+        )
+        .in("id", productIds),
+      supabase
+        .from("promotions")
+        .select(
+          "store_id, product_id, kind, value, starts_at, ends_at, weekdays",
+        )
+        .in("store_id", storeIds)
+        .eq("is_active", true),
+      // Para responder "e quando abre?" à loja que está fechada agora.
+      supabase
+        .from("store_hours")
+        .select("store_id, weekday, opens_at")
+        .in("store_id", storeIds),
+    ]);
 
   /**
    * Consulta que falhou não é item que sumiu.
@@ -151,7 +154,10 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
 
   const stores = new Map(
     viewRows<
-      PublicStoreCard & { whatsapp_e164: string; is_open_manual: boolean | null }
+      PublicStoreCard & {
+        whatsapp_e164: string;
+        is_open_manual: boolean | null;
+      }
     >(storesResult.data).map((store) => [store.id, store]),
   );
   const products = new Map(
@@ -177,19 +183,24 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
       continue;
     }
 
-    const chosen = product.option_groups.flatMap((group) =>
-      group.options
-        .filter(
-          (option) =>
-            line.optionIds.includes(option.id) && option.is_available,
-        )
-        .map((option) => ({
-          id: option.id,
-          groupName: group.name,
-          name: option.name,
-          priceDeltaCents: option.price_delta_cents,
-        })),
-    );
+    // Os grupos deste item, atravessando a ligação que os compartilha entre
+    // vários. O que importa aqui não é a ordem, é o conjunto: uma opção só
+    // entra na conta se pertencer a um grupo que **este** item usa.
+    const chosen = product.product_option_groups
+      .map((link) => link.option_groups)
+      .flatMap((group) =>
+        group.options
+          .filter(
+            (option) =>
+              line.optionIds.includes(option.id) && option.is_available,
+          )
+          .map((option) => ({
+            id: option.id,
+            groupName: group.name,
+            name: option.name,
+            priceDeltaCents: option.price_delta_cents,
+          })),
+      );
 
     const storePromotions = (promotionsResult.data ?? []).filter(
       (promotion) => promotion.store_id === line.storeId,

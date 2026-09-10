@@ -3,17 +3,9 @@ import Link from "next/link";
 
 import { TrackDemand } from "@/components/track-demand";
 import { sortByPopularity } from "@/lib/cuisines";
-import {
-  hasLivePromotion,
-  priceOf,
-  type Promotion,
-} from "@/lib/promotions";
+import { hasLivePromotion, priceOf, type Promotion } from "@/lib/promotions";
 import { humanizePlace, searchTerms, slugify } from "@/lib/slug";
-import {
-  CARD_SELECT,
-  viewRows,
-  type PublicStoreCard,
-} from "@/lib/storefront";
+import { CARD_SELECT, viewRows, type PublicStoreCard } from "@/lib/storefront";
 import { createPublicClient } from "@/lib/supabase/public";
 
 import { StoreFilters } from "./filters";
@@ -32,9 +24,23 @@ function first(value: string | string[] | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-export default async function LojasPage({
-  searchParams,
-}: PageProps<"/lojas">) {
+/**
+ * Uma palavra digitada, nas duas colunas em que ela pode aparecer.
+ *
+ * `name_slug` guarda "x-tudo" e `name_compact` guarda "xtudo": a primeira
+ * responde a quem separa as palavras, a segunda a quem cola tudo. Como o
+ * PostgREST junta com **E** cada `.or()` encadeado, uma chamada por palavra dá
+ * exatamente a regra que se quer — toda palavra precisa bater, em qualquer uma
+ * das duas formas.
+ *
+ * O termo aqui já passou por `slugify`, então sobrou `[a-z0-9]`: não há `%`,
+ * `_` nem vírgula para virar curinga do LIKE ou separador de filtro.
+ */
+function matchTerm(term: string): string {
+  return `name_slug.like.%${term}%,name_compact.like.%${term}%`;
+}
+
+export default async function LojasPage({ searchParams }: PageProps<"/lojas">) {
   const params = await searchParams;
 
   const city = first(params.cidade);
@@ -49,9 +55,7 @@ export default async function LojasPage({
 
   const supabase = createPublicClient();
 
-  let query = supabase
-    .from("stores_public")
-    .select(CARD_SELECT);
+  let query = supabase.from("stores_public").select(CARD_SELECT);
 
   // Filtra pelas colunas normalizadas, não pelo texto digitado: uma loja
   // cadastrada como "vila madalena" tem de aparecer junto com as de
@@ -89,6 +93,13 @@ export default async function LojasPage({
   //
   // O preço e o id vêm junto porque a ordenação por menor preço precisa deles:
   // o preço da loja é o do item mais barato que casou com a busca.
+  //
+  // E cada palavra vale de duas formas, com separador e sem: é o que faz
+  // "xtudo" achar o X-Tudo, "cocacola" achar a Coca-Cola e "paodequeijo" achar
+  // o pão de queijo. Quem digita colado é quem digita rápido, no celular, com
+  // fome — e recebia uma tela vazia sobre um cardápio que tinha o item.
+  // `matchesTerms` em src/lib/slug.ts é esta mesma frase, do lado do
+  // navegador, para a busca de dentro do cardápio.
   const terms = search ? searchTerms(search) : [];
   let productMatches: {
     id: string;
@@ -102,7 +113,7 @@ export default async function LojasPage({
       .from("products")
       .select("id, store_id, name, price_cents");
     for (const term of terms) {
-      hitsQuery = hitsQuery.like("name_slug", `%${term}%`);
+      hitsQuery = hitsQuery.or(matchTerm(term));
     }
 
     const { data: hits } = await hitsQuery.limit(200);
@@ -115,15 +126,13 @@ export default async function LojasPage({
 
     // `and(...)` dentro do `or`: a loja entra se o **nome dela** casar com
     // todas as palavras, ou se algum item do cardápio dela tiver casado acima.
-    const byName = `and(${terms
-      .map((term) => `name_slug.like.%${term}%`)
-      .join(",")})`;
+    const byName = `and(${terms.map((term) => `or(${matchTerm(term)})`).join(",")})`;
 
     if (storeIds.length) {
       query = query.or(`${byName},id.in.(${storeIds.join(",")})`);
     } else {
       for (const term of terms) {
-        query = query.like("name_slug", `%${term}%`);
+        query = query.or(matchTerm(term));
       }
     }
   }
@@ -280,7 +289,9 @@ export default async function LojasPage({
         <TrackDemand
           kind={unmet}
           citySlug={city ? slugify(city) : null}
-          neighborhoodSlug={nearSlug ?? (neighborhood ? slugify(neighborhood) : null)}
+          neighborhoodSlug={
+            nearSlug ?? (neighborhood ? slugify(neighborhood) : null)
+          }
           term={unmet === "search_empty" ? terms.join(" ") : null}
         />
       ) : null}

@@ -198,8 +198,6 @@ export type Database = {
           max_select: number
           min_select: number
           name: string
-          product_id: string
-          sort_order: number
           store_id: string
           updated_at: string
         }
@@ -209,8 +207,6 @@ export type Database = {
           max_select?: number
           min_select?: number
           name: string
-          product_id: string
-          sort_order?: number
           store_id: string
           updated_at?: string
         }
@@ -220,20 +216,10 @@ export type Database = {
           max_select?: number
           min_select?: number
           name?: string
-          product_id?: string
-          sort_order?: number
           store_id?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "option_groups_product_same_store"
-            columns: ["product_id", "store_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id", "store_id"]
-          },
-        ]
+        Relationships: []
       }
       options: {
         Row: {
@@ -321,6 +307,45 @@ export type Database = {
           },
         ]
       }
+      product_option_groups: {
+        Row: {
+          created_at: string
+          group_id: string
+          product_id: string
+          sort_order: number
+          store_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          product_id: string
+          sort_order?: number
+          store_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          product_id?: string
+          sort_order?: number
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_option_groups_group_same_store"
+            columns: ["group_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "option_groups"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "product_option_groups_product_same_store"
+            columns: ["product_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id", "store_id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category_id: string | null
@@ -330,6 +355,7 @@ export type Database = {
           image_url: string | null
           is_available: boolean
           name: string
+          name_compact: string | null
           name_slug: string | null
           price_cents: number
           sort_order: number
@@ -344,6 +370,7 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean
           name: string
+          name_compact?: string | null
           name_slug?: string | null
           price_cents: number
           sort_order?: number
@@ -358,6 +385,7 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean
           name?: string
+          name_compact?: string | null
           name_slug?: string | null
           price_cents?: number
           sort_order?: number
@@ -786,6 +814,7 @@ export type Database = {
           logo_url: string | null
           min_order_cents: number
           name: string
+          name_compact: string | null
           name_slug: string | null
           neighborhood: string
           neighborhood_slug: string | null
@@ -821,6 +850,7 @@ export type Database = {
           logo_url?: string | null
           min_order_cents?: number
           name: string
+          name_compact?: string | null
           name_slug?: string | null
           neighborhood: string
           neighborhood_slug?: string | null
@@ -856,6 +886,7 @@ export type Database = {
           logo_url?: string | null
           min_order_cents?: number
           name?: string
+          name_compact?: string | null
           name_slug?: string | null
           neighborhood?: string
           neighborhood_slug?: string | null
@@ -949,6 +980,7 @@ export type Database = {
           logo_url: string | null
           min_order_cents: number | null
           name: string | null
+          name_compact: string | null
           name_slug: string | null
           neighborhood: string | null
           neighborhood_slug: string | null
@@ -976,6 +1008,7 @@ export type Database = {
           logo_url?: string | null
           min_order_cents?: number | null
           name?: string | null
+          name_compact?: string | null
           name_slug?: string | null
           neighborhood?: string | null
           neighborhood_slug?: string | null
@@ -1003,6 +1036,7 @@ export type Database = {
           logo_url?: string | null
           min_order_cents?: number | null
           name?: string | null
+          name_compact?: string | null
           name_slug?: string | null
           neighborhood?: string | null
           neighborhood_slug?: string | null

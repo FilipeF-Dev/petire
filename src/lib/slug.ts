@@ -59,3 +59,32 @@ const MAX_TERMS = 6;
 export function searchTerms(input: string): string[] {
   return slugify(input).split("-").filter(Boolean).slice(0, MAX_TERMS);
 }
+
+/**
+ * "coca-cola-2l" → "cocacola2l"
+ *
+ * Gêmea da coluna `name_compact` no banco, que é `replace(slugify(nome), '-',
+ * '')`. Ver a migration 20260917120000_busca_colada.sql — as duas precisam
+ * concordar pelo mesmo motivo que `slugify` precisa: quem compara é o banco
+ * numa ponta e o navegador na outra, sobre os mesmos nomes.
+ */
+export function compact(slug: string): string {
+  return slug.replace(/-/g, "");
+}
+
+/**
+ * Este nome responde ao que foi digitado?
+ *
+ * Cada palavra precisa aparecer, e ela vale de duas formas: no slug, com os
+ * separadores, e no slug colado. É o que faz "xtudo" encontrar o X-Tudo sem
+ * fazer "x" e "tudo" deixarem de funcionar — e é a mesma regra que a consulta
+ * do catálogo monta em SQL, do outro lado.
+ *
+ * A busca dentro do cardápio usa isto direto; a do catálogo não pode, porque
+ * quem filtra lá é o Postgres. Manter as duas na mesma frase é o que evita a
+ * loja aparecer na lista e o item sumir quando o cliente entra nela.
+ */
+export function matchesTerms(slug: string, terms: string[]): boolean {
+  const flat = compact(slug);
+  return terms.every((term) => slug.includes(term) || flat.includes(term));
+}

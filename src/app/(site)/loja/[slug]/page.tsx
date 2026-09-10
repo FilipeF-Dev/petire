@@ -132,11 +132,19 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
       originalPriceCents: price.originalCents,
       promotionLabel: price.label,
       // O PostgREST não ordena relações aninhadas junto com a principal.
-      option_groups: [...product.option_groups]
+      //
+      // A ordem dos grupos é a da **ligação**, e não a do grupo: o mesmo
+      // "Tamanho" pode vir antes dos adicionais num item e depois deles em
+      // outro. A tabela do meio some aqui — quem monta o cardápio quer os
+      // grupos deste item, não a história de como eles são compartilhados.
+      option_groups: [...product.product_option_groups]
         .sort((a, b) => a.sort_order - b.sort_order)
+        .map((link) => link.option_groups)
         .map((group) => ({
           ...group,
-          options: [...group.options].sort((a, b) => a.sort_order - b.sort_order),
+          options: [...group.options].sort(
+            (a, b) => a.sort_order - b.sort_order,
+          ),
         })),
     };
   };
@@ -154,9 +162,7 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
     {
       id: "outros",
       name: "Outros",
-      items: products
-        .filter((p) => p.category_id === null)
-        .map(toMenuProduct),
+      items: products.filter((p) => p.category_id === null).map(toMenuProduct),
     },
   ].filter((section) => section.items.length > 0);
 
