@@ -1144,6 +1144,13 @@ export type Database = {
           product_id: string
         }[]
       }
+      store_unmet_demand: {
+        Args: { min_hits?: number; target: string; window_days?: number }
+        Returns: {
+          hits: number
+          term: string
+        }[]
+      }
     }
     Enums: {
       application_status: "pending" | "approved" | "rejected"
