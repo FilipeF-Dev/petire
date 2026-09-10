@@ -129,6 +129,17 @@ aplica.
 > nem todo runner do GitHub tem IPv6 — o pooler responde em IPv4. O que **não**
 > serve é a de *Transaction pooler*: migration é DDL em transação.
 
+### Quando falha, alguém fica sabendo
+
+Falha nesta rotina abre uma **issue** no repositório, com o commit e o link da
+execução. Se já houver uma aberta, ela ganha um comentário em vez de virar uma
+segunda — três falhas seguidas são um problema, não três.
+
+Isso existe porque a rotina já parou por dois dias sem ninguém notar, enquanto
+o deploy do código continuava subindo: as lojas passaram uma tarde no ar sem
+cardápio, e o que descobriu a falha foi alguém abrir o histórico de execuções
+por acaso.
+
 ### A ordem, e por que ela é segura
 
 A Vercel também dispara no push para `main`, então o deploy do código e o das

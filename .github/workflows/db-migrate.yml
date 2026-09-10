@@ -36,6 +36,8 @@ concurrency:
 
 permissions:
   contents: read
+  # Para abrir a issue quando isto falhar. Ver o último passo.
+  issues: write
 
 jobs:
   push:
@@ -91,3 +93,45 @@ jobs:
 
       - name: Aplicar
         run: supabase db push --db-url "$SUPABASE_DB_URL"
+
+      # ------------------------------------------------------------------
+      # Falhar não pode ser silencioso
+      #
+      # Esta rotina já parou por dois dias sem ninguém notar, enquanto o
+      # deploy do código continuava subindo — e as lojas passaram uma tarde
+      # no ar sem cardápio. O que descobriu a falha foi alguém abrir o
+      # histórico de execuções por acaso.
+      #
+      # Uma issue aberta aqui aparece na página do repositório, notifica quem
+      # observa e fica registrada até alguém fechar. É mais difícil de
+      # ignorar do que um e-mail entre outros, e não depende de configuração
+      # de conta de ninguém.
+      #
+      # Se já houver uma aberta, o passo comenta nela em vez de criar outra:
+      # três falhas seguidas são um problema, não três.
+      # ------------------------------------------------------------------
+      - name: Avisar que falhou
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TITULO="Migrations não subiram para produção"
+          CORPO="A rotina de migrations falhou em \`${{ github.sha }}\`.
+
+          **O risco:** o deploy do código não espera por ela. Se a entrega tinha coluna ou tabela nova, o site já está em produção pedindo o que o banco ainda não tem.
+
+          Execução: $RUN_URL
+
+          Depois de corrigir, rode o workflow **Migrations** de novo e confira que ele termina verde."
+
+          ABERTA=$(gh issue list --state open --search "$TITULO in:title" --json number --jq '.[0].number')
+
+          # Sem issue aberta o `gh` devolve string vazia — conferido. O teste
+          # de "null" é cinto e suspensório: esta é a metade do passo que só
+          # roda na segunda falha seguida, e portanto a que ninguém viu rodar.
+          if [ -n "$ABERTA" ] && [ "$ABERTA" != "null" ]; then
+            gh issue comment "$ABERTA" --body "Falhou de novo em \`${{ github.sha }}\`: $RUN_URL"
+          else
+            gh issue create --title "$TITULO" --body "$CORPO"
+          fi
