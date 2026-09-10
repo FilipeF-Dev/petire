@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import { ConfirmWeek } from "./confirm-week";
 import { FirstSteps, type Step } from "./first-steps";
+import { PlanLocked } from "./plan-locked";
 
 export const metadata: Metadata = {
   title: "Painel",
@@ -79,7 +80,9 @@ function Stat({
       ) : null}
 
       {hint ? (
-        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{hint}</p>
+        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+          {hint}
+        </p>
       ) : null}
     </div>
   );
@@ -103,69 +106,75 @@ export default async function GerentePage() {
     metrics,
     metrics60,
     topProducts,
+    unmetDemand,
     paymentsResult,
     isOpen,
     pendingWeek,
     confirmations,
     lastEdit,
   ] = await Promise.all([
-      supabase
-        .from("stores")
-        .select(
-          "name, slug, neighborhood, city, logo_url, cuisine_tags, delivery_fee_cents, delivery_minutes, subscription_status, subscription_until, is_active",
-        )
-        .eq("id", session.storeId)
-        .single(),
-      supabase
-        .from("products")
-        .select("id", { count: "exact", head: true })
-        .eq("store_id", session.storeId)
-        .eq("is_available", true),
-      supabase
-        .from("products")
-        .select("id", { count: "exact", head: true })
-        .eq("store_id", session.storeId),
-      supabase
-        .from("store_hours")
-        .select("id", { count: "exact", head: true })
-        .eq("store_id", session.storeId),
-      supabase.rpc("store_metrics", { target: session.storeId }),
-      // Os 60 dias menos os 30 recentes dão exatamente o mês anterior, sem
-      // precisar de uma função nova nem de datas calculadas no render — a
-      // janela continua sendo contada pelo relógio do banco.
-      supabase.rpc("store_metrics", {
-        target: session.storeId,
-        window_days: 60,
-      }),
-      supabase.rpc("store_top_products", { target: session.storeId }),
-      // "Quando eu paguei?" é pergunta que hoje chega por WhatsApp. O RLS já
-      // limita à própria loja.
-      supabase
-        .from("subscription_payments")
-        .select("id, paid_on, amount_cents")
-        .eq("store_id", session.storeId)
-        .order("paid_on", { ascending: false })
-        .limit(3),
-      supabase.rpc("store_is_open", { target: session.storeId }),
-      // A semana fechada que ainda não foi respondida. Vazio quando já
-      // respondeu, ou quando não saiu pedido nenhum.
-      supabase.rpc("store_pending_confirmation", { target: session.storeId }),
-      // A taxa entre o que sai daqui e o que chega lá, das últimas semanas.
-      supabase
-        .from("order_confirmations")
-        .select("opened, confirmed")
-        .eq("store_id", session.storeId)
-        .order("week_start", { ascending: false })
-        .limit(8),
-      // Quando o cardápio foi mexido pela última vez.
-      supabase
-        .from("products")
-        .select("updated_at")
-        .eq("store_id", session.storeId)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+    supabase
+      .from("stores")
+      .select(
+        "name, slug, neighborhood, city, logo_url, cuisine_tags, delivery_fee_cents, delivery_minutes, subscription_status, subscription_until, is_active, plan",
+      )
+      .eq("id", session.storeId)
+      .single(),
+    supabase
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("store_id", session.storeId)
+      .eq("is_available", true),
+    supabase
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("store_id", session.storeId),
+    supabase
+      .from("store_hours")
+      .select("id", { count: "exact", head: true })
+      .eq("store_id", session.storeId),
+    supabase.rpc("store_metrics", { target: session.storeId }),
+    // Os 60 dias menos os 30 recentes dão exatamente o mês anterior, sem
+    // precisar de uma função nova nem de datas calculadas no render — a
+    // janela continua sendo contada pelo relógio do banco.
+    supabase.rpc("store_metrics", {
+      target: session.storeId,
+      window_days: 60,
+    }),
+    supabase.rpc("store_top_products", { target: session.storeId }),
+    // O que procuram no bairro e este cardápio não atende. Do plano Plus: a
+    // função devolve vazio para o Básico, então a tela não precisa checar
+    // nada para estar certa — mas checa mesmo assim, para explicar o degrau
+    // em vez de mostrar um bloco vazio.
+    supabase.rpc("store_unmet_demand", { target: session.storeId }),
+    // "Quando eu paguei?" é pergunta que hoje chega por WhatsApp. O RLS já
+    // limita à própria loja.
+    supabase
+      .from("subscription_payments")
+      .select("id, paid_on, amount_cents")
+      .eq("store_id", session.storeId)
+      .order("paid_on", { ascending: false })
+      .limit(3),
+    supabase.rpc("store_is_open", { target: session.storeId }),
+    // A semana fechada que ainda não foi respondida. Vazio quando já
+    // respondeu, ou quando não saiu pedido nenhum.
+    supabase.rpc("store_pending_confirmation", { target: session.storeId }),
+    // A taxa entre o que sai daqui e o que chega lá, das últimas semanas.
+    supabase
+      .from("order_confirmations")
+      .select("opened, confirmed")
+      .eq("store_id", session.storeId)
+      .order("week_start", { ascending: false })
+      .limit(8),
+    // Quando o cardápio foi mexido pela última vez.
+    supabase
+      .from("products")
+      .select("updated_at")
+      .eq("store_id", session.storeId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   const counts = metrics.data?.[0];
   const counts60 = metrics60.data?.[0];
@@ -176,6 +185,7 @@ export default async function GerentePage() {
   };
 
   const top = topProducts.data ?? [];
+  const demand = unmetDemand.data ?? [];
   const payments = paymentsResult.data ?? [];
   const week = pendingWeek.data?.[0];
 
@@ -192,7 +202,8 @@ export default async function GerentePage() {
   if (store.error || !store.data) {
     return (
       <p className="text-sm text-red-600 dark:text-red-400">
-        Não foi possível carregar a loja: {store.error?.message ?? "não encontrada"}
+        Não foi possível carregar a loja:{" "}
+        {store.error?.message ?? "não encontrada"}
       </p>
     );
   }
@@ -361,6 +372,56 @@ export default async function GerentePage() {
       ) : null}
 
       {/*
+        O que o bairro procura e este cardápio não tem.
+
+        É o número que só a plataforma enxerga: nenhum lojista sabe o que as
+        pessoas digitaram e não acharam perto dele. E é acionável na mesma tela
+        — viu açaí na lista, clica em Cardápio e cadastra.
+
+        No Básico o bloco aparece desligado, com a explicação. Item que some do
+        painel não é oferta, é dúvida — a mesma regra do PlanLocked.
+      */}
+      {store.data?.plan === "plus" ? (
+        demand.length > 0 ? (
+          <div className="rounded-xl border border-brand-line bg-brand-soft p-4">
+            <p className="text-sm font-medium">
+              Procuram por aqui e você não tem
+            </p>
+            <p className="mt-0.5 text-xs text-neutral-600 dark:text-neutral-400">
+              últimos 30 dias, na sua cidade
+            </p>
+
+            <ul className="mt-3 flex flex-col gap-1.5">
+              {demand.map((item) => (
+                <li
+                  key={item.term}
+                  className="flex items-baseline justify-between gap-3 text-sm"
+                >
+                  <span className="min-w-0 truncate">{item.term}</span>
+                  <span className="shrink-0 text-neutral-600 tabular-nums dark:text-neutral-400">
+                    {Number(item.hits)}{" "}
+                    {Number(item.hits) === 1 ? "busca" : "buscas"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <Link
+              href="/gerente/cardapio/produto/novo"
+              className="mt-3 inline-block text-sm underline underline-offset-4"
+            >
+              Cadastrar um item
+            </Link>
+          </div>
+        ) : null
+      ) : (
+        <PlanLocked
+          title="O que procuram no seu bairro é do plano Plus"
+          description="O Petire vê o que as pessoas digitam na busca perto de você. Com o Plus, a lista dos itens mais procurados que o seu cardápio não tem aparece aqui — e cadastrar um deles é o caminho mais curto entre uma busca perdida e um pedido."
+        />
+      )}
+
+      {/*
         Vencimento avisado antes. Quem descobre que venceu porque a loja sumiu
         do catálogo já perdeu os pedidos do dia — e aí a conversa começa com o
         lojista irritado, sobre um problema que um aviso teria evitado.
@@ -395,9 +456,9 @@ export default async function GerentePage() {
               <li key={payment.id} className="flex justify-between gap-3">
                 <span>
                   Pago em{" "}
-                  {new Date(
-                    `${payment.paid_on}T12:00:00`,
-                  ).toLocaleDateString("pt-BR")}
+                  {new Date(`${payment.paid_on}T12:00:00`).toLocaleDateString(
+                    "pt-BR",
+                  )}
                 </span>
                 <span className="tabular-nums">
                   {formatCents(payment.amount_cents)}

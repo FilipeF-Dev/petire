@@ -1164,9 +1164,93 @@ await check("anon não lê confirmação de ninguém", async () => {
 
 // --- resultado ---------------------------------------------------------------
 
+
+console.log("\nDemanda do bairro (plano Plus)");
+
+// O que esta função entrega é o que ninguém mais enxerga: o que as pessoas
+// digitaram na busca perto da loja. Ela é SECURITY DEFINER — `demand_signals`
+// não tem policy nenhuma — então é a única porta, e estas checagens são o que
+// garante que ela continua estreita.
+
+await check("anon NÃO executa a demanda do bairro", async () => {
+  const { error } = await anon.rpc("store_unmet_demand", { target: STORE_ZE });
+  assert(error, "anon leu a demanda do bairro");
+  return "bloqueado";
+});
+
+await check("gerente NÃO lê a demanda da loja do vizinho", async () => {
+  const { data, error } = await ze.rpc("store_unmet_demand", {
+    target: STORE_DIST,
+  });
+  assert(!error, error?.message ?? "");
+  assert((data ?? []).length === 0, "gerente enxergou a demanda da vizinha");
+  return "lista vazia";
+});
+
+await check("plano Básico não recebe nada, mesmo com demanda gravada", async () => {
+  await service.from("demand_signals").insert([
+    { kind: "search_empty", city_slug: "sao-paulo", term: "checkrls-acai" },
+    { kind: "search_empty", city_slug: "sao-paulo", term: "checkrls-acai" },
+    { kind: "search_empty", city_slug: "sao-paulo", term: "checkrls-acai" },
+  ]);
+
+  const { data, error } = await ze.rpc("store_unmet_demand", {
+    target: STORE_ZE,
+  });
+  assert(!error, error?.message ?? "");
+  assert(
+    (data ?? []).length === 0,
+    "loja no Básico recebeu a lista do plano de cima",
+  );
+  return "lista vazia";
+});
+
+await check("Plus recebe o que falta, e só o que falta", async () => {
+  await service
+    .from("stores")
+    .update({ plan: "plus" })
+    .eq("id", STORE_ZE);
+
+  // "x salada" o Zé tem; "checkrls-acai" não. E um termo com duas ocorrências
+  // fica de fora pelo piso de três, que protege contra ruído — e contra
+  // identificar a busca de uma pessoa só num bairro pequeno.
+  await service.from("demand_signals").insert([
+    { kind: "search_hit", city_slug: "sao-paulo", term: "x salada" },
+    { kind: "search_hit", city_slug: "sao-paulo", term: "x salada" },
+    { kind: "search_hit", city_slug: "sao-paulo", term: "x salada" },
+    { kind: "search_empty", city_slug: "sao-paulo", term: "checkrls-raro" },
+    { kind: "search_empty", city_slug: "sao-paulo", term: "checkrls-raro" },
+  ]);
+
+  const { data, error } = await ze.rpc("store_unmet_demand", {
+    target: STORE_ZE,
+  });
+
+  // Devolve tudo ao estado do seed antes de qualquer assert: uma falha aqui
+  // não pode deixar a loja no plano errado para as próximas verificações.
+  await service.from("stores").update({ plan: "basico" }).eq("id", STORE_ZE);
+  await service.from("demand_signals").delete().like("term", "checkrls-%");
+  await service.from("demand_signals").delete().eq("term", "x salada");
+
+  assert(!error, error?.message ?? "");
+
+  const termos = (data ?? []).map((row) => row.term);
+  assert(termos.includes("checkrls-acai"), "o que falta no cardápio não veio");
+  assert(
+    !termos.includes("x salada"),
+    "veio um termo que o cardápio já atende",
+  );
+  assert(
+    !termos.includes("checkrls-raro"),
+    "veio um termo abaixo do piso de repetições",
+  );
+  return termos.join(", ");
+});
+
+
 console.log("");
 if (failures > 0) {
   console.error(`${failures} verificação(ões) falharam.\n`);
   process.exit(1);
 }
-console.log("Todas as verificações de RLS passaram.\n");
+console.log("Todas as verificações de RLS passaram.\n");
