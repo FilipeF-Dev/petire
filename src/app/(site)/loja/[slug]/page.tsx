@@ -72,7 +72,22 @@ export async function generateMetadata({
  * cardápio e horário. É o que faz a página aparecer na busca local — o canal
  * de aquisição que o Petire tem de graça.
  */
-function storeJsonLd({ store, hours }: StorePage) {
+function storeJsonLd({ store, hours, products }: StorePage) {
+  /*
+    Faixa de preço, cardápio e coordenadas: os três campos que faltavam para o
+    Google montar o resultado rico — o que ocupa mais espaço na tela do que o
+    link de um concorrente.
+
+    A faixa sai dos preços de verdade, e não de um "$$" escolhido a dedo: ela
+    se corrige sozinha quando o lojista mexe no cardápio, e é o que responde a
+    quem procura lanche por menos de vinte reais.
+  */
+  const precos = products.map((produto) => produto.price_cents);
+  const priceRange =
+    precos.length > 0
+      ? `${formatCents(Math.min(...precos))} - ${formatCents(Math.max(...precos))}`
+      : undefined;
+
   return {
     "@context": "https://schema.org",
     "@type": "Restaurant",
@@ -89,6 +104,20 @@ function storeJsonLd({ store, hours }: StorePage) {
       addressRegion: store.neighborhood,
       addressCountry: "BR",
     },
+    priceRange,
+    // O cardápio é esta mesma página: quem chega pelo resultado do Google já
+    // cai onde monta o pedido.
+    hasMenu: `${siteUrl}/loja/${store.slug}`,
+    // Só quando existem. Coordenada inventada manda o cliente para a esquina
+    // errada — e é a partir dela que o Google desenha o mapa.
+    geo:
+      store.lat !== null && store.lng !== null
+        ? {
+            "@type": "GeoCoordinates",
+            latitude: store.lat,
+            longitude: store.lng,
+          }
+        : undefined,
     openingHoursSpecification: hours.map((hour) => ({
       "@type": "OpeningHoursSpecification",
       dayOfWeek: SCHEMA_WEEKDAYS[hour.weekday],

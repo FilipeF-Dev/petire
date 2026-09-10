@@ -48,13 +48,16 @@ const DETAIL_COLUMNS = [
   "cover_url",
   "whatsapp_e164",
   "address",
+  // Coordenadas: entram no schema.org da loja, que é de onde o Google tira o
+  // mapa do resultado. Só no detalhe — a listagem não desenha mapa nenhum.
+  "lat",
+  "lng",
 ] as const;
 
 /** Loja na listagem de `/lojas`. */
-export type PublicStoreCard = Pick<
-  StoreRow,
-  (typeof CARD_COLUMNS)[number]
-> & { is_open_now: boolean };
+export type PublicStoreCard = Pick<StoreRow, (typeof CARD_COLUMNS)[number]> & {
+  is_open_now: boolean;
+};
 
 /** Loja na página `/loja/[slug]`. */
 export type PublicStoreDetail = Pick<
