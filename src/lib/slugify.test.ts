@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { humanizePlace, matchesTerms, searchTerms, slugify } from "./slug";
+import {
+  humanizePlace,
+  matchesTerms,
+  relevance,
+  searchTerms,
+  slugify,
+} from "./slug";
 import { normalizeWhatsapp } from "./validation";
 
 describe("slugify", () => {
@@ -162,5 +168,24 @@ describe("matchesTerms", () => {
     expect(
       matchesTerms(slugify("Batata frita"), searchTerms("batata doce")),
     ).toBe(false);
+  });
+});
+
+describe("relevance", () => {
+  it("põe o nome exato na frente do que só contém", () => {
+    const terms = searchTerms("coca");
+    expect(relevance(slugify("Coca"), terms)).toBe(0);
+    expect(relevance(slugify("Coca-Cola 2L"), terms)).toBe(1);
+    expect(relevance(slugify("Bolo de fubá com coca"), terms)).toBe(2);
+  });
+
+  it("vale também para quem digita colado", () => {
+    const terms = searchTerms("xtudo");
+    expect(relevance(slugify("X-Tudo"), terms)).toBe(0);
+    expect(relevance(slugify("X-Tudo Duplo"), terms)).toBe(1);
+  });
+
+  it("sem busca, tudo empata", () => {
+    expect(relevance(slugify("X-Salada"), [])).toBe(2);
   });
 });

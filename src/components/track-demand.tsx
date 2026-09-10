@@ -15,7 +15,7 @@ import { useEffect } from "react";
  */
 
 type Signal = {
-  kind: "search_empty" | "area_uncovered";
+  kind: "search_empty" | "area_uncovered" | "search_hit";
   citySlug: string | null;
   neighborhoodSlug: string | null;
   term: string | null;
@@ -39,7 +39,12 @@ function alreadySent(key: string): boolean {
   }
 }
 
-export function TrackDemand({ kind, citySlug, neighborhoodSlug, term }: Signal) {
+export function TrackDemand({
+  kind,
+  citySlug,
+  neighborhoodSlug,
+  term,
+}: Signal) {
   useEffect(() => {
     const key = `petire.demanda.${kind}.${citySlug ?? ""}.${term ?? ""}`;
 

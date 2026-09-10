@@ -4,11 +4,18 @@ import Link from "next/link";
 import { TrackDemand } from "@/components/track-demand";
 import { sortByPopularity } from "@/lib/cuisines";
 import { hasLivePromotion, priceOf, type Promotion } from "@/lib/promotions";
-import { humanizePlace, searchTerms, slugify } from "@/lib/slug";
+import {
+  humanizePlace,
+  matchesTerms,
+  relevance,
+  searchTerms,
+  slugify,
+} from "@/lib/slug";
 import { CARD_SELECT, viewRows, type PublicStoreCard } from "@/lib/storefront";
 import { createPublicClient } from "@/lib/supabase/public";
 
 import { StoreFilters } from "./filters";
+import { ItemList, type MatchedItem } from "./item-list";
 import { StoreList } from "./store-list";
 import { SuggestStore } from "./suggest-store";
 
@@ -38,6 +45,21 @@ function first(value: string | string[] | undefined): string | null {
  */
 function matchTerm(term: string): string {
   return `name_slug.like.%${term}%,name_compact.like.%${term}%`;
+}
+
+/**
+ * Quanto a seção de itens mostra antes de parar.
+ *
+ * Uma busca larga — "x" — casa com o cardápio inteiro do bairro. Rolar
+ * duzentos itens não é resultado, é lista telefônica: quem chegou ao fim já
+ * teria refinado a busca. Os melhores já estão em cima pela ordenação.
+ */
+const ITEM_LIMIT = 24;
+
+/** Quanto este item está mais barato do que o preço de tabela, de 0 a 1. */
+function desconto(item: MatchedItem): number {
+  if (item.originalCents === null) return 0;
+  return (item.originalCents - item.priceCents) / item.originalCents;
 }
 
 export default async function LojasPage({ searchParams }: PageProps<"/lojas">) {
@@ -106,12 +128,13 @@ export default async function LojasPage({ searchParams }: PageProps<"/lojas">) {
     store_id: string;
     name: string;
     price_cents: number;
+    image_url: string | null;
   }[] = [];
 
   if (terms.length > 0) {
     let hitsQuery = supabase
       .from("products")
-      .select("id, store_id, name, price_cents");
+      .select("id, store_id, name, price_cents, image_url");
     for (const term of terms) {
       hitsQuery = hitsQuery.or(matchTerm(term));
     }
@@ -172,7 +195,10 @@ export default async function LojasPage({ searchParams }: PageProps<"/lojas">) {
    */
   // Ordenar por preço também precisa delas: o preço que ordena é o que o
   // cliente vê no card, já com o desconto aplicado.
-  const needsPromotions = onlyPromo || Boolean(order);
+  // E a seção de itens sempre precisa: ela mostra preço, e preço sem promoção
+  // aplicada é mais caro do que o que está no cardápio.
+  const needsPromotions =
+    onlyPromo || Boolean(order) || productMatches.length > 0;
 
   const livePromotions = new Map<string, Promotion[]>();
   if (needsPromotions && nearby.length > 0) {
@@ -250,15 +276,64 @@ export default async function LojasPage({ searchParams }: PageProps<"/lojas">) {
     ...new Set(stores.flatMap((store) => store.cuisine_tags ?? [])),
   ]).slice(0, 18);
 
-  // Por que esta loja apareceu, se o nome dela não tem nada a ver com a busca?
-  // Sem dizer qual item casou, o resultado parece defeito.
-  const matchedProducts = new Map<string, string[]>();
-  for (const hit of productMatches) {
-    const names = matchedProducts.get(hit.store_id) ?? [];
-    if (names.length < 3 && !names.includes(hit.name)) {
-      matchedProducts.set(hit.store_id, [...names, hit.name]);
-    }
-  }
+  /*
+    Duas seções, e não uma lista misturada.
+
+    Antes, procurar "picanha" devolvia lojas — inclusive as que só entraram por
+    causa de um item — com um "tem Picanha" em letra pequena embaixo do nome.
+    Quem procura um prato quer o prato: nome, preço, e o caminho até ele. Então
+    a lista de cima passa a ser só das lojas cujo **nome** casou, e o que casou
+    por item vira a lista de baixo, com a loja escrita no card.
+
+    Sem busca nada disso existe: a página volta a ser a lista de lojas perto,
+    que é o que ela é a maior parte do tempo.
+  */
+  const byName =
+    terms.length > 0
+      ? stores.filter((store) => matchesTerms(slugify(store.name), terms))
+      : stores;
+
+  const storeById = new Map(stores.map((store) => [store.id, store]));
+
+  const items: MatchedItem[] = productMatches
+    .map((hit) => {
+      const store = storeById.get(hit.store_id);
+      if (!store) return null;
+
+      const price = priceOf(
+        hit.price_cents,
+        hit.id,
+        livePromotions.get(hit.store_id) ?? [],
+      );
+
+      return {
+        id: hit.id,
+        name: hit.name,
+        priceCents: price.cents,
+        originalCents: price.originalCents,
+        discountLabel: price.label,
+        storeSlug: store.slug,
+        storeName: store.name,
+        storeNeighborhood: store.neighborhood,
+        storeIsOpen: store.is_open_now,
+        imageUrl: hit.image_url,
+        storeLogoUrl: store.logo_url,
+      };
+    })
+    .filter((item): item is MatchedItem => item !== null)
+    .sort((a, b) => {
+      // O que o cliente pediu na tela ganha do padrão.
+      if (order === "preco-asc") return a.priceCents - b.priceCents;
+      if (order === "preco-desc") return b.priceCents - a.priceCents;
+      if (order === "desconto") return desconto(b) - desconto(a);
+
+      // Padrão: o nome mais próximo do que se digitou primeiro, e o mais
+      // barato desempatando — entre dois "X-Tudo", ninguém prefere o caro.
+      const rank =
+        relevance(slugify(a.name), terms) - relevance(slugify(b.name), terms);
+      return rank !== 0 ? rank : a.priceCents - b.priceCents;
+    })
+    .slice(0, ITEM_LIMIT);
 
   // O rótulo vem das lojas encontradas, não do que veio na URL: assim o título
   // mostra a grafia oficial mesmo se o link trouxer "vila madalena". Sem loja
@@ -274,8 +349,10 @@ export default async function LojasPage({ searchParams }: PageProps<"/lojas">) {
   const hasChips =
     Boolean(tag) || Boolean(kind) || onlyOpen || onlyFreeDelivery || onlyPromo;
 
+  const achou = byName.length > 0 || items.length > 0;
+
   const unmet: "search_empty" | "area_uncovered" | null =
-    stores.length > 0 || hasChips
+    achou || hasChips
       ? null
       : terms.length > 0
         ? "search_empty"
@@ -283,16 +360,34 @@ export default async function LojasPage({ searchParams }: PageProps<"/lojas">) {
           ? "area_uncovered"
           : null;
 
+  /*
+    O que se procura aqui, tendo achado ou não.
+
+    A busca que **deu certo** é o dado que faltava, e ela responde a pergunta
+    mais valiosa que o Petire pode fazer ao lojista: o que as pessoas procuram
+    no seu bairro e o seu cardápio não tem. Se o vizinho vende açaí, a busca
+    por açaí funciona e nada era registrado — mas para a loja ao lado aquilo
+    foi uma venda que passou na frente dela.
+
+    Com chip marcado ninguém registra nada, e vale para os dois casos: o
+    conjunto precisa ser comparável, e uma busca filtrada diz mais sobre o
+    filtro do que sobre o bairro.
+  */
+  const signal: "search_empty" | "area_uncovered" | "search_hit" | null =
+    hasChips
+      ? null
+      : (unmet ?? (terms.length > 0 && achou ? "search_hit" : null));
+
   return (
     <div className="flex flex-col gap-6">
-      {unmet ? (
+      {signal ? (
         <TrackDemand
-          kind={unmet}
+          kind={signal}
           citySlug={city ? slugify(city) : null}
           neighborhoodSlug={
             nearSlug ?? (neighborhood ? slugify(neighborhood) : null)
           }
-          term={unmet === "search_empty" ? terms.join(" ") : null}
+          term={signal === "area_uncovered" ? null : terms.join(" ")}
         />
       ) : null}
 
@@ -312,12 +407,24 @@ export default async function LojasPage({ searchParams }: PageProps<"/lojas">) {
 
       <StoreFilters tags={tags} />
 
+      {/*
+        Com busca no ar a lista ganha um rótulo, porque deixou de ser "as lojas
+        daqui" e passou a ser "as lojas cujo nome casa". Sem busca ela continua
+        sendo a página inteira, e um título ali só repetiria o `h1`.
+      */}
+      {terms.length > 0 && byName.length > 0 ? (
+        <h2 className="-mb-1 text-sm font-semibold tracking-wide uppercase">
+          Lojas
+        </h2>
+      ) : null}
+
       <StoreList
-        stores={stores}
+        stores={byName}
         nearSlug={nearSlug}
-        matchedProducts={Object.fromEntries(matchedProducts)}
-        showEmptyMessage={!unmet}
+        showEmptyMessage={!unmet && items.length === 0}
       />
+
+      <ItemList items={items} term={search ?? ""} />
 
       {/*
         O mesmo momento que gera o sinal de demanda gera a melhor pergunta que

@@ -28,13 +28,10 @@ import type { PublicStoreCard } from "@/lib/storefront";
 export function StoreList({
   stores,
   nearSlug,
-  matchedProducts,
   showEmptyMessage = true,
 }: {
   stores: PublicStoreCard[];
   nearSlug: string | null;
-  /** Itens que casaram com a busca, por loja. Vazio quando não houve busca. */
-  matchedProducts: Record<string, string[]>;
   /**
    * Falso quando quem explica o vazio é o convite a indicar uma loja, logo
    * abaixo. "Nenhuma loja com esses filtros" seria mentira ali: não há filtro
@@ -127,15 +124,6 @@ export function StoreList({
                   {store.description ? (
                     <p className="mt-0.5 line-clamp-2 text-sm text-neutral-600 dark:text-neutral-400">
                       {store.description}
-                    </p>
-                  ) : null}
-
-                  {matchedProducts[store.id]?.length ? (
-                    <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-                      <span className="text-neutral-500 dark:text-neutral-500">
-                        tem{" "}
-                      </span>
-                      {matchedProducts[store.id].join(", ")}
                     </p>
                   ) : null}
 

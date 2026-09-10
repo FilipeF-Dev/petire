@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { matchesTerms, searchTerms, slugify } from "@/lib/slug";
 
@@ -35,6 +41,24 @@ function haystack(product: MenuProduct): string {
   return slugify(`${product.name} ${product.description ?? ""}`);
 }
 
+/** O termo que veio no link do resultado da busca, ou vazio. */
+function readHash(): string {
+  const hash = window.location.hash;
+  if (!hash.startsWith("#q=")) return "";
+
+  try {
+    return decodeURIComponent(hash.slice(3));
+  } catch {
+    // Fragmento malformado é ruído de link quebrado, não erro do cliente.
+    return "";
+  }
+}
+
+function subscribeHash(onChange: () => void): () => void {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
+}
+
 function sectionAnchor(id: string): string {
   return `secao-${id}`;
 }
@@ -48,7 +72,23 @@ export function MenuBrowser({
   storeIsOpen: boolean;
   sections: MenuSection[];
 }) {
-  const [query, setQuery] = useState("");
+  /*
+    Quem chegou de um item da busca cai com o cardápio já filtrado nele.
+
+    O termo vem no **fragmento** da URL (`#q=xtudo`), e não na query string,
+    porque esta página é estática: ler `searchParams` a tornaria dinâmica, e ela
+    é a mais visitada do site. O fragmento não chega ao servidor.
+
+    Lido por `useSyncExternalStore` e não num efeito: no servidor e na primeira
+    pintura ele vale vazio, que é o que a hidratação precisa encontrar, e o
+    valor de verdade entra logo depois. Assim que o cliente digita, `typed`
+    assume e o fragmento para de mandar — senão o campo brigaria com ele.
+  */
+  const fromHash = useSyncExternalStore(subscribeHash, readHash, () => "");
+  const [typed, setTyped] = useState<string | null>(null);
+  const query = typed ?? fromHash;
+  const setQuery = setTyped;
+
   const [active, setActive] = useState<string | null>(null);
 
   // Mesmo tratamento dos dois lados, como na busca de lojas: acento, caixa e

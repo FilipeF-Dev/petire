@@ -22,7 +22,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const SLUG = /^[a-z0-9-]{1,120}$/;
 
 const bodySchema = z.object({
-  kind: z.enum(["search_empty", "area_uncovered"]),
+  kind: z.enum(["search_empty", "area_uncovered", "search_hit"]),
   citySlug: z.string().regex(SLUG).nullish(),
   neighborhoodSlug: z.string().regex(SLUG).nullish(),
   term: z.string().max(80).nullish(),
