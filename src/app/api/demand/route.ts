@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { z } from "zod";
 
+import { clientIp, excedeuLimite } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -29,6 +30,13 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  // 429 e não erro silencioso: quem chama de verdade é o próprio site, com
+  // sendBeacon, e ele ignora a resposta de qualquer jeito. O status existe
+  // para o log dizer o que aconteceu.
+  if (excedeuLimite(`demanda:${clientIp(request)}`)) {
+    return NextResponse.json({ error: "muitas chamadas" }, { status: 429 });
+  }
+
   let payload: unknown;
   try {
     payload = await request.json();
