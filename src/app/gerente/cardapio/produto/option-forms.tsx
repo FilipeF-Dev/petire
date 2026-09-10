@@ -6,7 +6,7 @@ import { useFormStatus } from "react-dom";
 import { Button, FormError, inputClass } from "@/components/ui";
 import { emptyFormState, type FormState } from "@/lib/validation";
 
-import { saveOption, saveOptionGroup } from "../actions";
+import { attachOptionGroup, saveOption, saveOptionGroup } from "../actions";
 
 export type GroupRule = {
   id: string;
@@ -319,6 +319,64 @@ export function NewOptionForm({
           <FormError message={state.error} />
         </div>
       ) : null}
+    </form>
+  );
+}
+
+/**
+ * Usar aqui um grupo que já existe em outro item.
+ *
+ * É a razão de o grupo ter deixado de ser do produto: "trocar o bife por
+ * picanha" vale para os doze hambúrgueres da casa, e antes eram doze grupos
+ * iguais para manter à mão. Aqui a lista é o acervo da loja, e o que se
+ * escolhe é o mesmo objeto — mexer nele depois muda em todos.
+ *
+ * Só aparece quando há o que reaproveitar: numa loja com um item só, este
+ * seletor seria uma caixa vazia perguntando nada.
+ */
+export function ReuseOptionGroupForm({
+  productId,
+  groups,
+}: {
+  productId: string;
+  groups: { id: string; name: string; usedBy: number }[];
+}) {
+  const [state, formAction] = useActionState(attachOptionGroup, emptyFormState);
+  const formRef = useResetOnSave(state.savedAt);
+
+  if (groups.length === 0) return null;
+
+  return (
+    <form
+      ref={formRef}
+      action={formAction}
+      className="flex flex-col gap-3 rounded-xl border border-dashed border-neutral-300 p-4 dark:border-neutral-700"
+    >
+      <input type="hidden" name="productId" value={productId} />
+
+      <p className="text-sm font-medium">Usar um grupo que já existe</p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <select name="groupId" className={`${inputClass} w-auto min-w-48`}>
+          {groups.map((group) => (
+            <option key={group.id} value={group.id}>
+              {group.name}
+              {group.usedBy > 0
+                ? ` · em ${group.usedBy} ${group.usedBy === 1 ? "item" : "itens"}`
+                : ""}
+            </option>
+          ))}
+        </select>
+
+        <Submit label="Usar aqui" />
+      </div>
+
+      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        É o mesmo grupo, não uma cópia: mudar o preço de uma opção muda em todos
+        os itens que o usam.
+      </p>
+
+      <FormError message={state.error} />
     </form>
   );
 }

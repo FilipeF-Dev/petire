@@ -238,7 +238,9 @@ export async function deleteProduct(formData: FormData): Promise<void> {
  * O toggle de "esgotado". Precisa ser um toque só: é a coisa que o lojista faz
  * no meio do movimento, com o celular numa mão.
  */
-export async function setProductAvailability(formData: FormData): Promise<void> {
+export async function setProductAvailability(
+  formData: FormData,
+): Promise<void> {
   const session = await requireManager();
   if (!session.storeId) return;
 
@@ -372,6 +374,8 @@ export async function saveOptionGroup(
   };
 
   if (typeof groupId === "string" && groupId !== "") {
+    // Editar aqui muda em todo item que usa o grupo. É para isso que ele
+    // existe, e é o que a tela avisa antes — ver OptionsEditor.
     const { error } = await supabase
       .from("option_groups")
       .update(values)
@@ -380,44 +384,124 @@ export async function saveOptionGroup(
 
     if (error) return { error: "Não foi possível salvar o grupo." };
   } else {
-    const { count } = await supabase
+    // Nasce como grupo da loja e já entra neste item. Quem quiser usá-lo em
+    // outro liga por lá, sem recriar nada.
+    const { data: created, error } = await supabase
       .from("option_groups")
-      .select("id", { count: "exact", head: true })
-      .eq("product_id", productId.data);
+      .insert({ ...values, store_id: session.storeId })
+      .select("id")
+      .single();
 
-    const { error } = await supabase.from("option_groups").insert({
-      ...values,
-      store_id: session.storeId,
-      product_id: productId.data,
-      sort_order: count ?? 0,
+    if (error || !created) return { error: "Não foi possível criar o grupo." };
+
+    const attached = await attach(supabase, {
+      storeId: session.storeId,
+      productId: productId.data,
+      groupId: created.id,
     });
 
-    if (error) return { error: "Não foi possível criar o grupo." };
+    if (!attached) return { error: "Não foi possível criar o grupo." };
   }
 
   refreshMenu(session.storeSlug, productId.data);
   return { error: null, savedAt: Date.now() };
 }
 
-export async function deleteOptionGroup(formData: FormData): Promise<void> {
+/**
+ * Liga um grupo a um item, no fim da lista dele.
+ *
+ * A ordem é contada por item, e não por grupo: o mesmo "Tamanho" pode ser o
+ * primeiro numa pizza e o último num açaí.
+ */
+async function attach(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  {
+    storeId,
+    productId,
+    groupId,
+  }: Record<"storeId" | "productId" | "groupId", string>,
+): Promise<boolean> {
+  const { count } = await supabase
+    .from("product_option_groups")
+    .select("group_id", { count: "exact", head: true })
+    .eq("product_id", productId);
+
+  const { error } = await supabase.from("product_option_groups").insert({
+    store_id: storeId,
+    product_id: productId,
+    group_id: groupId,
+    sort_order: count ?? 0,
+  });
+
+  return !error;
+}
+
+/** Usa num item um grupo que já existe em outro. */
+export async function attachOptionGroup(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const session = await requireManager();
+  if (!session.storeId) return { error: "Sua conta não tem loja." };
+
+  const productId = uuid.safeParse(formData.get("productId"));
+  const groupId = uuid.safeParse(formData.get("groupId"));
+  if (!productId.success || !groupId.success) {
+    return { error: "Grupo inválido." };
+  }
+
+  const supabase = await createClient();
+  const ok = await attach(supabase, {
+    storeId: session.storeId,
+    productId: productId.data,
+    groupId: groupId.data,
+  });
+
+  if (!ok) return { error: "Não foi possível usar esse grupo aqui." };
+
+  refreshMenu(session.storeSlug, productId.data);
+  return { error: null, savedAt: Date.now() };
+}
+
+/**
+ * Tira o grupo **deste** item.
+ *
+ * Se ele não estiver em mais nenhum, some de vez: um grupo que existia só
+ * dentro deste produto não é acervo da loja, é sobra — e ficaria para sempre
+ * na lista de "usar um grupo que já existe", sem ninguém saber de onde veio.
+ * Estando em outros itens, ele sobrevive, que é a razão de ser compartilhado.
+ */
+export async function detachOptionGroup(formData: FormData): Promise<void> {
   const session = await requireManager();
   if (!session.storeId) return;
 
-  const id = uuid.safeParse(formData.get("groupId"));
-  const productId = formData.get("productId");
-  if (!id.success) return;
+  const groupId = uuid.safeParse(formData.get("groupId"));
+  const productId = uuid.safeParse(formData.get("productId"));
+  if (!groupId.success || !productId.success) return;
 
   const supabase = await createClient();
   await supabase
-    .from("option_groups")
+    .from("product_option_groups")
     .delete()
-    .eq("id", id.data)
+    .eq("group_id", groupId.data)
+    .eq("product_id", productId.data)
     .eq("store_id", session.storeId);
 
-  refreshMenu(
-    session.storeSlug,
-    typeof productId === "string" ? productId : undefined,
-  );
+  const { count } = await supabase
+    .from("product_option_groups")
+    .select("group_id", { count: "exact", head: true })
+    .eq("group_id", groupId.data);
+
+  if ((count ?? 0) === 0) {
+    // As opções caem junto, pelo ON DELETE CASCADE.
+    await supabase
+      .from("option_groups")
+      .delete()
+      .eq("id", groupId.data)
+      .eq("store_id", session.storeId);
+  }
+
+  refreshMenu(session.storeSlug, productId.data);
 }
 
 // -----------------------------------------------------------------------------
