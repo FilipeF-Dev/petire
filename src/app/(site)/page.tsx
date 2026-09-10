@@ -77,16 +77,16 @@ export default async function HomePage() {
             {places.map((place) => (
               <li key={`${place.city_slug}-${place.neighborhood_slug}`}>
                 <Link
-                  // `perto`, não `bairro`: filtrar por bairro exato esconderia
-                  // a lanchonete do Centro que entrega no bairro inteiro. Ele
-                  // ordena, e é a mesma regra que o CEP usa.
-                  href={{
-                    pathname: "/lojas",
-                    query: {
-                      cidade: place.city_slug,
-                      perto: place.neighborhood_slug,
-                    },
-                  }}
+                  // A página do bairro, e não a lista filtrada: é ela que o
+                  // Google indexa, e é ela que responde "lanchonete em
+                  // Bandeirantes" com endereço, título e texto próprios.
+                  //
+                  // Quem chega pelo CEP continua indo para `/lojas` com
+                  // `perto`, que ordena sem esconder a loja do Centro que
+                  // entrega no bairro inteiro. São dois caminhos porque são
+                  // duas perguntas: "o que tem no meu bairro" e "o que entrega
+                  // no meu endereço".
+                  href={`/lojas/${place.city_slug}/${place.neighborhood_slug}`}
                   className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-surface px-4 py-3 text-sm transition hover:bg-surface-hover dark:border-neutral-800"
                 >
                   <span>

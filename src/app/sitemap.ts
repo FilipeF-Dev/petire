@@ -49,7 +49,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     ...[...places.values()].map((place) => ({
-      url: `${siteUrl}/lojas?cidade=${encodeURIComponent(place.city)}&bairro=${encodeURIComponent(place.neighborhood)}`,
+      url: `${siteUrl}/lojas/${place.city}/${place.neighborhood}`,
       changeFrequency: "daily" as const,
       priority: 0.7,
     })),

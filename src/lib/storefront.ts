@@ -38,6 +38,9 @@ const CARD_COLUMNS = [
   // Ver src/lib/proximity.ts.
   "cep",
   "cuisine_tags",
+  // Comida, bebida ou os dois: é o que a página do bairro usa para se chamar
+  // de lanchonete ou de distribuidora sem prometer o que não tem.
+  "kind",
   "delivery_fee_cents",
   "delivery_minutes",
   "min_order_cents",
@@ -51,10 +54,9 @@ const DETAIL_COLUMNS = [
 ] as const;
 
 /** Loja na listagem de `/lojas`. */
-export type PublicStoreCard = Pick<
-  StoreRow,
-  (typeof CARD_COLUMNS)[number]
-> & { is_open_now: boolean };
+export type PublicStoreCard = Pick<StoreRow, (typeof CARD_COLUMNS)[number]> & {
+  is_open_now: boolean;
+};
 
 /** Loja na página `/loja/[slug]`. */
 export type PublicStoreDetail = Pick<
