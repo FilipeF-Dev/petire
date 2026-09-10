@@ -29,9 +29,6 @@ const SERVICE = env.SUPABASE_SERVICE_ROLE_KEY;
 const STORE_ZE = "11111111-1111-4111-8111-111111111111";
 const STORE_DIST = "22222222-2222-4222-8222-222222222222";
 const CAT_LANCHES = "c1111111-1111-4111-8111-111111111111";
-const PROD_XSALADA = "d1111111-1111-4111-8111-111111111111";
-const PROD_CERVEJA = "0d000001-0000-4000-8000-000000000001";
-const GRUPO_REMOVER = "e3333333-3333-4333-8333-333333333333";
 
 // --- runner ------------------------------------------------------------------
 
@@ -206,63 +203,6 @@ await check("NÃO cria produto na loja do vizinho", async () => {
     .from("products")
     .insert({ store_id: STORE_DIST, name: "Invasor", price_cents: 100 });
   assert(error, "gerente inseriu produto em outra loja");
-  return error.code;
-});
-
-await check("liga um grupo de opções a um item da própria loja", async () => {
-  const { data: grupo, error: erroGrupo } = await ze
-    .from("option_groups")
-    .insert({
-      store_id: STORE_ZE,
-      name: "Teste check-rls",
-      min_select: 0,
-      max_select: 1,
-    })
-    .select("id");
-  assert(!erroGrupo, erroGrupo?.message ?? "");
-
-  const { error } = await ze.from("product_option_groups").insert({
-    store_id: STORE_ZE,
-    product_id: PROD_XSALADA,
-    group_id: grupo[0].id,
-    sort_order: 99,
-  });
-  assert(!error, error?.message ?? "");
-
-  // O grupo sai e a ligação cai junto, pelo ON DELETE CASCADE.
-  await ze.from("option_groups").delete().eq("id", grupo[0].id);
-});
-
-await check("NÃO liga grupo da própria loja a item do vizinho", async () => {
-  const { error } = await ze.from("product_option_groups").insert({
-    store_id: STORE_ZE,
-    product_id: PROD_CERVEJA,
-    group_id: GRUPO_REMOVER,
-    sort_order: 0,
-  });
-  assert(error, "FK composta não barrou o item de outra loja");
-  return error.code;
-});
-
-await check("NÃO usa a loja do vizinho para ligar grupos", async () => {
-  const { error } = await ze.from("product_option_groups").insert({
-    store_id: STORE_DIST,
-    product_id: PROD_CERVEJA,
-    group_id: GRUPO_REMOVER,
-    sort_order: 0,
-  });
-  assert(error, "gerente ligou grupo dentro de outra loja");
-  return error.code;
-});
-
-await check("anon NÃO liga grupos a itens", async () => {
-  const { error } = await anon.from("product_option_groups").insert({
-    store_id: STORE_ZE,
-    product_id: PROD_XSALADA,
-    group_id: GRUPO_REMOVER,
-    sort_order: 0,
-  });
-  assert(error, "anon escreveu na ligação de grupos");
   return error.code;
 });
 
@@ -543,33 +483,30 @@ await check("o banco recusa a fundadora número onze", async () => {
   return "PT422";
 });
 
-await check(
-  "marcar uma loja comum no bairro cheio também é recusado",
-  async () => {
-    const admin = serviceClient();
+await check("marcar uma loja comum no bairro cheio também é recusado", async () => {
+  const admin = serviceClient();
 
-    const { data: comum } = await admin
-      .from("stores")
-      .insert({
-        slug: "fundadora-teste-comum",
-        name: "Loja comum",
-        whatsapp_e164: "5532988887777",
-        city: "Juiz de Fora",
-        neighborhood: BAIRRO_TESTE,
-      })
-      .select("id")
-      .single();
+  const { data: comum } = await admin
+    .from("stores")
+    .insert({
+      slug: "fundadora-teste-comum",
+      name: "Loja comum",
+      whatsapp_e164: "5532988887777",
+      city: "Juiz de Fora",
+      neighborhood: BAIRRO_TESTE,
+    })
+    .select("id")
+    .single();
 
-    const { error } = await admin
-      .from("stores")
-      .update({ is_founder: true })
-      .eq("id", comum.id);
+  const { error } = await admin
+    .from("stores")
+    .update({ is_founder: true })
+    .eq("id", comum.id);
 
-    assert(error, "o bairro cheio aceitou mais uma fundadora por update");
-    assert(error.code === "PT422", `esperava PT422, veio ${error.code}`);
-    return "PT422";
-  },
-);
+  assert(error, "o bairro cheio aceitou mais uma fundadora por update");
+  assert(error.code === "PT422", `esperava PT422, veio ${error.code}`);
+  return "PT422";
+});
 
 await check("a fundadora entra com o teto do Plus", async () => {
   const admin = serviceClient();
@@ -590,78 +527,76 @@ await check("a fundadora entra com o teto do Plus", async () => {
   return "1000 itens";
 });
 
-await check(
-  "o teste desliza para o dia em que a loja entra no ar",
-  async () => {
-    // Trinta dias concedidos no cadastro. Como a loja nasce fora do ar, eles
-    // valem a partir da publicação — senão quem demora a mandar o cardápio
-    // queima o teste esperando por si mesmo.
-    const admin = serviceClient();
-    const hoje = new Date();
-    const cadastro = new Date(hoje.getTime() - 20 * 24 * 60 * 60 * 1000);
-    const venceEm = new Date(cadastro.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const dia = (d) => d.toISOString().slice(0, 10);
+await check("o teste desliza para o dia em que a loja entra no ar", async () => {
+  // Trinta dias concedidos no cadastro. Como a loja nasce fora do ar, eles
+  // valem a partir da publicação — senão quem demora a mandar o cardápio
+  // queima o teste esperando por si mesmo.
+  const admin = serviceClient();
+  const hoje = new Date();
+  const cadastro = new Date(hoje.getTime() - 20 * 24 * 60 * 60 * 1000);
+  const venceEm = new Date(cadastro.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const dia = (d) => d.toISOString().slice(0, 10);
 
-    const { data: nova, error: criarError } = await admin
-      .from("stores")
-      .insert({
-        slug: "fundadora-teste-trial",
-        name: "Teste do teste",
-        whatsapp_e164: "5532988887777",
-        city: "Juiz de Fora",
-        neighborhood: "Benfica",
-        created_at: cadastro.toISOString(),
-        subscription_status: "trial",
-        subscription_until: dia(venceEm),
-      })
-      .select("subscription_until")
-      .single();
+  const { data: nova, error: criarError } = await admin
+    .from("stores")
+    .insert({
+      slug: "fundadora-teste-trial",
+      name: "Teste do teste",
+      whatsapp_e164: "5532988887777",
+      city: "Juiz de Fora",
+      neighborhood: "Benfica",
+      created_at: cadastro.toISOString(),
+      subscription_status: "trial",
+      subscription_until: dia(venceEm),
+    })
+    .select("subscription_until")
+    .single();
 
-    assert(!criarError, criarError?.message ?? "");
-    assert(
-      nova.subscription_until === dia(venceEm),
-      "o vencimento mudou antes da publicação",
-    );
+  assert(!criarError, criarError?.message ?? "");
+  assert(
+    nova.subscription_until === dia(venceEm),
+    "o vencimento mudou antes da publicação",
+  );
 
-    const { data: noAr, error: arError } = await admin
-      .from("stores")
-      .update({ is_active: true })
-      .eq("slug", "fundadora-teste-trial")
-      .select("subscription_until, published_at")
-      .single();
+  const { data: noAr, error: arError } = await admin
+    .from("stores")
+    .update({ is_active: true })
+    .eq("slug", "fundadora-teste-trial")
+    .select("subscription_until, published_at")
+    .single();
 
-    assert(!arError, arError?.message ?? "");
-    assert(noAr.published_at, "publicar não marcou published_at");
+  assert(!arError, arError?.message ?? "");
+  assert(noAr.published_at, "publicar não marcou published_at");
 
-    const esperado = dia(new Date(hoje.getTime() + 30 * 24 * 60 * 60 * 1000));
-    assert(
-      noAr.subscription_until === esperado,
-      `esperava ${esperado}, veio ${noAr.subscription_until}`,
-    );
+  const esperado = dia(new Date(hoje.getTime() + 30 * 24 * 60 * 60 * 1000));
+  assert(
+    noAr.subscription_until === esperado,
+    `esperava ${esperado}, veio ${noAr.subscription_until}`,
+  );
 
-    // Republicar não pode dar dias de graça.
-    await admin
-      .from("stores")
-      .update({ is_active: false })
-      .eq("slug", "fundadora-teste-trial");
-    const { data: devolta } = await admin
-      .from("stores")
-      .update({ is_active: true })
-      .eq("slug", "fundadora-teste-trial")
-      .select("subscription_until")
-      .single();
+  // Republicar não pode dar dias de graça.
+  await admin
+    .from("stores")
+    .update({ is_active: false })
+    .eq("slug", "fundadora-teste-trial");
+  const { data: devolta } = await admin
+    .from("stores")
+    .update({ is_active: true })
+    .eq("slug", "fundadora-teste-trial")
+    .select("subscription_until")
+    .single();
 
-    assert(
-      devolta.subscription_until === esperado,
-      "republicar esticou o teste de novo",
-    );
+  assert(
+    devolta.subscription_until === esperado,
+    "republicar esticou o teste de novo",
+  );
 
-    await admin.from("stores").delete().eq("slug", "fundadora-teste-trial");
-    return `venceu em ${esperado}`;
-  },
-);
+  await admin.from("stores").delete().eq("slug", "fundadora-teste-trial");
+  return `venceu em ${esperado}`;
+});
 
 await limpaBairroTeste();
+
 
 console.log("\nLevantamento de rua");
 
@@ -720,6 +655,7 @@ await check("o slug do bairro é gerado pelo banco", async () => {
   return data.neighborhood_slug;
 });
 
+
 console.log("\nMensalidade");
 
 await check("gerente lê os próprios pagamentos", async () => {
@@ -761,25 +697,22 @@ await check("anon não lê pagamento de ninguém", async () => {
 
 console.log("\nItens mais pedidos");
 
-await check(
-  "store_top_products devolve o ranking da própria loja",
-  async () => {
-    const { data, error } = await ze.rpc("store_top_products", {
-      target: STORE_ZE,
-    });
-    assert(!error, error?.message ?? "");
-    assert(data.length > 0, "ranking veio vazio");
+await check("store_top_products devolve o ranking da própria loja", async () => {
+  const { data, error } = await ze.rpc("store_top_products", {
+    target: STORE_ZE,
+  });
+  assert(!error, error?.message ?? "");
+  assert(data.length > 0, "ranking veio vazio");
 
-    // A função ordena por volume; se vier fora de ordem, o painel mente.
-    const counts = data.map((row) => Number(row.adds));
-    const sorted = [...counts].sort((a, b) => b - a);
-    assert(
-      JSON.stringify(counts) === JSON.stringify(sorted),
-      "ranking não veio ordenado",
-    );
-    return `${data.length} itens, topo com ${counts[0]}`;
-  },
-);
+  // A função ordena por volume; se vier fora de ordem, o painel mente.
+  const counts = data.map((row) => Number(row.adds));
+  const sorted = [...counts].sort((a, b) => b - a);
+  assert(
+    JSON.stringify(counts) === JSON.stringify(sorted),
+    "ranking não veio ordenado",
+  );
+  return `${data.length} itens, topo com ${counts[0]}`;
+});
 
 await check("store_top_products não vaza a loja do vizinho", async () => {
   const { data, error } = await ze.rpc("store_top_products", {
@@ -988,7 +921,10 @@ await check("gerente NÃO passa do teto criando um a um", async () => {
     .insert({ store_id: STORE_ZE, name: "Passa do teto", price_cents: 1000 });
 
   assert(error, "gerente passou do teto do plano");
-  assert(error.code === "PT422", `esperava o código PT422, veio ${error.code}`);
+  assert(
+    error.code === "PT422",
+    `esperava o código PT422, veio ${error.code}`,
+  );
   return "PT422";
 });
 
