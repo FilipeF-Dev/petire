@@ -51,6 +51,10 @@ const DETAIL_COLUMNS = [
   "cover_url",
   "whatsapp_e164",
   "address",
+  // Coordenadas: entram no schema.org da loja, que é de onde o Google tira o
+  // mapa do resultado. Só no detalhe — a listagem não desenha mapa nenhum.
+  "lat",
+  "lng",
 ] as const;
 
 /** Loja na listagem de `/lojas`. */

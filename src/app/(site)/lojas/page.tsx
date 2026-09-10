@@ -19,11 +19,52 @@ import { ItemList, type MatchedItem } from "./item-list";
 import { StoreList } from "./store-list";
 import { SuggestStore } from "./suggest-store";
 
-export const metadata: Metadata = {
-  title: "Lojas perto de você",
-  description:
-    "Lanchonetes, distribuidoras e restaurantes do seu bairro no Petire. Peça direto no WhatsApp da loja, sem taxa de serviço.",
-};
+/**
+ * Uma página só, e não uma para cada combinação de filtro.
+ *
+ * Tipo, culinária, aberta, frete, desconto, ordenação e busca se combinam em
+ * centenas de endereços com o mesmo conteúdo. Nenhum deles está linkado — os
+ * chips reescrevem a URL no navegador —, mas basta um ser descoberto para o
+ * Google gastar rastreio neles e diluir o sinal entre variantes que ninguém
+ * procurou.
+ *
+ * Com filtro na URL: `noindex, follow`. O "follow" importa tanto quanto o
+ * "noindex" — a página filtrada continua levando às lojas, e é por esses links
+ * que o rastreador chega nelas.
+ *
+ * Sem filtro: indexável, com canonical apontando para si mesma. Quem responde
+ * "lanchonete em Bandeirantes" não é esta tela, e sim
+ * /lojas/[cidade]/[bairro] — esta é a de filtrar e buscar.
+ */
+export async function generateMetadata({
+  searchParams,
+}: PageProps<"/lojas">): Promise<Metadata> {
+  const params = await searchParams;
+
+  const comFiltro = FILTROS.some((chave) => first(params[chave]) !== null);
+
+  return {
+    title: "Lojas perto de você",
+    description:
+      "Lanchonetes, distribuidoras e restaurantes do seu bairro no Petire. Peça direto no WhatsApp da loja, sem taxa de serviço.",
+    alternates: comFiltro ? undefined : { canonical: "/lojas" },
+    robots: comFiltro ? { index: false, follow: true } : undefined,
+  };
+}
+
+/** O que transforma esta página numa variante que não merece índice próprio. */
+const FILTROS = [
+  "q",
+  "tipo",
+  "tag",
+  "aberto",
+  "frete",
+  "promo",
+  "ordem",
+  "cidade",
+  "bairro",
+  "perto",
+] as const;
 
 function first(value: string | string[] | undefined): string | null {
   const raw = Array.isArray(value) ? value[0] : value;
