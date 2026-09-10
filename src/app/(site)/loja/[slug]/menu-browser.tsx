@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { matchesTerms, searchTerms, slugify } from "@/lib/slug";
+import { searchTerms, slugify } from "@/lib/slug";
 
 import { MenuItem, type MenuProduct } from "./menu-item";
 
@@ -81,16 +81,13 @@ export function MenuBrowser({
         id: section.id,
         name: section.name,
         items: section.items
-          .filter((entry) => matchesTerms(entry.text, terms))
+          .filter((entry) => terms.every((term) => entry.text.includes(term)))
           .map((entry) => entry.product),
       }))
       .filter((section) => section.items.length > 0);
   }, [indexed, sections, terms]);
 
-  const found = visible.reduce(
-    (total, section) => total + section.items.length,
-    0,
-  );
+  const found = visible.reduce((total, section) => total + section.items.length, 0);
 
   // Qual categoria está sob os olhos agora. Sem isso a barra fixa mostra as
   // categorias mas não diz onde a pessoa está, que é metade do que um índice
