@@ -1147,7 +1147,7 @@ export type Database = {
     }
     Enums: {
       application_status: "pending" | "approved" | "rejected"
-      demand_kind: "search_empty" | "area_uncovered"
+      demand_kind: "search_empty" | "area_uncovered" | "search_hit"
       event_kind: "store_view" | "cart_add" | "whatsapp_click"
       manager_role: "manager" | "admin"
       promotion_kind: "percent" | "fixed"
@@ -1286,7 +1286,7 @@ export const Constants = {
   public: {
     Enums: {
       application_status: ["pending", "approved", "rejected"],
-      demand_kind: ["search_empty", "area_uncovered"],
+      demand_kind: ["search_empty", "area_uncovered", "search_hit"],
       event_kind: ["store_view", "cart_add", "whatsapp_click"],
       manager_role: ["manager", "admin"],
       promotion_kind: ["percent", "fixed"],

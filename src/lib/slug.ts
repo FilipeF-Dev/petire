@@ -88,3 +88,31 @@ export function matchesTerms(slug: string, terms: string[]): boolean {
   const flat = compact(slug);
   return terms.every((term) => slug.includes(term) || flat.includes(term));
 }
+
+/**
+ * Quão bem este nome responde ao que foi digitado. Menor é melhor.
+ *
+ * Quem procura "coca" espera a Coca-Cola antes do "Bolo de fubá com coca" —
+ * as duas casam, mas uma é o que a pessoa quis dizer. A régua é grosseira de
+ * propósito, e é a que dá para explicar em voz alta:
+ *
+ *   0 — é exatamente o que se digitou
+ *   1 — começa com o que se digitou
+ *   2 — contém em algum lugar
+ *
+ * Não é busca por relevância estatística, e não deve virar uma: num cardápio
+ * de bairro, com dezenas de itens, ordenar por "começa com" já põe o certo em
+ * cima. O que empata é desempatado por quem chama — preço, distância, o que
+ * fizer sentido na tela.
+ */
+export function relevance(slug: string, terms: string[]): number {
+  if (terms.length === 0) return 2;
+
+  const digitado = terms.join("-");
+  const colado = compact(slug);
+  const digitadoColado = terms.join("");
+
+  if (slug === digitado || colado === digitadoColado) return 0;
+  if (slug.startsWith(digitado) || colado.startsWith(digitadoColado)) return 1;
+  return 2;
+}
