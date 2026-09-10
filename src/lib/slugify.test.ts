@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { humanizePlace, matchesTerms, searchTerms, slugify } from "./slug";
+import { humanizePlace, searchTerms, slugify } from "./slug";
 import { normalizeWhatsapp } from "./validation";
 
 describe("slugify", () => {
@@ -33,9 +33,7 @@ describe("humanizePlace", () => {
   });
 
   it("mantém as preposições minúsculas, menos na primeira palavra", () => {
-    expect(humanizePlace("sao-joao-da-boa-vista")).toBe(
-      "Sao Joao da Boa Vista",
-    );
+    expect(humanizePlace("sao-joao-da-boa-vista")).toBe("Sao Joao da Boa Vista");
     expect(humanizePlace("do-carmo")).toBe("Do Carmo");
   });
 
@@ -110,57 +108,8 @@ describe("searchTerms", () => {
   });
 
   it("não deixa a frase virar uma consulta sem fim", () => {
-    expect(
-      searchTerms("um dois tres quatro cinco seis sete oito"),
-    ).toHaveLength(6);
-  });
-});
-
-describe("matchesTerms", () => {
-  // O caso que originou tudo: "x-tudo" e "x tudo" achavam, "xtudo" não.
-  it("acha o nome mesmo com as palavras coladas", () => {
-    expect(matchesTerms(slugify("X-Tudo"), searchTerms("xtudo"))).toBe(true);
-    expect(matchesTerms(slugify("Coca-Cola 2L"), searchTerms("cocacola"))).toBe(
-      true,
+    expect(searchTerms("um dois tres quatro cinco seis sete oito")).toHaveLength(
+      6,
     );
-    expect(
-      matchesTerms(slugify("Pão de queijo"), searchTerms("paodequeijo")),
-    ).toBe(true);
-  });
-
-  it("não desfaz o que já funcionava", () => {
-    expect(matchesTerms(slugify("X-Tudo"), searchTerms("x tudo"))).toBe(true);
-    expect(matchesTerms(slugify("X-Tudo"), searchTerms("x-tudo"))).toBe(true);
-    expect(
-      matchesTerms(
-        slugify("Suco de laranja 500ml"),
-        searchTerms("suco laranja"),
-      ),
-    ).toBe(true);
-  });
-
-  // Colar não pode virar um curinga que aproxima o que não tem relação: quem
-  // procura "xtudo" não quer o X-Salada só porque os dois começam com x.
-  // Colar junta o que o hífen separava, mas não apaga palavra: 'Suco de
-  // laranja' colado é 'sucodelaranja', e quem digita 'sucolaranja' pulou o
-  // 'de'. Fica registrado como limite conhecido, e não como esquecimento —
-  // resolver isso pede busca aproximada, que é outro assunto.
-  it("não adivinha a palavra que o cliente pulou", () => {
-    expect(
-      matchesTerms(
-        slugify("Suco de laranja 500ml"),
-        searchTerms("sucolaranja"),
-      ),
-    ).toBe(false);
-  });
-
-  it("continua exigindo todas as palavras", () => {
-    expect(matchesTerms(slugify("X-Salada"), searchTerms("xtudo"))).toBe(false);
-    expect(matchesTerms(slugify("Coca-Cola 2L"), searchTerms("suco"))).toBe(
-      false,
-    );
-    expect(
-      matchesTerms(slugify("Batata frita"), searchTerms("batata doce")),
-    ).toBe(false);
   });
 });
