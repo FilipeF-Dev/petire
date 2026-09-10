@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -50,11 +50,60 @@ export function Modal({
   children: ReactNode;
 }) {
   const isBrowser = useSyncExternalStore(neverChanges, onClient, onServer);
+  const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    /*
+      O foco entra no diálogo e não sai enquanto ele estiver aberto.
+
+      Sem isto, o pop-up era um diálogo só para quem enxerga: o Esc fechava e a
+      rolagem do fundo travava, mas o Tab continuava passeando pelos links da
+      página atrás — quem navega por teclado ou leitor de tela ficava lendo o
+      cardápio enquanto o formulário de endereço estava na frente.
+
+      Ao fechar, o foco volta para o elemento que abriu. É o que evita a pessoa
+      ser jogada no topo da página depois de escolher um endereço.
+    */
+    const anterior = document.activeElement as HTMLElement | null;
+    panel.current?.focus();
+
+    const focaveis = () =>
+      Array.from(
+        panel.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((elemento) => elemento.offsetParent !== null);
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const lista = focaveis();
+      if (lista.length === 0) {
+        // Diálogo sem nada focável: o Tab não tem para onde ir aqui dentro, e
+        // deixá-lo escapar seria pior do que prendê-lo no próprio painel.
+        event.preventDefault();
+        panel.current?.focus();
+        return;
+      }
+
+      const primeiro = lista[0];
+      const ultimo = lista[lista.length - 1];
+      const atual = document.activeElement;
+
+      if (event.shiftKey && (atual === primeiro || atual === panel.current)) {
+        event.preventDefault();
+        ultimo.focus();
+      } else if (!event.shiftKey && atual === ultimo) {
+        event.preventDefault();
+        primeiro.focus();
+      }
     };
+
     document.addEventListener("keydown", onKey);
 
     const previous = document.body.style.overflow;
@@ -63,8 +112,12 @@ export function Modal({
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previous;
+      anterior?.focus?.();
     };
-  }, [onClose]);
+    // `isBrowser` entra nas dependências porque o painel só existe depois que
+    // ele vira verdadeiro: sem isso, um diálogo que abrisse junto com a
+    // hidratação nunca receberia o foco.
+  }, [onClose, isBrowser]);
 
   if (!isBrowser) return null;
 
@@ -74,9 +127,13 @@ export function Modal({
       onClick={onClose}
     >
       <div
+        ref={panel}
         role="dialog"
         aria-modal="true"
         aria-label={label}
+        // Para o painel poder receber o foco de entrada sem virar, depois
+        // disso, mais uma parada do Tab.
+        tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
         className={`modal-panel flex max-h-[85dvh] flex-col rounded-2xl bg-surface ${panelClassName}`}
       >
