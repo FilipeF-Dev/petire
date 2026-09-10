@@ -54,11 +54,24 @@ insert into public.product_option_groups (store_id, product_id, group_id, sort_o
 select g.store_id, g.product_id, g.id, g.sort_order
 from public.option_groups g;
 
-alter table public.option_groups drop column product_id;
+-- As duas colunas antigas **continuam existindo**, e isso é deliberado.
+--
+-- Esta migration é aplicada antes de o código novo subir, para que o banco
+-- esteja pronto quando ele chegar. Nessa janela quem está no ar é o código
+-- antigo, que ainda lê `sort_order` e filtra por `product_id` — derrubar as
+-- colunas aqui deixaria a vitrine sem cardápio até o deploy terminar. É a
+-- regra que o README já enuncia: o que sai de uso vira duas entregas, primeiro
+-- o código para de usar, depois a coluna sai.
+--
+-- O que muda é só a obrigatoriedade: o código novo cria grupo sem produto
+-- nenhum, e um NOT NULL sem valor a oferecer barraria a criação.
+alter table public.option_groups alter column product_id drop not null;
+alter table public.option_groups alter column sort_order drop not null;
 
--- A ordem agora mora na ligação. Deixar a coluna aqui seria manter dois
--- lugares dizendo a mesma coisa, e um deles sempre desatualizado.
-alter table public.option_groups drop column sort_order;
+comment on column public.option_groups.product_id is
+  'Herança do tempo em que o grupo era do item. Sai numa migration própria, depois que o código novo estiver no ar. Ver product_option_groups.';
+comment on column public.option_groups.sort_order is
+  'Herança: a ordem agora é da ligação, em product_option_groups.';
 
 -- ----------------------------------------------------------------------------
 -- Acesso — as mesmas regras das outras tabelas do cardápio
