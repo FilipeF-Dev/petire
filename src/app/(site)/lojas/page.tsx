@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { TrackDemand } from "@/components/track-demand";
 import { sortByPopularity } from "@/lib/cuisines";
+import { startingPrice } from "@/lib/menu-price";
 import { hasLivePromotion, priceOf, type Promotion } from "@/lib/promotions";
 import {
   humanizePlace,
@@ -170,12 +171,22 @@ export default async function LojasPage({ searchParams }: PageProps<"/lojas">) {
     name: string;
     price_cents: number;
     image_url: string | null;
+    // Só o que o "a partir de" precisa saber: se escolher é obrigatório e
+    // quanto custa a escolha mais barata.
+    product_option_groups: {
+      option_groups: {
+        min_select: number;
+        options: { price_delta_cents: number; is_available: boolean }[];
+      };
+    }[];
   }[] = [];
 
   if (terms.length > 0) {
     let hitsQuery = supabase
       .from("products")
-      .select("id, store_id, name, price_cents, image_url");
+      .select(
+        "id, store_id, name, price_cents, image_url, product_option_groups(option_groups(min_select, options(price_delta_cents, is_available)))",
+      );
     for (const term of terms) {
       hitsQuery = hitsQuery.or(matchTerm(term));
     }
@@ -347,10 +358,19 @@ export default async function LojasPage({ searchParams }: PageProps<"/lojas">) {
         livePromotions.get(hit.store_id) ?? [],
       );
 
+      // O mesmo "a partir de" do cardápio: a batata que custa R$ 0,00 até
+      // alguém marcar o tamanho não pode aparecer por zero na busca — que é
+      // justamente onde ela é vista por quem ainda não conhece a loja.
+      const inicial = startingPrice(
+        price.cents,
+        hit.product_option_groups.map((link) => link.option_groups),
+      );
+
       return {
         id: hit.id,
         name: hit.name,
-        priceCents: price.cents,
+        priceCents: inicial.cents,
+        isFrom: inicial.isFrom,
         originalCents: price.originalCents,
         discountLabel: price.label,
         storeSlug: store.slug,

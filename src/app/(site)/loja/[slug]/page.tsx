@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { siteUrl } from "@/lib/env";
 import { formatDeliveryTime } from "@/lib/delivery";
+import { startingPrice } from "@/lib/menu-price";
 import { formatCents, formatDeliveryFee } from "@/lib/money";
 import { priceOf, type Promotion } from "@/lib/promotions";
 import { fetchAllRows } from "@/lib/storefront";
@@ -82,7 +83,16 @@ function storeJsonLd({ store, hours, products }: StorePage) {
     se corrige sozinha quando o lojista mexe no cardápio, e é o que responde a
     quem procura lanche por menos de vinte reais.
   */
-  const precos = products.map((produto) => produto.price_cents);
+  // O piso é o preço de entrada, não o preço-base: um item que custa R$ 0,00
+  // até o cliente escolher o tamanho faria a loja anunciar "a partir de zero"
+  // no resultado do Google. Ver src/lib/menu-price.ts.
+  const precos = products.map(
+    (produto) =>
+      startingPrice(
+        produto.price_cents,
+        produto.product_option_groups.map((link) => link.option_groups),
+      ).cents,
+  );
   const priceRange =
     precos.length > 0
       ? `${formatCents(Math.min(...precos))} - ${formatCents(Math.max(...precos))}`
