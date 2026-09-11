@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { siteUrl } from "@/lib/env";
 import { formatDeliveryTime } from "@/lib/delivery";
+import { jsonLdScript } from "@/lib/json-ld";
 import { startingPrice } from "@/lib/menu-price";
 import { formatCents, formatDeliveryFee } from "@/lib/money";
 import { priceOf, type Promotion } from "@/lib/promotions";
@@ -214,7 +215,10 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
     <div className="flex flex-col gap-8">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(storeJsonLd(page)) }}
+        // `jsonLdScript`, e não `JSON.stringify`: o nome e a descrição da loja são
+        // digitados no painel, e o analisador de HTML fecha a tag em qualquer
+        // `</script` que apareça. Ver src/lib/json-ld.ts.
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(storeJsonLd(page)) }}
       />
       <TrackStoreView storeId={store.id} />
 

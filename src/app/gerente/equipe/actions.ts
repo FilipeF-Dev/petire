@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireManager } from "@/lib/auth";
+import { initialPassword } from "@/lib/initial-password";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -26,14 +27,6 @@ import {
 export type InviteState = FormState & {
   created?: { email: string; password: string };
 };
-
-/** Senha inicial legível, para ser passada por telefone sem soletrar hex. */
-function initialPassword(): string {
-  const words = ["pao", "mesa", "gelo", "forno", "balcao", "copo", "brasa"];
-  const word = words[Math.floor(Math.random() * words.length)];
-  const digits = String(Math.floor(1000 + Math.random() * 9000));
-  return `petire-${word}-${digits}`;
-}
 
 export async function inviteManager(
   _previous: InviteState,
@@ -71,12 +64,13 @@ export async function inviteManager(
   const admin = createAdminClient();
   const password = initialPassword();
 
-  const { data: created, error: userError } =
-    await admin.auth.admin.createUser({
+  const { data: created, error: userError } = await admin.auth.admin.createUser(
+    {
       email: parsed.data.email,
       password,
       email_confirm: true,
-    });
+    },
+  );
 
   if (userError || !created.user) {
     return {
@@ -147,7 +141,11 @@ export async function removeManager(
     .eq("id", managerId)
     .maybeSingle();
 
-  if (!target || target.store_id !== session.storeId || target.role !== "manager") {
+  if (
+    !target ||
+    target.store_id !== session.storeId ||
+    target.role !== "manager"
+  ) {
     return { error: "Esse acesso não é desta loja." };
   }
 

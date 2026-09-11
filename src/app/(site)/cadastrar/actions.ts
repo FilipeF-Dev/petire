@@ -1,5 +1,8 @@
 "use server";
 
+import { headers } from "next/headers";
+
+import { excedeuLimite, ipDosCabecalhos } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   applicationSchema,
@@ -23,6 +26,24 @@ export async function applyForStore(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  /*
+    O formulário é aberto e escreve com service_role, então ele é a porta mais
+    barata do site para encher uma tabela — e a tabela é a fila que uma pessoa
+    lê à mão toda manhã. Cinco por minuto por IP não é defesa contra alguém
+    determinado (o limitador vive na memória de cada processo, e IP se troca),
+    mas para o robô comum é o suficiente.
+
+    O erro é o mesmo texto de falha do resto: quem esbarrar no limite sem ser
+    robô tenta de novo daqui a pouco, e não ganha um mapa do que existe aqui.
+  */
+  const ip = ipDosCabecalhos(await headers());
+  if (excedeuLimite(`cadastro:${ip}`, Date.now(), 5)) {
+    return {
+      error: "Muitos envios seguidos. Tente de novo em um minuto.",
+      values: formValues(formData),
+    };
+  }
+
   const parsed = applicationSchema.safeParse({
     storeName: formData.get("storeName"),
     managerEmail: formData.get("managerEmail"),

@@ -44,3 +44,9 @@ next-env.d.ts
 # supabase (arquivos locais do CLI, incluindo segredos do stack)
 supabase/.branches
 supabase/.temp
+
+# Playwright
+/test-results
+/playwright-report
+/blob-report
+/.playwright
