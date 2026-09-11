@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { Modal } from "@/components/modal";
 import { addToCart } from "@/lib/cart";
+import { startingPrice } from "@/lib/menu-price";
 import { formatCents } from "@/lib/money";
 
 export type MenuOption = {
@@ -97,6 +98,9 @@ export function MenuItem({
     });
   }
 
+  // O preço que o card mostra: já com o que o item obriga a escolher.
+  const inicial = startingPrice(product.priceCents, groups);
+
   const chosenIds = Object.values(selected).flat();
 
   const extrasCents = groups
@@ -165,9 +169,19 @@ export function MenuItem({
             </p>
           ) : null}
 
+          {/*
+            "A partir de" quando escolher é obrigatório e a escolha mais barata
+            custa alguma coisa — a batata que vale R$ 0,00 até você marcar o
+            tamanho. Ver src/lib/menu-price.ts.
+          */}
           <p className="mt-2 flex flex-wrap items-baseline gap-2">
+            {inicial.isFrom ? (
+              <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                a partir de
+              </span>
+            ) : null}
             <span className="font-medium tabular-nums">
-              {formatCents(product.priceCents)}
+              {formatCents(inicial.cents)}
             </span>
             {product.originalPriceCents !== null ? (
               <span className="text-sm text-neutral-400 line-through tabular-nums">

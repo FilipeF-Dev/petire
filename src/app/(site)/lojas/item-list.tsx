@@ -7,6 +7,8 @@ export type MatchedItem = {
   id: string;
   name: string;
   priceCents: number;
+  /** Verdadeiro quando o preço é um piso: o item obriga a escolher. */
+  isFrom: boolean;
   /** Preço de tabela, presente só quando há desconto valendo agora. */
   originalCents: number | null;
   discountLabel: string | null;
@@ -71,6 +73,17 @@ export function ItemList({
                 </div>
 
                 <p className="mt-1 flex flex-wrap items-baseline gap-2">
+                  {/*
+                    "A partir de" quando o item obriga a escolher e a escolha
+                    mais barata custa alguma coisa — o mesmo rótulo do cardápio.
+                    Aqui ele importa ainda mais: quem vê este card não conhece a
+                    loja, e um preço que não se cumpre é a primeira impressão.
+                  */}
+                  {item.isFrom ? (
+                    <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                      a partir de
+                    </span>
+                  ) : null}
                   <span className="font-medium tabular-nums">
                     {formatCents(item.priceCents)}
                   </span>
