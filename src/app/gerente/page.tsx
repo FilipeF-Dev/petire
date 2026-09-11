@@ -107,6 +107,7 @@ export default async function GerentePage() {
     metrics60,
     topProducts,
     unmetDemand,
+    unmetCount,
     paymentsResult,
     isOpen,
     pendingWeek,
@@ -147,6 +148,10 @@ export default async function GerentePage() {
     // nada para estar certa — mas checa mesmo assim, para explicar o degrau
     // em vez de mostrar um bloco vazio.
     supabase.rpc("store_unmet_demand", { target: session.storeId }),
+    // O número, que o Básico também vê. Mesma regra da lista, uma função só:
+    // duas cópias seriam a garantia de o número e a lista discordarem no dia
+    // em que o lojista pagasse para ver sete itens e encontrasse cinco.
+    supabase.rpc("store_unmet_demand_count", { target: session.storeId }),
     // "Quando eu paguei?" é pergunta que hoje chega por WhatsApp. O RLS já
     // limita à própria loja.
     supabase
@@ -186,6 +191,7 @@ export default async function GerentePage() {
 
   const top = topProducts.data ?? [];
   const demand = unmetDemand.data ?? [];
+  const demandCount = unmetCount.data ?? 0;
   const payments = paymentsResult.data ?? [];
   const week = pendingWeek.data?.[0];
 
@@ -416,8 +422,25 @@ export default async function GerentePage() {
         ) : null
       ) : (
         <PlanLocked
-          title="O que procuram no seu bairro é do plano Plus"
-          description="O Petire vê o que as pessoas digitam na busca perto de você. Com o Plus, a lista dos itens mais procurados que o seu cardápio não tem aparece aqui — e cadastrar um deles é o caminho mais curto entre uma busca perdida e um pedido."
+          /*
+            Com número, o bloco fala do negócio dele: não é "temos um recurso
+            de dados", é "há sete coisas acontecendo aqui perto agora". O
+            número é verdadeiro e é dele; a lista é o que o plano abre.
+
+            Sem número — bairro ainda sem busca suficiente — volta o texto que
+            descreve o recurso. Anunciar "0 itens procurados" provaria o
+            contrário do que se quer dizer.
+          */
+          title={
+            demandCount > 0
+              ? `${demandCount} ${demandCount === 1 ? "item procurado" : "itens procurados"} no seu bairro ${demandCount === 1 ? "não está" : "não estão"} no seu cardápio`
+              : "O que procuram no seu bairro é do plano Plus"
+          }
+          description={
+            demandCount > 0
+              ? "O Petire vê o que as pessoas digitam na busca perto de você. Com o plano Plus você vê quais são — e cadastrar um deles é o caminho mais curto entre uma busca perdida e um pedido."
+              : "O Petire vê o que as pessoas digitam na busca perto de você. Com o Plus, a lista dos itens mais procurados que o seu cardápio não tem aparece aqui — e cadastrar um deles é o caminho mais curto entre uma busca perdida e um pedido."
+          }
         />
       )}
 

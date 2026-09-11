@@ -1062,6 +1062,7 @@ export type Database = {
         Returns: number
       }
       is_admin: { Args: never; Returns: boolean }
+      maintain_demand: { Args: { retention_days?: number }; Returns: number }
       maintain_events: { Args: { retention_days?: number }; Returns: number }
       manages_store: { Args: { target: string }; Returns: boolean }
       slugify: { Args: { input: string }; Returns: string }
@@ -1145,6 +1146,17 @@ export type Database = {
         }[]
       }
       store_unmet_demand: {
+        Args: { min_hits?: number; target: string; window_days?: number }
+        Returns: {
+          hits: number
+          term: string
+        }[]
+      }
+      store_unmet_demand_count: {
+        Args: { min_hits?: number; target: string; window_days?: number }
+        Returns: number
+      }
+      store_unmet_demand_terms: {
         Args: { min_hits?: number; target: string; window_days?: number }
         Returns: {
           hits: number
