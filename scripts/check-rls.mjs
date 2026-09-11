@@ -1205,6 +1205,53 @@ await check("plano Básico não recebe nada, mesmo com demanda gravada", async (
   return "lista vazia";
 });
 
+await check("a base sem trava de plano não é chamável do navegador", async () => {
+  // `store_unmet_demand_terms` é a regra crua, sem checagem de plano: se ela
+  // fosse executável, o Básico leria a lista que só o Plus compra.
+  const asManager = await ze.rpc("store_unmet_demand_terms", { target: STORE_ZE });
+  const asAnon = await anon.rpc("store_unmet_demand_terms", { target: STORE_ZE });
+  assert(asManager.error, "gerente executou a base sem trava");
+  assert(asAnon.error, "anon executou a base sem trava");
+  return "bloqueada nos dois";
+});
+
+await check("Básico vê o número, nunca os termos", async () => {
+  // Diferença, e não valor absoluto: outras verificações deixam sinal gravado
+  // de propósito, e um número fixo aqui quebraria conforme a ordem delas.
+  const antes = await ze.rpc("store_unmet_demand_count", { target: STORE_ZE });
+
+  await service.from("demand_signals").insert([
+    { kind: "search_empty", city_slug: "sao-paulo", term: "teaser-acai" },
+    { kind: "search_empty", city_slug: "sao-paulo", term: "teaser-acai" },
+    { kind: "search_empty", city_slug: "sao-paulo", term: "teaser-acai" },
+  ]);
+
+  const depois = await ze.rpc("store_unmet_demand_count", { target: STORE_ZE });
+  const lista = await ze.rpc("store_unmet_demand", { target: STORE_ZE });
+
+  await service.from("demand_signals").delete().like("term", "teaser-%");
+
+  assert(!depois.error, depois.error?.message ?? "");
+  assert(
+    depois.data === antes.data + 1,
+    `contagem foi de ${antes.data} para ${depois.data}`,
+  );
+  assert(
+    (lista.data ?? []).length === 0,
+    "o Básico recebeu a lista junto com o número",
+  );
+  return "número sim, lista não";
+});
+
+await check("contagem NÃO responde pela loja do vizinho", async () => {
+  const { data, error } = await ze.rpc("store_unmet_demand_count", {
+    target: STORE_DIST,
+  });
+  assert(!error, error?.message ?? "");
+  assert(data === 0, `contagem da vizinha veio ${data}`);
+  return "zero";
+});
+
 await check("Plus recebe o que falta, e só o que falta", async () => {
   await service
     .from("stores")
