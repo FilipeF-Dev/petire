@@ -115,3 +115,28 @@ jobs:
       # verdade. É a prova final de que schema e código combinam.
       - name: Build
         run: npm run build
+
+      # O teste de ponta a ponta vive aqui, e não no job de cima, porque
+      # precisa exatamente do que este job já montou: banco com o seed e site
+      # construído. Repetir isso num terceiro job dobraria o tempo do CI para
+      # provar a mesma coisa duas vezes.
+      #
+      # Só o Chromium, e `--with-deps` porque o runner do GitHub não traz as
+      # bibliotecas de sistema que o navegador precisa.
+      - name: Instalar o navegador do teste
+        run: npx playwright install --with-deps chromium
+
+      # `npm start` sobe pelo próprio Playwright (webServer), contra o build
+      # do passo anterior.
+      - name: Caminho do pedido, ponta a ponta
+        run: npm run test:e2e
+
+      # O rastro do que falhou. Sem isto, um teste que só quebra no CI vira
+      # adivinhação.
+      - name: Guardar o rastro da falha
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace
+          path: test-results/
+          retention-days: 7

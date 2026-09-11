@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireAdmin } from "@/lib/auth";
+import { initialPassword } from "@/lib/initial-password";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   editStoreSchema,
@@ -37,14 +38,6 @@ function refreshStorefront(slug: string | null) {
   revalidatePath("/admin");
   revalidatePath("/sitemap.xml");
   if (slug) revalidatePath(`/loja/${slug}`);
-}
-
-/** Senha inicial legível, para o admin passar por telefone sem soletrar hex. */
-function initialPassword(): string {
-  const words = ["pao", "mesa", "gelo", "forno", "balcao", "copo", "brasa"];
-  const word = words[Math.floor(Math.random() * words.length)];
-  const digits = String(Math.floor(1000 + Math.random() * 9000));
-  return `petire-${word}-${digits}`;
 }
 
 export type NewStoreState = FormState & {
@@ -119,12 +112,13 @@ async function provisionStore(data: ProvisionInput): Promise<ProvisionResult> {
   }
 
   const password = initialPassword();
-  const { data: created, error: userError } =
-    await admin.auth.admin.createUser({
+  const { data: created, error: userError } = await admin.auth.admin.createUser(
+    {
       email: data.managerEmail,
       password,
       email_confirm: true,
-    });
+    },
+  );
 
   if (userError || !created.user) {
     await admin.from("stores").delete().eq("id", store.id);
@@ -513,10 +507,7 @@ export async function deleteStore(
     await admin.storage.from("store-images").remove(files);
   }
 
-  const { error } = await admin
-    .from("stores")
-    .delete()
-    .eq("id", storeId.data);
+  const { error } = await admin.from("stores").delete().eq("id", storeId.data);
 
   if (error) return { error: "Não foi possível apagar a loja." };
 

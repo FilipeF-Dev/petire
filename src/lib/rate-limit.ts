@@ -44,12 +44,32 @@ function limpar(agora: number): void {
  * direção certa: no máximo limita demais, nunca de menos.
  */
 export function clientIp(request: Request): string {
-  const encaminhado = request.headers.get("x-forwarded-for");
+  return ipDosCabecalhos(request.headers);
+}
+
+/**
+ * O mesmo IP, para quem não tem `Request` na mão.
+ *
+ * Server Action não recebe a requisição — recebe o formulário. O IP chega por
+ * `headers()` do next/headers, que traz os mesmos cabeçalhos da borda.
+ */
+export function ipDosCabecalhos(cabecalhos: Headers): string {
+  const encaminhado = cabecalhos.get("x-forwarded-for");
   return encaminhado?.split(",")[0]?.trim() || "desconhecido";
 }
 
-/** Passou do limite? Conta a chamada e responde. */
-export function excedeuLimite(chave: string, agora = Date.now()): boolean {
+/**
+ * Passou do limite? Conta a chamada e responde.
+ *
+ * `limite` existe porque nem toda porta merece a mesma folga: telemetria é
+ * chamada a cada busca e precisa dos 30; formulário de cadastro não — cinco em
+ * um minuto já é mais do que qualquer pessoa manda.
+ */
+export function excedeuLimite(
+  chave: string,
+  agora = Date.now(),
+  limite = LIMITE,
+): boolean {
   const janela = janelas.get(chave);
 
   if (!janela || agora - janela.inicio >= JANELA_MS) {
@@ -59,7 +79,7 @@ export function excedeuLimite(chave: string, agora = Date.now()): boolean {
   }
 
   janela.contagem += 1;
-  return janela.contagem > LIMITE;
+  return janela.contagem > limite;
 }
 
 /** Para o teste conseguir começar do zero. */

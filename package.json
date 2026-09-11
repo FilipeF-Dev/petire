@@ -16,7 +16,8 @@
     "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts",
     "check:rls": "node scripts/check-rls.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
@@ -28,6 +29,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
