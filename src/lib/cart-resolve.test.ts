@@ -27,6 +27,8 @@ const ZE: CartStore = {
   delivery_fee_cents: 700,
   min_order_cents: 2000,
   whatsapp_e164: "5511987654321",
+  service_mode: "delivery",
+  address: "Rua Aspicuelta, 420",
 };
 
 const XSALADA: CatalogProduct = {

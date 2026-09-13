@@ -347,6 +347,14 @@ export const storeSchema = z.object({
   neighborhood: requiredText("Bairro", 80),
   cuisineTags: cuisineTagsField,
   kind: z.enum(["food", "drinks", "both"]),
+  /**
+   * Como a loja entrega o pedido: leva, atende no balcão, ou os dois.
+   *
+   * Sem padrão no schema: o formulário sempre manda um dos três, porque é um
+   * grupo de rádio com um marcado. Um padrão aqui esconderia o dia em que o
+   * campo sumisse da tela.
+   */
+  serviceMode: z.enum(["delivery", "pickup", "both"]),
   deliveryFee: money("Taxa de entrega"),
   deliveryMinutes: deliveryMinutesField,
   minOrder: money("Pedido mínimo"),

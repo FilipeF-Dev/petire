@@ -7,6 +7,7 @@ import { AddressFields } from "@/components/address-fields";
 import { CuisinePicker } from "@/components/cuisine-picker";
 import { ImageUpload } from "@/components/image-upload";
 import { Button, Field, FormError, inputClass } from "@/components/ui";
+import type { ServiceMode } from "@/lib/service-mode";
 import { emptyFormState } from "@/lib/validation";
 
 import { saveStore } from "./actions";
@@ -26,6 +27,7 @@ type Store = {
   neighborhood: string;
   cuisine_tags: string[];
   kind: "food" | "drinks" | "both";
+  service_mode: ServiceMode;
   delivery_fee_cents: number;
   free_delivery: boolean;
   delivery_minutes: number | null;
@@ -34,6 +36,43 @@ type Store = {
 
 function centsToInput(cents: number): string {
   return (cents / 100).toFixed(2).replace(".", ",");
+}
+
+/**
+ * Uma das três formas de atender, como rádio de verdade.
+ *
+ * Rádio nativo, e não botão com `aria-pressed` como no carrinho: aqui é um
+ * campo de formulário que precisa ser enviado com nome e valor, e o
+ * comportamento de grupo — setas do teclado, um só marcado — vem de graça.
+ */
+function ModoDeAtender({
+  value,
+  atual,
+  titulo,
+  detalhe,
+}: {
+  value: ServiceMode;
+  atual: ServiceMode;
+  titulo: string;
+  detalhe: string;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-neutral-200 p-3 transition hover:bg-surface-hover has-checked:border-neutral-900 dark:border-neutral-800 dark:has-checked:border-neutral-100">
+      <input
+        type="radio"
+        name="serviceMode"
+        value={value}
+        defaultChecked={atual === value}
+        className="mt-0.5 size-4"
+      />
+      <span>
+        <span className="block text-sm font-medium">{titulo}</span>
+        <span className="block text-xs text-neutral-500 dark:text-neutral-400">
+          {detalhe}
+        </span>
+      </span>
+    </label>
+  );
 }
 
 /** 5511987654321 → "(11) 98765-4321", que é como o lojista reconhece o número. */
@@ -163,6 +202,35 @@ export function StoreForm({ store }: { store: Store }) {
           />
         </Field>
       </div>
+
+      {/*
+        Vem antes da taxa de propósito: é ele que decide se a taxa faz sentido.
+        A lanchonete que só atende no balcão marca "Só retirada" e o site para
+        de prometer, no nome dela, uma entrega que não existe.
+      */}
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-medium">Como o pedido chega</legend>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <ModoDeAtender
+            value="delivery"
+            atual={store.service_mode}
+            titulo="Só entrega"
+            detalhe="Você leva até o cliente."
+          />
+          <ModoDeAtender
+            value="both"
+            atual={store.service_mode}
+            titulo="Entrega e retirada"
+            detalhe="O cliente escolhe no carrinho."
+          />
+          <ModoDeAtender
+            value="pickup"
+            atual={store.service_mode}
+            titulo="Só retirada"
+            detalhe="O cliente busca no balcão."
+          />
+        </div>
+      </fieldset>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">

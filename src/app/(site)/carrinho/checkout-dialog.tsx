@@ -9,6 +9,7 @@ import {
   type PlaceContact,
 } from "@/lib/customer-location";
 import type { Delivery } from "@/lib/order-message";
+import type { Escolha } from "@/lib/service-mode";
 
 /**
  * O último passo antes do WhatsApp.
@@ -35,16 +36,29 @@ import type { Delivery } from "@/lib/order-message";
  */
 export function CheckoutDialog({
   storeName,
+  storeAddress,
+  escolha,
   address,
   onCancel,
   onConfirm,
 }: {
   storeName: string;
+  /** Endereço da loja: é o que interessa quando o cliente é quem vai até lá. */
+  storeAddress: string | null;
+  /** Entrega ou retirada. Decide o que esta tela tem o direito de perguntar. */
+  escolha: Escolha;
   /** Endereço vindo do CEP. Nulo quando o cliente não informou nenhum. */
   address: Omit<Delivery, "recipient" | "number" | "complement"> | null;
   onCancel: () => void;
   onConfirm: (contact: PlaceContact) => void;
 }) {
+  /*
+    Na retirada o cliente não vai receber nada em casa, então perguntar o
+    número e o complemento dele seria pedir dado que ninguém vai usar — e
+    passar a impressão de que alguém vai bater na porta. Fica só o nome, que a
+    loja usa para chamar no balcão.
+  */
+  const retirada = escolha === "pickup";
   const [contact, setContact] = useState<PlaceContact>(readActiveContact);
   const [touched, setTouched] = useState(false);
 
@@ -52,6 +66,7 @@ export function CheckoutDialog({
   // e num sentido só: uma vez em edição, o formulário fica.
   const [isEditing, setIsEditing] = useState(
     () =>
+      retirada ||
       contact.recipient.trim() === "" ||
       contact.number.trim() === "" ||
       address === null,
@@ -59,7 +74,8 @@ export function CheckoutDialog({
 
   const recipient = contact.recipient.trim();
   const number = contact.number.trim();
-  const isValid = recipient !== "" && number !== "";
+  // Na retirada o número é do endereço da entrega, que não existe aqui.
+  const isValid = recipient !== "" && (retirada || number !== "");
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -80,17 +96,37 @@ export function CheckoutDialog({
     "w-full rounded-lg border border-neutral-300 bg-surface px-3 py-2.5 text-base outline-none focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-300";
 
   return (
-    <Modal label={`Dados da entrega — ${storeName}`} onClose={onCancel}>
+    <Modal
+      label={
+        retirada ? `Retirada — ${storeName}` : `Dados da entrega — ${storeName}`
+      }
+      onClose={onCancel}
+    >
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div>
-          <h2 className="text-lg font-semibold">Para onde vai o pedido?</h2>
+          <h2 className="text-lg font-semibold">
+            {retirada ? "Quem vai buscar?" : "Para onde vai o pedido?"}
+          </h2>
           <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
             Vai escrito na mensagem para {storeName}.
           </p>
         </div>
 
+        {/*
+          O endereço da loja, para quem vai até lá. Fica antes do campo porque
+          é a informação que decide se o cliente ainda quer buscar.
+        */}
+        {retirada && storeAddress ? (
+          <div className="rounded-lg bg-background p-3 text-sm">
+            <p className="text-neutral-600 dark:text-neutral-400">
+              Você busca em
+            </p>
+            <p className="mt-0.5 font-medium">{storeAddress}</p>
+          </div>
+        ) : null}
+
         {/* Conferência: o endereço inteiro do jeito que a loja vai ler. */}
-        {!isEditing && address ? (
+        {!retirada && !isEditing && address ? (
           <div className="rounded-lg bg-background p-3 text-sm">
             <p className="font-medium">
               {address.street ? `${address.street}, ` : null}nº {number}
@@ -118,7 +154,9 @@ export function CheckoutDialog({
         {isEditing ? (
           <>
             <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium">Quem vai receber</span>
+              <span className="text-sm font-medium">
+                {retirada ? "Quem vai buscar" : "Quem vai receber"}
+              </span>
               <input
                 value={contact.recipient}
                 onChange={(event) =>
@@ -131,12 +169,17 @@ export function CheckoutDialog({
               />
               {touched && recipient === "" ? (
                 <span className="text-xs text-red-600 dark:text-red-400">
-                  Informe quem vai receber.
+                  {retirada
+                    ? "Informe quem vai buscar."
+                    : "Informe quem vai receber."}
                 </span>
               ) : null}
             </label>
 
-            <div className="grid grid-cols-[1fr_2fr] gap-3">
+            {/* O endereço de quem pede só existe quando alguém vai levar. */}
+            <div
+              className={retirada ? "hidden" : "grid grid-cols-[1fr_2fr] gap-3"}
+            >
               <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium">Número</span>
                 <input
@@ -175,7 +218,7 @@ export function CheckoutDialog({
               </label>
             </div>
 
-            {address ? (
+            {retirada ? null : address ? (
               <p className="rounded-lg bg-background p-3 text-sm text-neutral-600 dark:text-neutral-400">
                 {address.street ? `${address.street} · ` : null}
                 {address.neighborhood ? `${address.neighborhood} · ` : null}

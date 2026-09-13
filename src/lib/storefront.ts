@@ -44,6 +44,10 @@ const CARD_COLUMNS = [
   "delivery_fee_cents",
   "delivery_minutes",
   "min_order_cents",
+  // Entrega, retirada, ou os dois. Na listagem porque a etiqueta de "só
+  // retirada" precisa aparecer antes de o cliente abrir a loja — descobrir
+  // isso no carrinho é descobrir tarde.
+  "service_mode",
 ] as const;
 
 const DETAIL_COLUMNS = [

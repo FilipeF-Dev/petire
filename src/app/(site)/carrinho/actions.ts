@@ -57,7 +57,7 @@ export async function resolveCart(input: unknown): Promise<ResolvedCart> {
       // do ar some do carrinho junto.
       supabase
         .from("stores_public")
-        .select(`${CARD_SELECT}, whatsapp_e164, is_open_manual`)
+        .select(`${CARD_SELECT}, whatsapp_e164, is_open_manual, address`)
         .in("id", storeIds),
       supabase
         .from("products")

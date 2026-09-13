@@ -1,4 +1,9 @@
 import { openingLabel, type OpeningHour } from "./opening";
+import {
+  escolhaPadrao,
+  taxaDaEscolha,
+  type ServiceMode,
+} from "./service-mode";
 import { priceOf, type Promotion } from "./promotions";
 
 /**
@@ -46,6 +51,9 @@ export type CartStore = {
   delivery_fee_cents: number;
   min_order_cents: number;
   whatsapp_e164: string;
+  service_mode: ServiceMode;
+  /** Vai na mensagem quando o pedido é para buscar. */
+  address: string | null;
 };
 
 export type CatalogProduct = {
@@ -103,6 +111,18 @@ export type ResolvedStore = {
    * responde.
    */
   opensLabel: string | null;
+  /** O que a loja faz: entrega, retirada, ou os dois. */
+  serviceMode: ServiceMode;
+  /** Endereço da loja, para quem vai buscar. */
+  address: string | null;
+  /**
+   * A taxa **cadastrada**, e não a deste pedido.
+   *
+   * Quem faz a conta é `taxaDaEscolha`, porque numa loja que faz as duas
+   * coisas ela só existe depois de o cliente escolher — e ele troca de ideia
+   * com o carrinho aberto. `totalCents` abaixo já vem com a escolha padrão
+   * aplicada; a tela refaz a conta quando o cliente muda.
+   */
   deliveryFeeCents: number;
   minOrderCents: number;
   lines: ResolvedLine[];
@@ -256,11 +276,18 @@ export function assembleCart(
       opensLabel: store.is_open_now
         ? null
         : openingLabel(hours, store.is_open_manual, now),
+      serviceMode: store.service_mode,
+      address: store.address,
       deliveryFeeCents: store.delivery_fee_cents,
       minOrderCents: store.min_order_cents,
       lines: storeLines,
       subtotalCents,
-      totalCents: subtotalCents + store.delivery_fee_cents,
+      totalCents:
+        subtotalCents +
+        taxaDaEscolha(
+          escolhaPadrao(store.service_mode),
+          store.delivery_fee_cents,
+        ),
       meetsMinimum: subtotalCents >= store.min_order_cents,
       whatsappE164: store.whatsapp_e164,
     });
