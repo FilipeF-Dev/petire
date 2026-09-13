@@ -95,6 +95,53 @@ export function Modal({
     // hidratação nunca receberia o foco.
   }, [isBrowser]);
 
+  /*
+    O gesto de voltar fecha o diálogo, em vez de sair da página.
+
+    No celular, arrastar o dedo da borda para o centro é o "cancelar" universal,
+    e com um pop-up aberto ele significa "desisti deste item". O que acontecia
+    era o contrário: o diálogo continuava lá e a **página atrás dele** voltava —
+    a pessoa perdia o cardápio inteiro para fechar uma caixa.
+
+    A solução é dar ao gesto o que desfazer. Ao abrir, o diálogo marca uma
+    parada no histórico, no mesmo endereço; voltar consome essa parada e o
+    `popstate` fecha a caixa, sem a página sair do lugar.
+
+    Na volta, a limpeza olha se a parada ainda é a atual. Se foi o gesto que
+    fechou, ela já saiu do histórico e não há o que desfazer; se foi o Esc, o X
+    ou o toque no fundo, ela continua lá e precisa ser removida — senão o
+    próximo "voltar" da pessoa só desfaria um diálogo que já não existe.
+
+    `onClose` fica numa ref, e não nas dependências: este efeito mexe no
+    histórico e precisa rodar uma vez só. Foi exatamente essa a origem do bug do
+    teclado que descia a cada letra digitada.
+  */
+  const fechar = useRef(onClose);
+
+  // Atualizado num efeito, e não durante o render: escrever numa ref enquanto
+  // o React renderiza é o que a regra react-hooks/refs proíbe, e com razão —
+  // render precisa poder ser refeito sem deixar rastro.
+  useEffect(() => {
+    fechar.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    const MARCA = "petire:modal";
+
+    window.history.pushState({ [MARCA]: true }, "", window.location.href);
+
+    const aoVoltar = () => fechar.current();
+    window.addEventListener("popstate", aoVoltar);
+
+    return () => {
+      window.removeEventListener("popstate", aoVoltar);
+
+      if ((window.history.state as Record<string, unknown> | null)?.[MARCA]) {
+        window.history.back();
+      }
+    };
+  }, [isBrowser]);
+
   useEffect(() => {
     const focaveis = () =>
       Array.from(
