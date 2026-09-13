@@ -106,6 +106,28 @@ test("o carrinho sobrevive a recarregar a página", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Ver carrinho" })).toBeVisible();
 });
 
+test("digitar a observação não derruba o teclado", async ({ page }) => {
+  /*
+    Bug de verdade, relatado de um celular: a cada letra digitada na observação
+    do item, o teclado descia. O diálogo devolvia o foco ao botão de trás e o
+    trazia de volta ao painel a cada render, porque o efeito que mexe no foco
+    dependia de uma função criada na hora — nova a cada render.
+
+    `pressSequentially` e não `fill`: o bug só aparece tecla por tecla, que é
+    como uma pessoa escreve. `fill` põe o valor de uma vez e passaria mesmo
+    com o defeito no lugar.
+  */
+  await page.goto("/loja/lanchonete-do-ze");
+  await page.getByRole("button", { name: "X-Salada" }).click();
+
+  const observacao = page.getByRole("textbox", { name: "Observação" });
+  await observacao.click();
+  await observacao.pressSequentially("sem cebola, por favor");
+
+  await expect(observacao).toBeFocused();
+  await expect(observacao).toHaveValue("sem cebola, por favor");
+});
+
 function reais(cents: number): string {
   return `R$ ${(cents / 100).toFixed(2).replace(".", ",")}`;
 }
