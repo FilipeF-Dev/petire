@@ -249,6 +249,95 @@ await check("a vitrine anônima diz quem entrega", async () => {
   return data.service_mode;
 });
 
+/*
+  Reordenar o cardápio.
+
+  A ordenação inteira desceu para o banco depois de um relato real: o item
+  parava de se mover. A causa era que ler e escrever aconteciam em chamadas
+  separadas, e um clique impaciente lia a ordem antes de o anterior terminar de
+  escrever. Como agora é uma função, é aqui que ela precisa ser vigiada — a
+  fronteira do que um lojista pode reordenar passou a ser o RLS de dentro dela.
+*/
+const CAT_ZE = "c1111111-1111-4111-8111-111111111111";
+const CAT_DIST = "f1111111-1111-4111-8111-111111111111";
+
+// service_role para ler: a conferência precisa enxergar as duas lojas, e é o
+// próprio recorte do RLS que está sendo medido.
+const servico = serviceClient();
+
+const ordemDe = async (storeId, categoryId) => {
+  const { data } = await servico
+    .from("products")
+    .select("id, sort_order")
+    .eq("store_id", storeId)
+    .eq("category_id", categoryId)
+    .order("sort_order")
+    .order("created_at")
+    .order("id");
+  return data;
+};
+
+await check("reordena o próprio cardápio numa chamada só", async () => {
+  const antes = await ordemDe(STORE_ZE, CAT_ZE);
+  assert(antes.length >= 2, "categoria de teste com menos de dois itens");
+
+  const alvo = antes[1];
+  const { error } = await ze.rpc("move_product", {
+    p_store: STORE_ZE,
+    p_category: CAT_ZE,
+    p_id: alvo.id,
+    p_direction: "up",
+  });
+  assert(!error, error?.message ?? "");
+
+  const depois = await ordemDe(STORE_ZE, CAT_ZE);
+  assert(depois[0].id === alvo.id, "o item não subiu");
+
+  // Denso e sem buraco: é o que conserta sozinho um sort_order duplicado.
+  assert(
+    depois.every((linha, i) => linha.sort_order === i),
+    `posições saíram ${depois.map((l) => l.sort_order).join(",")}`,
+  );
+
+  // Devolve para não atrapalhar quem vier depois.
+  await ze.rpc("move_product", {
+    p_store: STORE_ZE,
+    p_category: CAT_ZE,
+    p_id: alvo.id,
+    p_direction: "down",
+  });
+
+  return `${depois.length} itens, posições 0..${depois.length - 1}`;
+});
+
+await check("NÃO reordena o cardápio do vizinho", async () => {
+  const antes = await ordemDe(STORE_DIST, CAT_DIST);
+
+  await ze.rpc("move_product", {
+    p_store: STORE_DIST,
+    p_category: CAT_DIST,
+    p_id: antes[1].id,
+    p_direction: "up",
+  });
+
+  const depois = await ordemDe(STORE_DIST, CAT_DIST);
+  assert(
+    antes.map((l) => l.id).join() === depois.map((l) => l.id).join(),
+    "gerente reordenou o cardápio de outra loja",
+  );
+});
+
+await check("anon NÃO reordena cardápio nenhum", async () => {
+  const { error } = await anon.rpc("move_product", {
+    p_store: STORE_ZE,
+    p_category: CAT_ZE,
+    p_id: (await ordemDe(STORE_ZE, CAT_ZE))[0].id,
+    p_direction: "down",
+  });
+  assert(error, "anônimo executou a função de reordenar");
+  return error.code;
+});
+
 await check("cria produto na própria loja", async () => {
   const { data, error } = await ze
     .from("products")
