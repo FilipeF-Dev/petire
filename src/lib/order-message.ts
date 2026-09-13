@@ -1,4 +1,5 @@
 import { formatCents, formatDeliveryFee } from "./money";
+import type { Escolha } from "./service-mode";
 
 export type OrderOption = {
   groupName: string;
@@ -52,6 +53,21 @@ export type Order = {
   deliveryFeeCents: number;
   totalCents: number;
   delivery?: Delivery | null;
+  /**
+   * Como este pedido vai sair da loja.
+   *
+   * Ausente é entrega, que é o que toda loja fazia quando esta mensagem foi
+   * escrita — o padrão mantém intactas as chamadas que não sabem do assunto.
+   */
+  escolha?: Escolha;
+  /**
+   * O endereço **da loja**, para a mensagem de retirada.
+   *
+   * Quem vai buscar precisa saber onde. Vai escrito na mensagem, e não só na
+   * página, porque é a mensagem que fica na conversa do cliente — é ali que
+   * ele procura o endereço quando está saindo de casa.
+   */
+  storeAddress?: string | null;
 };
 
 /**
@@ -88,11 +104,23 @@ function render(order: Order, detail: Detail): string {
     items.push(`… e mais ${hidden} ${hidden === 1 ? "item" : "itens"}`);
   }
 
-  const totals = [
-    `Subtotal: ${formatCents(order.subtotalCents)}`,
-    `Entrega: ${formatDeliveryFee(order.deliveryFeeCents)}`,
-    `*Total: ${formatCents(order.totalCents)}*`,
-  ];
+  const retirada = order.escolha === "pickup";
+
+  /*
+    Na retirada não existe linha de entrega. "Entrega: grátis" seria o site
+    prometendo, no nome da loja, um serviço que ela não faz — e é justamente o
+    mal-entendido que este modo veio resolver.
+  */
+  const totals = retirada
+    ? [
+        `Subtotal: ${formatCents(order.subtotalCents)}`,
+        `*Total: ${formatCents(order.totalCents)}*`,
+      ]
+    : [
+        `Subtotal: ${formatCents(order.subtotalCents)}`,
+        `Entrega: ${formatDeliveryFee(order.deliveryFeeCents)}`,
+        `*Total: ${formatCents(order.totalCents)}*`,
+      ];
 
   return [
     "*Pedido via Petire*",
@@ -101,7 +129,9 @@ function render(order: Order, detail: Detail): string {
     "",
     totals.join("\n"),
     "",
-    ...deliveryBlock(order.delivery),
+    ...(retirada
+      ? pickupBlock(order.delivery, order.storeAddress)
+      : deliveryBlock(order.delivery)),
     ...backLink(order.storeUrl),
   ].join("\n");
 }
@@ -117,6 +147,25 @@ function render(order: Order, detail: Detail): string {
 function backLink(storeUrl: string | null | undefined): string[] {
   if (!storeUrl) return [];
   return ["", `Pedir de novo: ${storeUrl.replace(/^https?:\/\//, "")}`];
+}
+
+/**
+ * O pedido que o cliente busca.
+ *
+ * O que a loja precisa saber muda de lado: não é para onde levar, é quem vem
+ * buscar — o nome com que ela vai chamar no balcão. E o endereço que vai na
+ * mensagem é o **dela**, para o cliente ter na mão na hora de sair.
+ */
+function pickupBlock(
+  delivery: Delivery | null | undefined,
+  storeAddress: string | null | undefined,
+): string[] {
+  const lines = ["*Retirada no balcão*"];
+
+  lines.push(delivery?.recipient ? `Nome: ${delivery.recipient}` : "Nome:");
+  if (storeAddress) lines.push(`Endereço da loja: ${storeAddress}`);
+
+  return lines;
 }
 
 /**

@@ -123,7 +123,9 @@ describe("caminho de volta", () => {
   it("deixa o link da loja no fim da mensagem", () => {
     const text = normalize(buildOrderMessage(order({ storeUrl })));
 
-    expect(text).toContain("Pedir de novo: petire.com.br/loja/lanchonete-do-ze");
+    expect(text).toContain(
+      "Pedir de novo: petire.com.br/loja/lanchonete-do-ze",
+    );
   });
 
   it("tira o https:// para o WhatsApp linkar sozinho", () => {
@@ -229,5 +231,70 @@ describe("whatsappUrl", () => {
     expect(decodeURIComponent(url.split("?text=")[1])).toBe(
       "Endereço:\nRua Aspicuelta",
     );
+  });
+});
+
+describe("pedido para buscar", () => {
+  /*
+    A loja que não entrega. O que muda não é cosmético: sai a linha de entrega,
+    que seria o site prometendo em nome dela um serviço que ela não faz, e
+    entra o endereço **dela** — quem vai buscar precisa saber onde, e é na
+    conversa do WhatsApp que ele vai procurar isso na hora de sair de casa.
+  */
+  const PEDIDO = {
+    storeName: "Distribuidora do Bairro",
+    lines: [
+      {
+        name: "Gelo 5kg",
+        quantity: 1,
+        totalCents: 1200,
+        options: [],
+        note: null,
+      },
+    ],
+    subtotalCents: 1200,
+    deliveryFeeCents: 0,
+    totalCents: 1200,
+    escolha: "pickup" as const,
+    storeAddress: "Rua Harmonia, 77",
+    delivery: {
+      recipient: "Filipe",
+      number: "",
+      complement: "",
+      cep: "",
+      street: "",
+      neighborhood: "",
+      city: "",
+      uf: "",
+    },
+  };
+
+  it("não escreve linha de entrega", () => {
+    expect(buildOrderMessage(PEDIDO)).not.toContain("Entrega:");
+  });
+
+  it("diz que é retirada, e onde", () => {
+    const mensagem = buildOrderMessage(PEDIDO);
+
+    expect(mensagem).toContain("Retirada no balcão");
+    expect(mensagem).toContain("Endereço da loja: Rua Harmonia, 77");
+    expect(mensagem).toContain("Nome: Filipe");
+  });
+
+  it("não pede o endereço do cliente", () => {
+    // A linha "Endereço:" em branco é o que obriga a loja a perguntar. Na
+    // retirada não há o que perguntar, então ela não pode aparecer.
+    expect(buildOrderMessage(PEDIDO)).not.toContain("Complemento:");
+  });
+
+  it("o total continua sendo o subtotal quando ninguém entrega", () => {
+    // O espaço depois de "R$" é inquebrável, como o Intl do pt-BR escreve.
+    // Normalizar aqui evita um teste que falha por um caractere invisível.
+    const mensagem = buildOrderMessage(PEDIDO).replaceAll(
+      String.fromCharCode(0xa0),
+      " ",
+    );
+
+    expect(mensagem).toContain("*Total: R$ 12,00*");
   });
 });

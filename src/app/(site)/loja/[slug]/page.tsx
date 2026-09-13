@@ -6,6 +6,7 @@ import { siteUrl } from "@/lib/env";
 import { formatDeliveryTime } from "@/lib/delivery";
 import { jsonLdScript } from "@/lib/json-ld";
 import { startingPrice } from "@/lib/menu-price";
+import { fazEntrega, fazRetirada } from "@/lib/service-mode";
 import { formatCents, formatDeliveryFee } from "@/lib/money";
 import { priceOf, type Promotion } from "@/lib/promotions";
 import { fetchAllRows } from "@/lib/storefront";
@@ -294,11 +295,26 @@ export default async function LojaPage({ params }: PageProps<"/loja/[slug]">) {
               {store.neighborhood}, {store.city}
             </p>
 
+            {/*
+              A loja que não entrega não pode ter uma linha começando com
+              "Entrega": o cliente lê a primeira palavra e monta o pedido
+              esperando receber em casa. Aqui ele lê "Retirada no balcão" antes
+              de escolher o primeiro item.
+            */}
             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-              Entrega {formatDeliveryFee(store.delivery_fee_cents)}
-              {formatDeliveryTime(store.delivery_minutes)
-                ? ` · ${formatDeliveryTime(store.delivery_minutes)}`
-                : null}
+              {fazEntrega(store.service_mode) ? (
+                <>
+                  Entrega {formatDeliveryFee(store.delivery_fee_cents)}
+                  {formatDeliveryTime(store.delivery_minutes)
+                    ? ` · ${formatDeliveryTime(store.delivery_minutes)}`
+                    : null}
+                  {fazRetirada(store.service_mode)
+                    ? " · ou retire no balcão"
+                    : null}
+                </>
+              ) : (
+                "Retirada no balcão — esta loja não entrega"
+              )}
               {store.min_order_cents > 0
                 ? ` · pedido mínimo ${formatCents(store.min_order_cents)}`
                 : null}

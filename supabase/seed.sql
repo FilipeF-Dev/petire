@@ -63,7 +63,70 @@ insert into public.stores (
   now(),
   'active',
   current_date + 30
+),
+(
+  '33333333-3333-4333-8333-333333333333',
+  'pizzaria-da-esquina',
+  'Pizzaria da Esquina',
+  'Pizza de forno a lenha. Entrega no bairro ou retire no balcão.',
+  '5511998887777',
+  'Rua Fidalga, 300',
+  '05432070', 'SP', '3550308',
+  'São Paulo',
+  'Vila Madalena',
+  -23.5540, -46.6880,
+  array['pizza'],
+  'food',
+  600,
+  45,
+  0,
+  true,
+  now(),
+  'active',
+  current_date + 60
 );
+
+-- ----------------------------------------------------------------------------
+-- Como cada uma atende
+--
+-- A Distribuidora entra como "só retirada" para o caminho da retirada ter uma
+-- loja de verdade nos testes, do cardápio até a mensagem. Ela é também o caso
+-- que motivou o campo: uma lanchonete de produção que recebe o pedido pelo
+-- WhatsApp e o cliente busca.
+--
+-- O Zé continua em 'delivery', que é o padrão da coluna e o caminho que o
+-- teste do pedido percorre.
+-- ----------------------------------------------------------------------------
+
+update public.stores
+   set service_mode = 'pickup',
+       delivery_fee_cents = 0,
+       delivery_minutes = null
+ where slug = 'distribuidora-do-bairro';
+
+-- A Pizzaria faz as duas coisas, que é o caso da maioria das lojas de rua — e
+-- o único em que o carrinho tem o que perguntar ao cliente.
+update public.stores
+   set service_mode = 'both'
+ where slug = 'pizzaria-da-esquina';
+
+-- Cardápio e horário da Pizzaria: o mínimo para o carrinho ter o que montar.
+insert into public.menu_categories (id, store_id, name, sort_order) values
+  ('a1111111-1111-4111-8111-111111111111', '33333333-3333-4333-8333-333333333333', 'Pizzas', 0);
+
+insert into public.products (id, store_id, category_id, name, description, price_cents, sort_order) values
+  ('b1111111-1111-4111-8111-111111111111', '33333333-3333-4333-8333-333333333333', 'a1111111-1111-4111-8111-111111111111',
+   'Margherita', 'Molho de tomate, muçarela de búfala e manjericão.', 5900, 0),
+  ('b2222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333', 'a1111111-1111-4111-8111-111111111111',
+   'Calabresa', 'Calabresa fatiada, cebola e orégano.', 5500, 1);
+
+insert into public.store_hours (store_id, weekday, opens_at, closes_at) values
+  ('33333333-3333-4333-8333-333333333333', 0, '18:00', '23:00'),
+  ('33333333-3333-4333-8333-333333333333', 2, '18:00', '23:00'),
+  ('33333333-3333-4333-8333-333333333333', 3, '18:00', '23:00'),
+  ('33333333-3333-4333-8333-333333333333', 4, '18:00', '23:00'),
+  ('33333333-3333-4333-8333-333333333333', 5, '18:00', '23:59'),
+  ('33333333-3333-4333-8333-333333333333', 6, '18:00', '23:59');
 
 -- ----------------------------------------------------------------------------
 -- Horários

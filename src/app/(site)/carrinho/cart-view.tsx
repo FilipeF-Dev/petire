@@ -16,6 +16,12 @@ import {
   type Delivery,
 } from "@/lib/order-message";
 import { rememberOrder } from "@/lib/recent-orders";
+import {
+  escolhaPadrao,
+  precisaEscolher,
+  taxaDaEscolha,
+  type Escolha,
+} from "@/lib/service-mode";
 
 import { CheckoutDialog } from "./checkout-dialog";
 
@@ -43,6 +49,43 @@ function reportWhatsappClick(storeId: string) {
 
 type Address = Omit<Delivery, "recipient" | "number" | "complement">;
 
+/**
+ * Uma das duas formas de receber o pedido.
+ *
+ * Botão com `aria-pressed`, e não um `input[type=radio]`: o alvo é o cartão
+ * inteiro, no celular, com uma mão só — e um rádio de verdade obrigaria a
+ * envolver tudo num `label` para conseguir a mesma área de toque.
+ */
+function ModoOpcao({
+  checked,
+  onSelect,
+  titulo,
+  detalhe,
+}: {
+  checked: boolean;
+  onSelect: () => void;
+  titulo: string;
+  detalhe: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={checked}
+      className={`rounded-lg border px-3 py-2.5 text-left transition ${
+        checked
+          ? "border-neutral-900 bg-surface dark:border-neutral-100"
+          : "border-neutral-200 hover:bg-surface-hover dark:border-neutral-800"
+      }`}
+    >
+      <span className="block text-sm font-medium">{titulo}</span>
+      <span className="block text-xs text-neutral-500 dark:text-neutral-400">
+        {detalhe}
+      </span>
+    </button>
+  );
+}
+
 function StoreOrder({
   store,
   address,
@@ -52,6 +95,22 @@ function StoreOrder({
 }) {
   const [sent, setSent] = useState(false);
   const [isAsking, setIsAsking] = useState(false);
+
+  /*
+    Como este pedido sai da loja. Só é pergunta quando a loja faz as duas
+    coisas; nas outras, `escolhaPadrao` já devolve a única que existe e o
+    controle abaixo nem chega a ser desenhado.
+  */
+  const [escolha, setEscolha] = useState<Escolha>(() =>
+    escolhaPadrao(store.serviceMode),
+  );
+
+  // A conta deste pedido, e não a da loja: quem busca não paga entrega. A
+  // aritmética fica em service-mode.ts, que é o mesmo lugar de onde a montagem
+  // do carrinho tirou o total padrão — duas cópias é como dois totais passam a
+  // discordar.
+  const taxaCents = taxaDaEscolha(escolha, store.deliveryFeeCents);
+  const totalCents = store.subtotalCents + taxaCents;
 
   const missing = store.minOrderCents - store.subtotalCents;
 
@@ -95,8 +154,11 @@ function StoreOrder({
         note: line.note,
       })),
       subtotalCents: store.subtotalCents,
-      deliveryFeeCents: store.deliveryFeeCents,
-      totalCents: store.totalCents,
+      deliveryFeeCents: taxaCents,
+      totalCents,
+      escolha,
+      // O endereço da loja, para quem vai buscar ter na mão ao sair de casa.
+      storeAddress: store.address,
       delivery: {
         cep: address?.cep ?? "",
         street: address?.street ?? "",
@@ -107,9 +169,15 @@ function StoreOrder({
       },
     });
 
-    // location.href e não window.open: o Safari no iOS bloqueia popup aberto
-    // fora de um gesto direto, e o pedido simplesmente não sairia.
-    window.location.href = whatsappUrl(store.whatsappE164, message);
+    /*
+      Navegação nesta aba, e não window.open: o Safari no iOS bloqueia popup
+      aberto fora de um gesto direto, e o pedido simplesmente não sairia.
+
+      `assign` e não `location.href = `: é a mesma navegação, mas escrever num
+      objeto de fora do componente é o que a regra react-hooks/immutability
+      proíbe — e ela tem razão no geral, ainda que aqui o objeto seja a janela.
+    */
+    window.location.assign(whatsappUrl(store.whatsappE164, message));
   }
 
   return (
@@ -206,20 +274,64 @@ function StoreOrder({
         ))}
       </ul>
 
+      {precisaEscolher(store.serviceMode) ? (
+        <fieldset className="border-t border-neutral-200 p-4 dark:border-neutral-800">
+          <legend className="sr-only">Como receber o pedido</legend>
+
+          {/*
+            Duas opções lado a lado, com o preço de cada uma escrito. A escolha
+            muda o total, e escolher sem ver quanto muda é escolher no escuro.
+          */}
+          <div className="grid grid-cols-2 gap-2">
+            <ModoOpcao
+              checked={escolha === "delivery"}
+              onSelect={() => setEscolha("delivery")}
+              titulo="Entrega"
+              detalhe={formatDeliveryFee(store.deliveryFeeCents)}
+            />
+            <ModoOpcao
+              checked={escolha === "pickup"}
+              onSelect={() => setEscolha("pickup")}
+              titulo="Retirar no balcão"
+              detalhe="sem taxa"
+            />
+          </div>
+        </fieldset>
+      ) : null}
+
       <div className="flex flex-col gap-1 p-4 text-sm">
         <div className="flex justify-between">
-          <span className="text-neutral-500 dark:text-neutral-400">Subtotal</span>
-          <span className="tabular-nums">{formatCents(store.subtotalCents)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-neutral-500 dark:text-neutral-400">Entrega</span>
+          <span className="text-neutral-500 dark:text-neutral-400">
+            Subtotal
+          </span>
           <span className="tabular-nums">
-            {formatDeliveryFee(store.deliveryFeeCents)}
+            {formatCents(store.subtotalCents)}
           </span>
         </div>
+
+        {/*
+          Na retirada não existe linha de entrega. "Entrega: grátis" seria o
+          site prometendo, no nome da loja, um serviço que ela não faz.
+        */}
+        {escolha === "pickup" ? (
+          <div className="flex justify-between">
+            <span className="text-neutral-500 dark:text-neutral-400">
+              Retirada
+            </span>
+            <span>no balcão</span>
+          </div>
+        ) : (
+          <div className="flex justify-between">
+            <span className="text-neutral-500 dark:text-neutral-400">
+              Entrega
+            </span>
+            <span className="tabular-nums">{formatDeliveryFee(taxaCents)}</span>
+          </div>
+        )}
+
         <div className="mt-1 flex justify-between font-medium">
           <span>Total</span>
-          <span className="tabular-nums">{formatCents(store.totalCents)}</span>
+          <span className="tabular-nums">{formatCents(totalCents)}</span>
         </div>
       </div>
 
@@ -275,14 +387,17 @@ function StoreOrder({
         )}
 
         <p className="mt-3 text-center text-xs text-neutral-500 dark:text-neutral-400">
-          O pedido abre no WhatsApp da loja já escrito. Entrega e pagamento você
-          combina direto com ela.
+          {escolha === "pickup"
+            ? "O pedido abre no WhatsApp da loja já escrito. Ela avisa quando estiver pronto."
+            : "O pedido abre no WhatsApp da loja já escrito. Entrega e pagamento você combina direto com ela."}
         </p>
       </div>
 
       {isAsking ? (
         <CheckoutDialog
           storeName={store.name}
+          storeAddress={store.address}
+          escolha={escolha}
           address={address}
           onCancel={() => setIsAsking(false)}
           onConfirm={send}

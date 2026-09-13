@@ -820,6 +820,7 @@ export type Database = {
           neighborhood_slug: string | null
           plan: Database["public"]["Enums"]["store_plan"]
           published_at: string | null
+          service_mode: Database["public"]["Enums"]["service_mode"]
           slug: string
           state_uf: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
@@ -856,6 +857,7 @@ export type Database = {
           neighborhood_slug?: string | null
           plan?: Database["public"]["Enums"]["store_plan"]
           published_at?: string | null
+          service_mode?: Database["public"]["Enums"]["service_mode"]
           slug: string
           state_uf?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
@@ -892,6 +894,7 @@ export type Database = {
           neighborhood_slug?: string | null
           plan?: Database["public"]["Enums"]["store_plan"]
           published_at?: string | null
+          service_mode?: Database["public"]["Enums"]["service_mode"]
           slug?: string
           state_uf?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
@@ -984,6 +987,7 @@ export type Database = {
           name_slug: string | null
           neighborhood: string | null
           neighborhood_slug: string | null
+          service_mode: Database["public"]["Enums"]["service_mode"] | null
           slug: string | null
           state_uf: string | null
           whatsapp_e164: string | null
@@ -1012,6 +1016,7 @@ export type Database = {
           name_slug?: string | null
           neighborhood?: string | null
           neighborhood_slug?: string | null
+          service_mode?: Database["public"]["Enums"]["service_mode"] | null
           slug?: string | null
           state_uf?: string | null
           whatsapp_e164?: string | null
@@ -1040,6 +1045,7 @@ export type Database = {
           name_slug?: string | null
           neighborhood?: string | null
           neighborhood_slug?: string | null
+          service_mode?: Database["public"]["Enums"]["service_mode"] | null
           slug?: string | null
           state_uf?: string | null
           whatsapp_e164?: string | null
@@ -1171,6 +1177,7 @@ export type Database = {
       manager_role: "manager" | "admin"
       promotion_kind: "percent" | "fixed"
       prospect_status: "a_visitar" | "visitada" | "cadastrada" | "recusou"
+      service_mode: "delivery" | "pickup" | "both"
       store_kind: "food" | "drinks" | "both"
       store_plan: "basico" | "plus"
       subscription_status: "trial" | "active" | "past_due" | "suspended"
@@ -1310,6 +1317,7 @@ export const Constants = {
       manager_role: ["manager", "admin"],
       promotion_kind: ["percent", "fixed"],
       prospect_status: ["a_visitar", "visitada", "cadastrada", "recusou"],
+      service_mode: ["delivery", "pickup", "both"],
       store_kind: ["food", "drinks", "both"],
       store_plan: ["basico", "plus"],
       subscription_status: ["trial", "active", "past_due", "suspended"],

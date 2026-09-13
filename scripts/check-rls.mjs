@@ -82,10 +82,21 @@ console.log("\nVisitante sem login (anon)");
 
 const anon = anonClient();
 
+/*
+  Quantas lojas o seed publica. O número é o teste: se a conta subir sem que
+  alguém tenha cadastrado uma loja, é porque uma inativa ou uma com assinatura
+  vencida passou a aparecer na vitrine — e essa é a falha que este arquivo
+  existe para pegar. Acompanha supabase/seed.sql.
+*/
+const LOJAS_PUBLICAS = 3;
+
 await check("lê o catálogo de lojas ativas", async () => {
   const { data, error } = await anon.from("stores").select("id, name");
   assert(!error, error?.message ?? "");
-  assert(data.length === 2, `esperava 2 lojas, veio ${data.length}`);
+  assert(
+    data.length === LOJAS_PUBLICAS,
+    `esperava ${LOJAS_PUBLICAS} lojas, veio ${data.length}`,
+  );
   return `${data.length} lojas`;
 });
 
@@ -131,7 +142,10 @@ await check("lê a vitrine com o status de aberto resolvido", async () => {
     .from("stores_public")
     .select("slug, name, is_open_now");
   assert(!error, error?.message ?? "");
-  assert(data.length === 2, `esperava 2 lojas, veio ${data.length}`);
+  assert(
+    data.length === LOJAS_PUBLICAS,
+    `esperava ${LOJAS_PUBLICAS} lojas, veio ${data.length}`,
+  );
   assert(
     data.every((s) => typeof s.is_open_now === "boolean"),
     "is_open_now não veio como booleano",
@@ -185,6 +199,54 @@ await check("NÃO edita a loja do vizinho", async () => {
     .select("id");
   assert(!error, error?.message ?? "");
   assert(data.length === 0, "gerente editou a loja de outro");
+});
+
+/*
+  Entrega ou retirada: o lojista muda sozinho, porque é informação dele sobre o
+  negócio dele — como o horário e a taxa. Se precisasse do suporte, a loja que
+  parasse de entregar passaria dias prometendo entrega.
+*/
+await check("escolhe sozinho entre entrega e retirada", async () => {
+  const { data, error } = await ze
+    .from("stores")
+    .update({ service_mode: "both" })
+    .eq("id", STORE_ZE)
+    .select("service_mode");
+  assert(!error, error?.message ?? "");
+  assert(data.length === 1, "gerente não conseguiu mudar o próprio modo");
+
+  await ze
+    .from("stores")
+    .update({ service_mode: "delivery" })
+    .eq("id", STORE_ZE);
+
+  return data[0].service_mode;
+});
+
+await check("NÃO faz o vizinho parar de entregar", async () => {
+  const { data, error } = await ze
+    .from("stores")
+    .update({ service_mode: "pickup" })
+    .eq("id", STORE_DIST)
+    .select("id");
+  assert(!error, error?.message ?? "");
+  assert(data.length === 0, "gerente mudou o atendimento de outra loja");
+});
+
+await check("a vitrine anônima diz quem entrega", async () => {
+  // Sem isto na view pública, a página da loja não tem como avisar antes de o
+  // cliente montar o pedido — e ele descobre no carrinho.
+  const { data, error } = await anon
+    .from("stores_public")
+    .select("slug, service_mode")
+    .eq("slug", "distribuidora-do-bairro")
+    .single();
+  assert(!error, error?.message ?? "");
+  assert(
+    data.service_mode === "pickup",
+    `vitrine devolveu ${data.service_mode}`,
+  );
+  return data.service_mode;
 });
 
 await check("cria produto na própria loja", async () => {

@@ -8,6 +8,7 @@ import { useCustomerLocation } from "@/components/location-bar";
 import { formatCep } from "@/lib/customer-location";
 import { formatDeliveryTime } from "@/lib/delivery";
 import { formatCents, formatDeliveryFee } from "@/lib/money";
+import { fazEntrega } from "@/lib/service-mode";
 import { sortByProximity, type CustomerPlace } from "@/lib/proximity";
 import { slugify } from "@/lib/slug";
 import type { PublicStoreCard } from "@/lib/storefront";
@@ -127,13 +128,24 @@ export function StoreList({
                     </p>
                   ) : null}
 
+                  {/*
+                    Quem não entrega diz isso aqui, e não no carrinho. Descobrir
+                    no fim que o pedido tem de ser buscado é o tipo de surpresa
+                    que faz o cliente desistir e culpar o site.
+                  */}
                   <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">
                     {store.neighborhood}
-                    {" · entrega "}
-                    {formatDeliveryFee(store.delivery_fee_cents)}
-                    {formatDeliveryTime(store.delivery_minutes)
-                      ? ` · ${formatDeliveryTime(store.delivery_minutes)}`
-                      : null}
+                    {fazEntrega(store.service_mode) ? (
+                      <>
+                        {" · entrega "}
+                        {formatDeliveryFee(store.delivery_fee_cents)}
+                        {formatDeliveryTime(store.delivery_minutes)
+                          ? ` · ${formatDeliveryTime(store.delivery_minutes)}`
+                          : null}
+                      </>
+                    ) : (
+                      " · só retirada"
+                    )}
                     {store.min_order_cents > 0
                       ? ` · mín. ${formatCents(store.min_order_cents)}`
                       : null}
