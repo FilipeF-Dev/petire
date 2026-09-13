@@ -104,7 +104,12 @@ export default async function CardapioPage() {
       .select("id, name, sort_order")
       .eq("store_id", session.storeId)
       .order("sort_order")
-      .order("created_at"),
+      .order("created_at")
+      // O desempate por id fecha a ordenação. Sem ele, dois itens com o mesmo
+      // sort_order e o mesmo created_at — o que um cardápio colado de uma vez
+      // produz — voltam numa ordem que o Postgres pode mudar entre consultas,
+      // e a tela passa a mostrar uma ordem diferente da que a reordenação vê.
+      .order("id"),
     supabase
       .from("products")
       .select(
@@ -112,7 +117,12 @@ export default async function CardapioPage() {
       )
       .eq("store_id", session.storeId)
       .order("sort_order")
-      .order("created_at"),
+      .order("created_at")
+      // O desempate por id fecha a ordenação. Sem ele, dois itens com o mesmo
+      // sort_order e o mesmo created_at — o que um cardápio colado de uma vez
+      // produz — voltam numa ordem que o Postgres pode mudar entre consultas,
+      // e a tela passa a mostrar uma ordem diferente da que a reordenação vê.
+      .order("id"),
     supabase.rpc("store_item_limit", { target: session.storeId }),
   ]);
 

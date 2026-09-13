@@ -266,6 +266,21 @@ type Sortable = "products" | "menu_categories";
 /**
  * Troca a posição com o vizinho. Setas em vez de arrastar: arrastar em lista
  * longa no celular é frustrante, e o lojista mexe nisso raramente.
+ *
+ * A decisão inteira mora no banco, numa função. Aqui isto era ler a lista,
+ * calcular a troca e mandar um UPDATE por item — N+1 idas ao servidor para uma
+ * troca de dois. Numa categoria de 40 itens, 41 requisições, e de um a três
+ * segundos por clique em produção.
+ *
+ * O que quebrava não era a lentidão em si. Quem não vê resposta clica de novo,
+ * e o segundo clique lia a ordem **antes** de o primeiro terminar de escrever:
+ * os dois calculavam a mesma troca e um escrevia por cima do outro. O item
+ * ficava parado, e recarregar a página não resolvia — foi assim que o defeito
+ * apareceu, com alguém organizando o cardápio.
+ *
+ * Ler e escrever em chamadas separadas é o que abre essa janela, e trava na
+ * tela não fecha: duas abas, ou dois aparelhos, teriam o mesmo problema. Lá
+ * dentro é uma instrução só — atômica, e numa ida.
  */
 export async function moveItem(formData: FormData): Promise<void> {
   const session = await requireManager();
@@ -281,63 +296,50 @@ export async function moveItem(formData: FormData): Promise<void> {
   if (direction !== "up" && direction !== "down") return;
 
   const supabase = await createClient();
-  const storeId = session.storeId;
 
-  // Produtos são ordenados dentro da categoria; categorias, dentro da loja.
-  // As duas consultas ficam separadas porque `from(union)` colapsa as colunas
-  // para a interseção dos dois tipos, e `category_id` não sobrevive a isso.
-  const siblings =
+  /*
+    Vazio é o grupo dos itens sem categoria, e não "categoria nenhuma": a
+    função trata o nulo como um grupo como qualquer outro, com
+    `is not distinct from`.
+
+    O `as string` existe porque o gerador de tipos do Supabase não sabe dizer
+    que um argumento aceita nulo — ele lê `uuid` e escreve `string`. O nulo
+    chega ao Postgres como nulo de verdade; quem está errado é a assinatura
+    gerada, não a chamada.
+  */
+  const category = (
+    typeof scopeId === "string" && scopeId !== "" ? scopeId : null
+  ) as string;
+
+  const { error } =
     table === "products"
-      ? await (async () => {
-          const base = supabase
-            .from("products")
-            .select("id")
-            .eq("store_id", storeId);
+      ? await supabase.rpc("move_product", {
+          p_store: session.storeId,
+          p_category: category,
+          p_id: id.data,
+          p_direction: direction,
+        })
+      : await supabase.rpc("move_category", {
+          p_store: session.storeId,
+          p_id: id.data,
+          p_direction: direction,
+        });
 
-          const scoped =
-            typeof scopeId === "string" && scopeId !== ""
-              ? base.eq("category_id", scopeId)
-              : base.is("category_id", null);
-
-          const { data } = await scoped.order("sort_order").order("created_at");
-          return data;
-        })()
-      : await (async () => {
-          const { data } = await supabase
-            .from("menu_categories")
-            .select("id")
-            .eq("store_id", storeId)
-            .order("sort_order")
-            .order("created_at");
-          return data;
-        })();
-
-  if (!siblings) return;
-
-  const index = siblings.findIndex((row) => row.id === id.data);
-  const target = direction === "up" ? index - 1 : index + 1;
-  if (index < 0 || target < 0 || target >= siblings.length) return;
-
-  // Reescreve a lista inteira com índices densos. Assim a ordem se conserta
-  // sozinha mesmo se algum sort_order tiver ficado duplicado.
-  const ids = siblings.map((row) => row.id);
-  [ids[index], ids[target]] = [ids[target], ids[index]];
-
-  await Promise.all(
-    ids.map((rowId, position) =>
-      table === "products"
-        ? supabase
-            .from("products")
-            .update({ sort_order: position })
-            .eq("id", rowId)
-            .eq("store_id", storeId)
-        : supabase
-            .from("menu_categories")
-            .update({ sort_order: position })
-            .eq("id", rowId)
-            .eq("store_id", storeId),
-    ),
-  );
+  /*
+    Antes os erros eram descartados: a versão anterior disparava os updates com
+    Promise.all e nunca olhava o resultado. Um que falhasse deixava a ordem pela
+    metade em silêncio. Aqui não há o que mostrar na tela — é um form sem estado
+    —, mas registrar é o mínimo para o próximo relato ter onde ser procurado.
+  */
+  if (error) {
+    console.error("moveItem falhou", {
+      table,
+      itemId: id.data,
+      direction,
+      erro: error.message,
+    });
+    return;
+  }
 
   refreshMenu(session.storeSlug);
 }

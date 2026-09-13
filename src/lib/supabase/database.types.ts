@@ -1071,6 +1071,19 @@ export type Database = {
       maintain_demand: { Args: { retention_days?: number }; Returns: number }
       maintain_events: { Args: { retention_days?: number }; Returns: number }
       manages_store: { Args: { target: string }; Returns: boolean }
+      move_category: {
+        Args: { p_direction: string; p_id: string; p_store: string }
+        Returns: undefined
+      }
+      move_product: {
+        Args: {
+          p_category: string
+          p_direction: string
+          p_id: string
+          p_store: string
+        }
+        Returns: undefined
+      }
       slugify: { Args: { input: string }; Returns: string }
       storage_store_id: { Args: { object_name: string }; Returns: string }
       store_is_open: {
