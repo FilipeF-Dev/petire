@@ -52,6 +52,22 @@ export function Modal({
   const isBrowser = useSyncExternalStore(neverChanges, onClient, onServer);
   const panel = useRef<HTMLDivElement>(null);
 
+  /*
+    Este efeito mexe no foco, então ele roda **uma vez**, na abertura, e desfaz
+    na hora de fechar. Nada aqui pode depender de valor que muda a cada render.
+
+    Foi exatamente esse o bug: o `onClose` estava nas dependências, e todo
+    chamador passa uma função escrita na hora (`onClose={() => setIsOpen(false)}`),
+    que é uma função nova a cada render. Digitar uma letra na observação do item
+    mudava o estado, o render trazia um `onClose` novo, o efeito se desmontava
+    e se remontava — devolvendo o foco ao botão de trás e depois trazendo para o
+    painel. No computador isso é um piscar; no celular, o teclado descia a cada
+    letra digitada, e escrever "sem cebola" virava uma luta.
+
+    O ouvinte de tecla precisa do `onClose` atual, e por isso ficou no efeito
+    de baixo, que pode se reinscrever à vontade: registrar ouvinte não move o
+    foco de ninguém.
+  */
   useEffect(() => {
     /*
       O foco entra no diálogo e não sai enquanto ele estiver aberto.
@@ -67,6 +83,19 @@ export function Modal({
     const anterior = document.activeElement as HTMLElement | null;
     panel.current?.focus();
 
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previous;
+      anterior?.focus?.();
+    };
+    // `isBrowser` entra nas dependências porque o painel só existe depois que
+    // ele vira verdadeiro: sem isso, um diálogo que abrisse junto com a
+    // hidratação nunca receberia o foco.
+  }, [isBrowser]);
+
+  useEffect(() => {
     const focaveis = () =>
       Array.from(
         panel.current?.querySelectorAll<HTMLElement>(
@@ -105,19 +134,8 @@ export function Modal({
     };
 
     document.addEventListener("keydown", onKey);
-
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
-      anterior?.focus?.();
-    };
-    // `isBrowser` entra nas dependências porque o painel só existe depois que
-    // ele vira verdadeiro: sem isso, um diálogo que abrisse junto com a
-    // hidratação nunca receberia o foco.
-  }, [onClose, isBrowser]);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   if (!isBrowser) return null;
 
