@@ -419,6 +419,25 @@ function StoreOrder({
   );
 }
 
+/**
+ * "O que aconteceu com o meu pedido?"
+ *
+ * Item que esgotou sai do carrinho sozinho, e tem de sair — mandar para a loja
+ * um pedido que ela não consegue atender é pior. Mas sair em silêncio faz o
+ * cliente achar que o site perdeu o que ele montou.
+ */
+function AvisoDeRemovidos({ quantos }: { quantos: number }) {
+  if (quantos === 0) return null;
+
+  return (
+    <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+      {quantos === 1
+        ? "Um item saiu do cardápio e foi removido do carrinho."
+        : `${quantos} itens saíram do cardápio e foram removidos do carrinho.`}
+    </p>
+  );
+}
+
 export function CartView() {
   const lines = useCart();
   const location = useCustomerLocation();
@@ -433,6 +452,23 @@ export function CartView() {
       }
     : null;
   const [cart, setCart] = useState<ResolvedCart | null>(null);
+
+  /*
+    Quantos itens já saíram do carrinho nesta visita.
+
+    O aviso não pode ser lido de `cart.dropped`, e essa é a causa de ele nunca
+    ter aparecido: remover a linha muda o que está guardado no aparelho, isso
+    dispara uma resolução nova, e nela `dropped` já vem vazio — o aviso se
+    apagava sozinho no quadro seguinte, antes de qualquer pessoa conseguir ler.
+
+    O item sumia certo; o cliente é que não ficava sabendo por quê, e um
+    carrinho que encolhe em silêncio é como ele manda para a loja um pedido
+    faltando o que pediu.
+
+    Contado e não booleano para dizer "um item" ou "três itens", e somando
+    porque nada impede que outro acabe enquanto ele decide.
+  */
+  const [removidos, setRemovidos] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [isPending, startTransition] = useTransition();
 
@@ -449,6 +485,9 @@ export function CartView() {
         // Item que saiu do cardápio ou esgotou some do carrinho — deixá-lo ali
         // só produziria um pedido que a loja não consegue atender.
         for (const id of resolved.dropped) removeLine(id);
+        if (resolved.dropped.length > 0) {
+          setRemovidos((total) => total + resolved.dropped.length);
+        }
       }
 
       setCart(resolved);
@@ -496,32 +535,41 @@ export function CartView() {
   }
 
   if (isEmpty || cart === null) {
+    /*
+      O aviso de item removido precisa aparecer **aqui também**, e é aqui que
+      ele mais importa: quando o carrinho tinha um item só, esgotar esse item
+      esvazia tudo. Sem o aviso, o cliente que montou o pedido e voltou
+      encontra "Seu carrinho está vazio" e conclui que o site perdeu o pedido
+      dele — quando o que aconteceu é que a loja ficou sem o produto.
+    */
     return (
-      <div className="rounded-xl border border-dashed border-neutral-300 px-6 py-12 text-center dark:border-neutral-700">
-        <p className="font-medium">Seu carrinho está vazio</p>
-        <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-500 dark:text-neutral-400">
-          Escolha uma loja do seu bairro e monte o pedido. Você pode juntar
-          itens de lojas diferentes.
-        </p>
-        <Link
-          href="/lojas"
-          className="mt-4 inline-block rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-        >
-          Ver lojas
-        </Link>
+      <div className="flex flex-col gap-4">
+        <AvisoDeRemovidos quantos={removidos} />
+
+        <div className="rounded-xl border border-dashed border-neutral-300 px-6 py-12 text-center dark:border-neutral-700">
+          <p className="font-medium">
+            {removidos > 0
+              ? "Seu carrinho ficou vazio"
+              : "Seu carrinho está vazio"}
+          </p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-500 dark:text-neutral-400">
+            Escolha uma loja do seu bairro e monte o pedido. Você pode juntar
+            itens de lojas diferentes.
+          </p>
+          <Link
+            href="/lojas"
+            className="mt-4 inline-block rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          >
+            Ver lojas
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
     <div className={`flex flex-col gap-6 ${isPending ? "opacity-60" : ""}`}>
-      {cart.dropped.length > 0 ? (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-          {cart.dropped.length === 1
-            ? "Um item saiu do cardápio e foi removido do carrinho."
-            : `${cart.dropped.length} itens saíram do cardápio e foram removidos do carrinho.`}
-        </p>
-      ) : null}
+      <AvisoDeRemovidos quantos={removidos} />
 
       {cart.stores.length > 1 ? (
         <p className="text-sm text-neutral-500 dark:text-neutral-400">
