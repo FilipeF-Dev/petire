@@ -136,7 +136,19 @@ function StoreOrder({
       })),
     });
 
-    setIsAsking(false);
+    /*
+      O diálogo **não** é fechado aqui, e isso é deliberado.
+
+      Fechar desmonta o diálogo, e o diálogo devolve ao histórico a parada que
+      ele criou para o gesto de voltar funcionar. Essa volta acontecia no mesmo
+      instante em que a linha lá embaixo manda a aba para o WhatsApp: duas
+      navegações disputando, e o pedido não saía. Pego pelo teste de ponta a
+      ponta antes de chegar a alguém.
+
+      Não há o que fechar de qualquer forma — a página inteira está de saída. E
+      se o cliente voltar do WhatsApp, ele volta para onde estava, com o pedido
+      na tela, em vez de um carrinho que parece não ter feito nada.
+    */
     setSent(true);
 
     // A mensagem é montada aqui, e não no servidor, porque leva o endereço do

@@ -10,6 +10,8 @@ import {
 
 import { matchesTerms, searchTerms, slugify } from "@/lib/slug";
 
+import { rolarAte } from "@/lib/scroll-to";
+
 import { MenuItem, type MenuProduct } from "./menu-item";
 
 /**
@@ -58,6 +60,15 @@ function subscribeHash(onChange: () => void): () => void {
   window.addEventListener("hashchange", onChange);
   return () => window.removeEventListener("hashchange", onChange);
 }
+
+/**
+ * A folga no topo, em pixels: a barra de categorias é fixa e cobriria o título
+ * da seção se a rolagem parasse na posição exata dele.
+ *
+ * Gêmeo do `scroll-mt-16` no título (4rem = 64px), que cuida do mesmo problema
+ * no salto do âncora, quando não há JavaScript. Os dois andam juntos.
+ */
+const ALTURA_DA_BARRA = 64;
 
 function sectionAnchor(id: string): string {
   return `secao-${id}`;
@@ -186,6 +197,19 @@ export function MenuBrowser({
                   <li key={section.id}>
                     <a
                       href={`#${sectionAnchor(section.id)}`}
+                      /*
+                        Continua sendo um âncora de verdade: sem JavaScript, o
+                        salto do navegador leva ao mesmo lugar. O clique só
+                        troca o salto pela rolagem visível — e o endereço fica
+                        como está, porque o fragmento aqui já é usado para o
+                        termo de busca (`#q=`).
+                      */
+                      onClick={(event) => {
+                        const alvo = headings.current.get(section.id);
+                        if (!alvo) return;
+                        event.preventDefault();
+                        rolarAte(alvo, ALTURA_DA_BARRA);
+                      }}
                       aria-current={isActive ? "true" : undefined}
                       className={
                         isActive
