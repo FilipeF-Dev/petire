@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { TrackDemand } from "@/components/track-demand";
 import { sortByPopularity } from "@/lib/cuisines";
-import { startingPrice } from "@/lib/menu-price";
+import { precoACombinar, startingPrice } from "@/lib/menu-price";
 import { hasLivePromotion, priceOf, type Promotion } from "@/lib/promotions";
 import {
   humanizePlace,
@@ -371,6 +371,7 @@ export default async function LojasPage({ searchParams }: PageProps<"/lojas">) {
         name: hit.name,
         priceCents: inicial.cents,
         isFrom: inicial.isFrom,
+        aCombinar: precoACombinar(inicial),
         originalCents: price.originalCents,
         discountLabel: price.label,
         storeSlug: store.slug,

@@ -5,7 +5,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { siteUrl } from "@/lib/env";
 import { formatDeliveryTime } from "@/lib/delivery";
 import { jsonLdScript } from "@/lib/json-ld";
-import { startingPrice } from "@/lib/menu-price";
+import { precoACombinar, startingPrice } from "@/lib/menu-price";
 import { fazEntrega, fazRetirada } from "@/lib/service-mode";
 import { formatCents, formatDeliveryFee } from "@/lib/money";
 import { priceOf, type Promotion } from "@/lib/promotions";
@@ -88,13 +88,21 @@ function storeJsonLd({ store, hours, products }: StorePage) {
   // O piso é o preço de entrada, não o preço-base: um item que custa R$ 0,00
   // até o cliente escolher o tamanho faria a loja anunciar "a partir de zero"
   // no resultado do Google. Ver src/lib/menu-price.ts.
-  const precos = products.map(
-    (produto) =>
+  //
+  // E o item sem preço fica de fora da conta. Uma lanchonete de produção subiu
+  // cinco itens a R$ 0,00 esperando a regra de "escolha o tamanho", e a loja
+  // inteira passou a anunciar ao Google uma faixa começando em R$ 0,00 — que
+  // atrai o clique errado e entrega uma decepção. Ver precoACombinar().
+  const precos = products
+    .map((produto) =>
       startingPrice(
         produto.price_cents,
         produto.product_option_groups.map((link) => link.option_groups),
-      ).cents,
-  );
+      ),
+    )
+    .filter((preco) => !precoACombinar(preco))
+    .map((preco) => preco.cents);
+
   const priceRange =
     precos.length > 0
       ? `${formatCents(Math.min(...precos))} - ${formatCents(Math.max(...precos))}`

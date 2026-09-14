@@ -56,6 +56,26 @@ export type StartingPrice = {
   isFrom: boolean;
 };
 
+/**
+ * O item ainda não tem preço que se possa mostrar.
+ *
+ * Zero aqui quase nunca é "de graça": é cadastro pela metade. Acontece de
+ * verdade — uma lanchonete em produção subiu cinco itens a R$ 0,00 porque a
+ * regra de "escolha o tamanho" ia entrar depois. Enquanto não entra, o cardápio
+ * anuncia comida de graça, e o Google recebe "a partir de R$ 0,00" nos dados
+ * estruturados da loja.
+ *
+ * É a mesma leitura que `formatDeliveryFee` já faz da taxa zerada, e pelo mesmo
+ * motivo: o site não pode prometer, em nome da loja, o que ela não prometeu.
+ *
+ * O item continua no cardápio e continua pedível — quem quer o X-Tudo não
+ * deveria perder o item porque o preço não foi digitado. O que muda é o que
+ * está escrito no lugar do número.
+ */
+export function precoACombinar(price: StartingPrice): boolean {
+  return price.cents === 0;
+}
+
 /** O preço de entrada do item, já somado ao que ele obriga escolher. */
 export function startingPrice(
   priceCents: number,
