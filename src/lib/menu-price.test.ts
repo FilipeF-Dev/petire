@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { requiredExtraCents, startingPrice } from "./menu-price";
+import {
+  precoACombinar,
+  requiredExtraCents,
+  startingPrice,
+} from "./menu-price";
 
 const tamanho = (min: number) => ({
   min_select: min,
@@ -91,5 +95,42 @@ describe("startingPrice", () => {
 
   it("soma quando o grupo obriga mais de uma escolha", () => {
     expect(requiredExtraCents([{ ...tamanho(2) }])).toBe(2500);
+  });
+});
+
+describe("precoACombinar", () => {
+  /*
+    Nasceu de um cardápio de produção: cinco itens a R$ 0,00, esperando a regra
+    de "escolha o tamanho". Até ela chegar, o cardápio anunciava comida de graça
+    e o Google recebia "a partir de R$ 0,00" na faixa de preço da loja.
+  */
+  it("item sem preço e sem grupo obrigatório fica a combinar", () => {
+    expect(precoACombinar(startingPrice(0, []))).toBe(true);
+  });
+
+  it("item de graça por escolha do lojista não existe aqui", () => {
+    // Não há como distinguir "de graça" de "não digitei", e errar para o lado
+    // de "a combinar" custa uma pergunta no WhatsApp; errar para o outro lado
+    // custa um pedido que a loja não vai honrar.
+    expect(precoACombinar(startingPrice(0, []))).toBe(true);
+  });
+
+  it("o item que começa em zero mas obriga escolher já tem preço", () => {
+    const grupos = [
+      {
+        min_select: 1,
+        options: [
+          { price_delta_cents: 1250, is_available: true },
+          { price_delta_cents: 2450, is_available: true },
+        ],
+      },
+    ];
+
+    expect(precoACombinar(startingPrice(0, grupos))).toBe(false);
+    expect(startingPrice(0, grupos)).toEqual({ cents: 1250, isFrom: true });
+  });
+
+  it("preço normal não vira a combinar", () => {
+    expect(precoACombinar(startingPrice(2490, []))).toBe(false);
   });
 });

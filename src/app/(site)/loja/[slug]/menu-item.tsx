@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 
 import { Modal } from "@/components/modal";
 import { addToCart } from "@/lib/cart";
-import { startingPrice } from "@/lib/menu-price";
+import { precoACombinar, startingPrice } from "@/lib/menu-price";
 import { formatCents } from "@/lib/money";
 
 export type MenuOption = {
@@ -170,24 +170,39 @@ export function MenuItem({
           ) : null}
 
           {/*
+            Três estados, e nenhum deles é "R$ 0,00".
+
             "A partir de" quando escolher é obrigatório e a escolha mais barata
             custa alguma coisa — a batata que vale R$ 0,00 até você marcar o
-            tamanho. Ver src/lib/menu-price.ts.
+            tamanho.
+
+            "A combinar" quando não há preço nenhum: zero aqui é cadastro pela
+            metade, e comida anunciada de graça é promessa que a loja não fez.
+
+            Ver src/lib/menu-price.ts.
           */}
           <p className="mt-2 flex flex-wrap items-baseline gap-2">
-            {inicial.isFrom ? (
-              <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                a partir de
+            {precoACombinar(inicial) ? (
+              <span className="font-medium text-neutral-500 dark:text-neutral-400">
+                Preço a combinar
               </span>
-            ) : null}
-            <span className="font-medium tabular-nums">
-              {formatCents(inicial.cents)}
-            </span>
-            {product.originalPriceCents !== null ? (
-              <span className="text-sm text-neutral-400 line-through tabular-nums">
-                {formatCents(product.originalPriceCents)}
-              </span>
-            ) : null}
+            ) : (
+              <>
+                {inicial.isFrom ? (
+                  <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                    a partir de
+                  </span>
+                ) : null}
+                <span className="font-medium tabular-nums">
+                  {formatCents(inicial.cents)}
+                </span>
+                {product.originalPriceCents !== null ? (
+                  <span className="text-sm text-neutral-400 line-through tabular-nums">
+                    {formatCents(product.originalPriceCents)}
+                  </span>
+                ) : null}
+              </>
+            )}
           </p>
         </div>
 

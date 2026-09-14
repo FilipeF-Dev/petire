@@ -9,6 +9,14 @@ export type MatchedItem = {
   priceCents: number;
   /** Verdadeiro quando o preço é um piso: o item obriga a escolher. */
   isFrom: boolean;
+  /**
+   * Verdadeiro quando não há preço a mostrar — cadastro pela metade.
+   *
+   * Vem pronto de quem montou a lista, e não é redescoberto aqui: a regra do
+   * que conta como "sem preço" mora em src/lib/menu-price.ts, e duas cópias é
+   * como duas telas passam a discordar sobre o mesmo item.
+   */
+  aCombinar: boolean;
   /** Preço de tabela, presente só quando há desconto valendo agora. */
   originalCents: number | null;
   discountLabel: string | null;
@@ -78,20 +86,33 @@ export function ItemList({
                     mais barata custa alguma coisa — o mesmo rótulo do cardápio.
                     Aqui ele importa ainda mais: quem vê este card não conhece a
                     loja, e um preço que não se cumpre é a primeira impressão.
+
+                    E "a combinar" quando não há preço nenhum: pelo mesmo
+                    motivo, com mais força ainda. Este card é a porta de entrada
+                    da loja na busca, e R$ 0,00 nela não parece promoção — parece
+                    site quebrado.
                   */}
-                  {item.isFrom ? (
-                    <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                      a partir de
+                  {item.aCombinar ? (
+                    <span className="font-medium text-neutral-500 dark:text-neutral-400">
+                      Preço a combinar
                     </span>
-                  ) : null}
-                  <span className="font-medium tabular-nums">
-                    {formatCents(item.priceCents)}
-                  </span>
-                  {item.originalCents !== null ? (
-                    <span className="text-sm text-neutral-400 line-through tabular-nums">
-                      {formatCents(item.originalCents)}
-                    </span>
-                  ) : null}
+                  ) : (
+                    <>
+                      {item.isFrom ? (
+                        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                          a partir de
+                        </span>
+                      ) : null}
+                      <span className="font-medium tabular-nums">
+                        {formatCents(item.priceCents)}
+                      </span>
+                      {item.originalCents !== null ? (
+                        <span className="text-sm text-neutral-400 line-through tabular-nums">
+                          {formatCents(item.originalCents)}
+                        </span>
+                      ) : null}
+                    </>
+                  )}
                 </p>
 
                 <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">

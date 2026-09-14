@@ -63,9 +63,25 @@ function ProductRow({
           {/* Sem truncate: no celular, "Coca-Cola lata 350ml" e "Coca-Cola 2L"
               viram a mesma coisa se cortar. Duas linhas é melhor que ambíguo. */}
           <p className="font-medium">{product.name}</p>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            {formatCents(product.price_cents)}
-          </p>
+
+          {/*
+            O item a R$ 0,00 fica marcado, e não escondido.
+
+            Ele acontece de verdade: a loja cadastra o item e deixa o preço para
+            quando a regra de "escolha o tamanho" entrar. Enquanto isso o
+            cardápio mostra "Preço a combinar" ao cliente — honesto, mas não é o
+            que o lojista quis dizer. Aqui ele precisa conseguir encontrar os
+            que ficaram pelo meio do caminho sem abrir um por um.
+          */}
+          {product.price_cents === 0 ? (
+            <p className="text-sm text-amber-700 dark:text-amber-500">
+              Sem preço — aparece como “a combinar”
+            </p>
+          ) : (
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              {formatCents(product.price_cents)}
+            </p>
+          )}
         </div>
       </Link>
 

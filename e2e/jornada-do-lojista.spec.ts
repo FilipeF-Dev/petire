@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   criarItem,
   entrarComoLojista,
+  esperarNaLoja,
   linhaDo,
   marcarEsgotado,
   nomeUnico,
@@ -143,4 +144,37 @@ test("dois toques seguidos em esgotado não se anulam", async ({ page }) => {
   await expect(
     linhaDo(page, nome).getByRole("button", { name: "Disponível" }),
   ).toBeVisible();
+});
+
+test("item sem preço não anuncia R$ 0,00 a ninguém", async ({ page }) => {
+  /*
+    Do cadastro de uma loja de produção: cinco itens a R$ 0,00, esperando a
+    regra de "escolha o tamanho" entrar depois. Enquanto ela não entra, a loja
+    anunciava comida de graça no cardápio e o Google recebia uma faixa de preço
+    começando em R$ 0,00 — que atrai o clique errado e entrega uma decepção.
+
+    Zero aqui quase nunca é "de graça": é cadastro pela metade. O item continua
+    no cardápio e continua pedível, porque perder o item seria pior; o que muda
+    é o que está escrito no lugar do número.
+  */
+  const nome = nomeUnico("Sem preco");
+
+  await entrarComoLojista(page);
+  await criarItem(page, nome, "0,00");
+
+  // No painel, marcado — para o lojista achar os que ficaram pelo caminho.
+  await expect(linhaDo(page, nome).getByText(/Sem preço/)).toBeVisible();
+
+  await esperarNaLoja(page, LOJA, nome);
+
+  // No cardápio, "a combinar" e nenhum R$ 0,00.
+  const card = page.getByRole("button", { name: new RegExp(nome) });
+  await expect(card).toContainText("Preço a combinar");
+  await expect(card).not.toContainText("R$ 0,00");
+
+  // E fora dos dados estruturados: a faixa da loja não pode começar no zero.
+  const dados = JSON.parse(
+    await page.locator('script[type="application/ld+json"]').innerText(),
+  );
+  expect(dados.priceRange ?? "").not.toContain("R$ 0,00");
 });
