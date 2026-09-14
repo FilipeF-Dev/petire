@@ -45,11 +45,9 @@ test("o carrinho separa as lojas, e cada pedido vai para o número certo", async
     tem de manter as duas contas separadas e mandar cada mensagem para o dono
     dela — misturar aqui é o cliente pedindo pizza para a lanchonete.
   */
-  const mensagens: string[] = [];
-  await page.route("https://wa.me/**", (route) => {
-    mensagens.push(route.request().url());
-    return route.fulfill({ contentType: "text/html", body: "WhatsApp" });
-  });
+  await page.route("https://wa.me/**", (route) =>
+    route.fulfill({ contentType: "text/html", body: "WhatsApp" }),
+  );
 
   await adicionar(page, ZE, "X-Salada");
   await adicionar(page, PIZZARIA, "Margherita");
@@ -57,10 +55,24 @@ test("o carrinho separa as lojas, e cada pedido vai para o número certo", async
   await page.goto("/carrinho");
   await expect(page.getByText(/itens de 2 lojas/)).toBeVisible();
 
-  // Cada loja tem o próprio botão de enviar, com o nome dela escrito.
-  await page
-    .getByRole("button", { name: /Pizzaria da Esquina|Enviar mesmo assim/ })
-    .first()
+  /*
+    O bloco da Pizzaria, e não o botão que menciona o nome dela.
+
+    O texto do botão muda com o horário: com a loja aberta ele diz "Fazer
+    pedido — Pizzaria da Esquina"; fechada, vira só "Enviar mesmo assim", sem
+    nome nenhum. A primeira versão deste teste procurava pelo nome e caía no
+    `.first()` quando ele não estava lá — e mandava o pedido da pizza para a
+    lanchonete. Passava de noite e falhava de dia, sem nada ter quebrado.
+
+    Ancorar no bloco resolve e ainda diz melhor o que se quer provar: que o
+    botão **daquela** loja manda para **aquela** loja.
+  */
+  const blocoDaPizzaria = page
+    .locator("section")
+    .filter({ has: page.getByRole("link", { name: "Pizzaria da Esquina" }) });
+
+  await blocoDaPizzaria
+    .getByRole("button", { name: /Fazer pedido|Enviar mesmo assim/ })
     .click();
   await page.getByRole("textbox", { name: /Quem vai/ }).fill("Filipe");
   const numero = page.getByRole("textbox", { name: "Número" });
