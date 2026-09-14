@@ -80,10 +80,24 @@ test("a seta reordena o item, e a ordem volta na página", async ({ page }) => {
     .getByRole("button", { name: `Mover ${antes[1]} para cima` })
     .click();
 
-  // A página volta com a ordem nova — é o revalidatePath da ação fazendo
-  // efeito. Sem ele o clique gravaria no banco e a tela continuaria igual.
+  /*
+    A página volta com a ordem nova — é o revalidatePath da ação fazendo
+    efeito. Sem ele o clique gravaria no banco e a tela continuaria igual.
+
+    A espera **recarrega** a cada tentativa. Sem isso ela relê o mesmo DOM: se
+    uma revalidação disparada por outro teste chegar logo depois do clique, a
+    tela pode ficar com um desenho anterior à troca, e insistir na mesma página
+    nunca a corrigiria. Foi essa a instabilidade que apareceu uma vez em cinco
+    rodadas da bateria inteira, e nunca quando este arquivo rodava sozinho.
+  */
   await expect
-    .poll(() => nomesNaOrdem(page))
+    .poll(
+      async () => {
+        await page.reload();
+        return nomesNaOrdem(page);
+      },
+      { timeout: 15_000, intervals: [300, 700, 1500] },
+    )
     .toEqual([antes[1], antes[0], ...antes.slice(2)]);
 });
 
