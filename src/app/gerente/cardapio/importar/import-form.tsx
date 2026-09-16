@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 
+import { MenuPreview } from "@/components/menu-preview";
 import { Button, FormError, inputClass } from "@/components/ui";
-import { parseMenu } from "@/lib/menu-import";
-import { formatCents } from "@/lib/money";
+import { parseMenuInput } from "@/lib/menu-import";
 import { emptyFormState } from "@/lib/validation";
 
 import { importMenu } from "./actions";
@@ -44,7 +44,7 @@ export function ImportForm() {
   const [state, formAction] = useActionState(importMenu, emptyFormState);
   const [text, setText] = useState(state.values?.menu ?? "");
 
-  const menu = useMemo(() => parseMenu(text), [text]);
+  const { menu, erro } = useMemo(() => parseMenuInput(text), [text]);
 
   return (
     <form action={formAction} className="flex max-w-2xl flex-col gap-4">
@@ -67,51 +67,16 @@ export function ImportForm() {
 
       <FormError message={state.error} />
 
-      {text.trim() === "" ? null : menu.total === 0 ? (
+      {text.trim() === "" ? null : erro ? (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          {erro}
+        </p>
+      ) : menu.total === 0 ? (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
           Nenhuma linha tem preço no fim. Confira o texto colado.
         </p>
       ) : (
-        <div className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-surface p-4 dark:border-neutral-800">
-          <p className="text-sm font-medium">
-            {menu.total} {menu.total === 1 ? "item" : "itens"} em{" "}
-            {menu.sections.length}{" "}
-            {menu.sections.length === 1 ? "seção" : "seções"}
-          </p>
-
-          {menu.sections.map((section, index) => (
-            <div key={`${section.category ?? "sem-secao"}-${index}`}>
-              <p className="text-xs font-semibold tracking-wide uppercase">
-                {section.category ?? "Sem categoria"}
-              </p>
-              <ul className="mt-1">
-                {section.items.map((item, itemIndex) => (
-                  <li
-                    key={`${item.name}-${itemIndex}`}
-                    className="flex justify-between gap-4 border-t border-neutral-200 py-1.5 text-sm first:border-t-0 dark:border-neutral-800"
-                  >
-                    <span className="min-w-0">{item.name}</span>
-                    <span className="shrink-0 tabular-nums">
-                      {formatCents(item.priceCents)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-
-          {menu.ignored.length > 0 ? (
-            <div className="border-t border-neutral-200 pt-3 dark:border-neutral-800">
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Fora da importação, por não ter preço:{" "}
-                {menu.ignored.slice(0, 5).join(" · ")}
-                {menu.ignored.length > 5
-                  ? ` e mais ${menu.ignored.length - 5}`
-                  : null}
-              </p>
-            </div>
-          ) : null}
-        </div>
+        <MenuPreview menu={menu} />
       )}
 
       <p className="text-xs text-neutral-500 dark:text-neutral-400">

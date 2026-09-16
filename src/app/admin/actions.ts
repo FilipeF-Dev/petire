@@ -7,6 +7,8 @@ import { z } from "zod";
 
 import { requireAdmin } from "@/lib/auth";
 import { initialPassword } from "@/lib/initial-password";
+import { parseMenuInput } from "@/lib/menu-import";
+import { salvarCardapio } from "@/lib/menu-import-save";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   editStoreSchema,
@@ -802,4 +804,61 @@ export async function resetManagerPassword(
     savedAt: Date.now(),
     created: { email: data.user.email, password, slug: "" },
   };
+}
+
+/**
+ * O colar de cardápio do suporte, em qualquer loja.
+ *
+ * A mesma leitura e a mesma escrita do painel do lojista — o que muda é só de
+ * quem é a loja. Existe porque a alternativa era o suporte gerar senha nova e
+ * entrar como o dono, o que derruba o acesso dele para cadastrar o cardápio
+ * dele. Pior ainda quando é justamente a loja nova, que ainda não tem cardápio
+ * e já perde o login no primeiro contato.
+ *
+ * service_role como as outras escritas do admin: `manages_store()` já
+ * responderia true para o papel de admin, mas o padrão aqui é escrever com a
+ * chave de serviço, e um caminho diferente só para esta ação seria uma pedra
+ * no meio do caminho de quem for ler depois.
+ */
+export async function importStoreMenu(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+
+  const storeId = uuid.safeParse(formData.get("storeId"));
+  if (!storeId.success) return { error: "Loja inválida." };
+
+  const text = formData.get("menu");
+  if (typeof text !== "string" || text.trim() === "") {
+    return { error: "Cole o cardápio antes de importar." };
+  }
+
+  const { menu, erro } = parseMenuInput(text);
+
+  if (erro) return { error: erro, values: formValues(formData) };
+  if (menu.total === 0) {
+    return {
+      error: "Não encontrei nenhum item no que foi colado.",
+      values: formValues(formData),
+    };
+  }
+
+  const admin = createAdminClient();
+  const resultado = await salvarCardapio(admin, storeId.data, menu);
+
+  if (resultado.erro) {
+    return { error: resultado.erro, values: formValues(formData) };
+  }
+
+  const { data: store } = await admin
+    .from("stores")
+    .select("slug")
+    .eq("id", storeId.data)
+    .maybeSingle();
+
+  revalidatePath(`/admin/loja/${storeId.data}`);
+  refreshStorefront(store?.slug ?? null);
+
+  return { error: null, savedAt: Date.now() };
 }

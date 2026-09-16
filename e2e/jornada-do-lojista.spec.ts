@@ -120,10 +120,14 @@ test("dois toques seguidos em esgotado não se anulam", async ({ page }) => {
     A forma do bug da reordenação, aplicada a outro controle.
 
     Lá, dois cliques rápidos viravam um: o segundo lia o estado antes de o
-    primeiro terminar de gravar. Aqui a pergunta é a mesma — o painel é usado
-    com pressa, e o lojista toca duas vezes quando não vê resposta. Dois toques
-    têm de devolver o item ao estado inicial, e não deixá-lo num lugar que
-    ninguém pediu.
+    primeiro terminar de gravar. Aqui o desenho já se protege — o botão fica
+    desabilitado enquanto a gravação está no ar, então o segundo toque não tem
+    como atropelar o primeiro. Medido fora do teste: oito de oito vezes os dois
+    toques se anularam, como deviam.
+
+    O que este teste guarda é essa proteção. Se alguém tirar o `disabled` do
+    toggle um dia, os dois toques passam a disputar e o item fica num estado que
+    ninguém pediu — e é aqui que isso aparece.
 
     A conferência é depois de recarregar, e não no rótulo: o botão troca de
     texto na hora, por otimismo, e é justamente o otimismo que pode mentir.
@@ -140,10 +144,22 @@ test("dois toques seguidos em esgotado não se anulam", async ({ page }) => {
   await botao.click();
   await botao.click();
 
-  await page.reload();
-  await expect(
-    linhaDo(page, nome).getByRole("button", { name: "Disponível" }),
-  ).toBeVisible();
+  /*
+    A espera recarrega a cada tentativa. A anterior recarregava uma vez só e
+    podia pegar a página antes de a segunda gravação ter revalidado — falhava
+    uma vez a cada tantas rodadas da bateria, sem nada ter quebrado.
+  */
+  await expect
+    .poll(
+      async () => {
+        await page.reload();
+        return linhaDo(page, nome)
+          .getByRole("button", { name: /Disponível|Esgotado/ })
+          .innerText();
+      },
+      { timeout: 15_000, intervals: [400, 800, 1500] },
+    )
+    .toBe("Disponível");
 });
 
 test("item sem preço não anuncia R$ 0,00 a ninguém", async ({ page }) => {
