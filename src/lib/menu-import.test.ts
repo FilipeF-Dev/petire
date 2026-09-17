@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseMenu } from "./menu-import";
+import { parseMenu, parseMenuInput } from "./menu-import";
 
 describe("parseMenu", () => {
   it("lê um cardápio como o lojista escreve", () => {
@@ -116,6 +116,152 @@ Coca-Cola lata 7,00
       sections: [],
       ignored: [],
       total: 0,
+    });
+  });
+});
+
+describe("cardápio estruturado", () => {
+  /*
+    O segundo formato do colar. Quem escreve não é o lojista: é o suporte, com
+    um cardápio que uma IA leu de uma foto. O que se testa aqui é o que essa
+    troca de autor exige — precisão em vez de generosidade.
+  */
+  const fanta = {
+    secoes: [
+      {
+        nome: "Bebidas",
+        itens: [
+          {
+            nome: "Fanta",
+            preco: 0,
+            grupos: [
+              {
+                nome: "Sabor",
+                min: 1,
+                max: 1,
+                opcoes: [
+                  { nome: "Guaraná", mais: 8 },
+                  { nome: "Laranja", mais: 8 },
+                  { nome: "Uva", mais: 8.5 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  it("lê os grupos e as opções do item", () => {
+    const { menu, erro, estruturado } = parseMenuInput(JSON.stringify(fanta));
+
+    expect(erro).toBeNull();
+    expect(estruturado).toBe(true);
+
+    const item = menu.sections[0].items[0];
+    expect(item.name).toBe("Fanta");
+    expect(item.priceCents).toBe(0);
+    expect(item.groups?.[0]).toEqual({
+      name: "Sabor",
+      min: 1,
+      max: 1,
+      options: [
+        { name: "Guaraná", plusCents: 800 },
+        { name: "Laranja", plusCents: 800 },
+        { name: "Uva", plusCents: 850 },
+      ],
+    });
+  });
+
+  it("preço vem em reais, e vira centavos sem erro de arredondamento", () => {
+    // 19.99 * 100 dá 1998.9999... em ponto flutuante. Sem o arredondamento,
+    // o item entraria a R$ 19,98.
+    const { menu } = parseMenuInput(
+      JSON.stringify({
+        secoes: [{ nome: "X", itens: [{ nome: "Item", preco: 19.99 }] }],
+      }),
+    );
+
+    expect(menu.sections[0].items[0].priceCents).toBe(1999);
+  });
+
+  it("um array sozinho é entendido como a lista de seções", () => {
+    // É o que uma IA devolve quando alguém pede "só as seções".
+    const { menu, erro } = parseMenuInput(JSON.stringify(fanta.secoes));
+
+    expect(erro).toBeNull();
+    expect(menu.total).toBe(1);
+  });
+
+  it("diz qual campo está errado, e não só que deu errado", () => {
+    const { erro } = parseMenuInput(
+      JSON.stringify({
+        secoes: [
+          { nome: "Bebidas", itens: [{ nome: "Fanta", preco: "oito reais" }] },
+        ],
+      }),
+    );
+
+    expect(erro).toContain("secoes[0].itens[0].preco");
+  });
+
+  it("grupo sem opção nenhuma não passa", () => {
+    const { erro } = parseMenuInput(
+      JSON.stringify({
+        secoes: [
+          {
+            nome: "X",
+            itens: [
+              { nome: "Item", preco: 10, grupos: [{ nome: "Vazio", opcoes: [] }] },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(erro).toContain("Grupo sem nenhuma opção");
+  });
+
+  it("máximo menor que o mínimo não passa", () => {
+    // Obrigar a escolher duas e permitir escolher uma é um item que ninguém
+    // consegue pedir.
+    const { erro } = parseMenuInput(
+      JSON.stringify({
+        secoes: [
+          {
+            nome: "X",
+            itens: [
+              {
+                nome: "Item",
+                preco: 10,
+                grupos: [
+                  { nome: "Tamanho", min: 2, max: 1, opcoes: [{ nome: "P" }] },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(erro).toContain("menor que o mínimo");
+  });
+
+  it("JSON quebrado avisa que é JSON quebrado", () => {
+    const { erro } = parseMenuInput('{"secoes": [');
+    expect(erro).toContain("não é um JSON válido");
+  });
+
+  it("cardápio de texto continua entrando pelo mesmo lugar", () => {
+    const { menu, erro, estruturado } = parseMenuInput(
+      "LANCHES\nX-Salada 24,90",
+    );
+
+    expect(erro).toBeNull();
+    expect(estruturado).toBe(false);
+    expect(menu.sections[0].items[0]).toEqual({
+      name: "X-Salada",
+      priceCents: 2490,
     });
   });
 });

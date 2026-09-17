@@ -135,6 +135,11 @@ jobs:
       # adivinhação.
       - name: Guardar o rastro da falha
         if: failure()
+        # A cota de artefatos da conta pode estar cheia, e quando está o upload
+        # falha. Sem isto, esse erro entra no log **por cima** do teste que
+        # realmente quebrou — e quem for ler encontra "Artifact storage quota
+        # has been hit" antes de encontrar a falha que interessa.
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: playwright-trace

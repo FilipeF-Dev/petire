@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { FounderForm } from "../../store-controls";
 
 import { DeleteStore } from "./delete-store";
+import { MenuImport } from "./menu-import";
 import { EditStoreForm } from "./edit-store-form";
 import { ManagerAccess } from "./manager-access";
 import { Payments } from "./payments";
@@ -184,6 +185,13 @@ export default async function EditarLojaPage({
           </ul>
         </section>
       ) : null}
+
+      {/*
+        O colar de cardápio fica antes do apagar, e depois do resto: é a ação
+        que o suporte faz com frequência numa loja nova, e a de apagar é a que
+        ele quase nunca faz.
+      */}
+      <MenuImport storeId={store.id} />
 
       <DeleteStore
         storeId={store.id}

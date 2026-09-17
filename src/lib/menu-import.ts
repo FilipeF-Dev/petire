@@ -15,9 +15,28 @@
  * Adivinhar preço errado e publicar sozinho seria o pior dos dois mundos.
  */
 
+import { z } from "zod";
+
+export type ParsedOption = {
+  name: string;
+  /** Quanto esta opção soma ao preço do item. */
+  plusCents: number;
+};
+
+export type ParsedGroup = {
+  name: string;
+  /** Quantas o cliente é obrigado a escolher. Zero é grupo opcional. */
+  min: number;
+  max: number;
+  options: ParsedOption[];
+};
+
 export type ParsedItem = {
   name: string;
   priceCents: number;
+  /** Só o formato estruturado carrega estes dois. */
+  description?: string | null;
+  groups?: ParsedGroup[];
 };
 
 export type ParsedSection = {
@@ -124,4 +143,184 @@ export function parseMenu(text: string): ParsedMenu {
   }
 
   return { sections: kept, ignored, total };
+}
+
+/* ---------------------------------------------------------------------------
+ * O cardápio estruturado
+ *
+ * O formato de linhas acima é generoso porque ele lê o que uma pessoa já tem
+ * escrito. Só que ele para onde o cardápio começa a ficar interessante: o que
+ * vai dentro do lanche. Grupo de opção precisa de quatro conceitos — seção,
+ * item, grupo (obrigatório? quantos?) e opção (+quanto) — e de hierarquia, e
+ * hierarquia não cabe numa regra de "preço no fim da linha".
+ *
+ * Quem escreve este segundo formato não é o lojista: é o suporte do Petire,
+ * com um cardápio que uma IA leu de uma foto ou de um PDF. E isso muda o que
+ * o formato precisa ser. Ele não precisa mais parecer com o que a pessoa já
+ * tem — precisa ser o que a máquina acerta sempre. Daí JSON: sem ambiguidade,
+ * validado de uma vez, e errando com o caminho exato do campo em vez de
+ * adivinhar e seguir em frente.
+ *
+ * Os dois entram pelo mesmo campo de texto, porque a diferença é óbvia para
+ * quem lê e para o código: cardápio nenhum começa com uma chave.
+ * ------------------------------------------------------------------------ */
+
+const REAIS_MAX = MAX_CENTS / 100;
+
+/** Reais como a IA escreve (24.9, 24) viram centavos como o banco guarda. */
+function reaisParaCentavos(reais: number): number {
+  return Math.round(reais * 100);
+}
+
+const opcaoSchema = z.object({
+  nome: z.string().trim().min(1, "Opção sem nome.").max(120),
+  /** Quanto esta opção soma ao preço do item. Zero quando não soma nada. */
+  mais: z.number().min(0).max(REAIS_MAX).default(0),
+});
+
+const grupoSchema = z
+  .object({
+    nome: z.string().trim().min(1, "Grupo sem nome.").max(120),
+    /** Quantas o cliente é obrigado a escolher. Zero é grupo opcional. */
+    min: z.number().int().min(0).max(20).default(0),
+    /** Quantas ele pode escolher no máximo. */
+    max: z.number().int().min(1).max(20).default(1),
+    opcoes: z.array(opcaoSchema).min(1, "Grupo sem nenhuma opção.").max(50),
+  })
+  .refine((grupo) => grupo.max >= grupo.min, {
+    message: "O máximo de escolhas não pode ser menor que o mínimo.",
+  });
+
+const itemSchema = z.object({
+  nome: z.string().trim().min(1, "Item sem nome.").max(120),
+  /**
+   * Em reais, e não em centavos: quem escreve isto lê o cardápio em reais, e
+   * pedir centavos aqui é convidar o erro de cem vezes.
+   *
+   * Zero é legítimo — é o item cujo preço mora numa opção obrigatória, como a
+   * Fanta que custa pelo sabor. O cardápio mostra "a partir de" sozinho.
+   */
+  preco: z.number().min(0).max(REAIS_MAX).default(0),
+  descricao: z.string().trim().max(500).optional(),
+  grupos: z.array(grupoSchema).max(10).optional(),
+});
+
+const cardapioSchema = z.object({
+  secoes: z
+    .array(
+      z.object({
+        nome: z.string().trim().max(80).optional(),
+        itens: z.array(itemSchema).min(1, "Seção sem nenhum item."),
+      }),
+    )
+    .min(1, "Nenhuma seção no cardápio."),
+});
+
+/** O caminho do campo que falhou, como a pessoa lê: secoes[0].itens[2].preco */
+function caminho(issue: z.core.$ZodIssue): string {
+  return issue.path.reduce<string>((texto, parte) => {
+    if (typeof parte === "number") return `${texto}[${parte}]`;
+    return texto === "" ? String(parte) : `${texto}.${String(parte)}`;
+  }, "");
+}
+
+export type ParsedMenuResult = {
+  menu: ParsedMenu;
+  /** Nulo quando deu certo. O texto de linhas nunca falha; o JSON pode. */
+  erro: string | null;
+  /** Verdadeiro quando o texto foi lido como JSON. */
+  estruturado: boolean;
+};
+
+const VAZIO: ParsedMenu = { sections: [], ignored: [], total: 0 };
+
+function lerJson(text: string): ParsedMenuResult {
+  let bruto: unknown;
+  try {
+    bruto = JSON.parse(text);
+  } catch {
+    return {
+      menu: VAZIO,
+      erro: "O texto começa como JSON mas não é um JSON válido.",
+      estruturado: true,
+    };
+  }
+
+  // Um array sozinho é entendido como a lista de seções: é o que uma IA
+  // devolve quando alguém pede "só as seções".
+  const parsed = cardapioSchema.safeParse(
+    Array.isArray(bruto) ? { secoes: bruto } : bruto,
+  );
+
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const onde = caminho(issue);
+    return {
+      menu: VAZIO,
+      erro: onde ? `${onde}: ${issue.message}` : issue.message,
+      estruturado: true,
+    };
+  }
+
+  const sections: ParsedSection[] = [];
+  let total = 0;
+  const ignored: string[] = [];
+
+  for (const secao of parsed.data.secoes) {
+    const items: ParsedItem[] = [];
+
+    for (const item of secao.itens) {
+      // O mesmo teto do formato de linhas, pelo mesmo motivo: uma importação
+      // não deve virar um livro.
+      if (total >= MAX_ITEMS) {
+        ignored.push(item.nome);
+        continue;
+      }
+
+      items.push({
+        name: item.nome,
+        priceCents: reaisParaCentavos(item.preco),
+        description: item.descricao ?? null,
+        groups: item.grupos?.map((grupo) => ({
+          name: grupo.nome,
+          min: grupo.min,
+          max: Math.max(grupo.max, grupo.min),
+          options: grupo.opcoes.map((opcao) => ({
+            name: opcao.nome,
+            plusCents: reaisParaCentavos(opcao.mais),
+          })),
+        })),
+      });
+      total += 1;
+    }
+
+    if (items.length > 0) {
+      sections.push({ category: secao.nome?.trim() || null, items });
+    }
+  }
+
+  if (total === 0) {
+    return {
+      menu: VAZIO,
+      erro: "O JSON não tem nenhum item.",
+      estruturado: true,
+    };
+  }
+
+  return { menu: { sections, ignored, total }, erro: null, estruturado: true };
+}
+
+/**
+ * Lê o que foi colado, seja lá qual for o formato.
+ *
+ * É esta que a tela e a Server Action chamam — as duas, com o mesmo texto. A
+ * conferência que o browser mostra sai da mesma função que grava, e é isso que
+ * torna aceitável um formato que adivinha.
+ */
+export function parseMenuInput(text: string): ParsedMenuResult {
+  const limpo = text.trim();
+
+  if (limpo.startsWith("{") || limpo.startsWith("[")) return lerJson(limpo);
+
+  return { menu: parseMenu(text), erro: null, estruturado: false };
 }
