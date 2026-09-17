@@ -40,6 +40,7 @@ export default async function EditarLojaPage({
   const [
     storeResult,
     historyResult,
+    limitResult,
     productsResult,
     ordersResult,
     managerResult,
@@ -57,6 +58,9 @@ export default async function EditarLojaPage({
         .select("slug, created_at")
         .eq("store_id", id)
         .order("created_at", { ascending: false }),
+      // Quanto o plano desta loja permite. Vem da função do banco, e não de uma
+      // constante daqui: os números são o botão comercial e moram num lugar só.
+      supabase.rpc("store_item_limit", { target: id }),
       supabase
         .from("products")
         .select("id", { count: "exact", head: true })
@@ -191,7 +195,13 @@ export default async function EditarLojaPage({
         que o suporte faz com frequência numa loja nova, e a de apagar é a que
         ele quase nunca faz.
       */}
-      <MenuImport storeId={store.id} />
+      <MenuImport
+        storeId={store.id}
+        espaco={{
+          usados: productsResult.count ?? 0,
+          teto: limitResult.data ?? 0,
+        }}
+      />
 
       <DeleteStore
         storeId={store.id}

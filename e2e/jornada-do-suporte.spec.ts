@@ -41,6 +41,13 @@ test("o suporte cola um cardápio com grupos e o cliente consegue pedir", async 
   await page.goto(`/admin/loja/${ID_DA_LOJA}`);
 
   /*
+    Quanto ainda cabe, antes de colar qualquer coisa. Entrou depois de o
+    suporte colar 88 itens e só então descobrir que a loja já tinha 85 — todo
+    o trabalho de montar o cardápio para bater numa recusa no último clique.
+  */
+  await expect(page.getByText(/A loja tem [0-9]+ de [0-9]+ itens/)).toBeVisible();
+
+  /*
     O caso que motivou o formato: item cujo preço mora na escolha. "preco": 0
     com um grupo obrigatório — é a Fanta que custa pelo sabor, e é o que o
     cadastro manual não conseguia colar.

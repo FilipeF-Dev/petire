@@ -5,6 +5,11 @@ import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { MenuPreview } from "@/components/menu-preview";
+import {
+  cabe,
+  MenuSpace,
+  type EspacoNoCardapio,
+} from "@/components/menu-space";
 import { Button, FormError, inputClass } from "@/components/ui";
 import { parseMenuInput } from "@/lib/menu-import";
 import { emptyFormState } from "@/lib/validation";
@@ -21,13 +26,15 @@ Batata frita 18,90
 BEBIDAS
 Coca-Cola lata 7,00`;
 
-function Submit({ count }: { count: number }) {
+function Submit({ count, bloqueado }: { count: number; bloqueado: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending || count === 0}>
+    <Button type="submit" disabled={pending || count === 0 || bloqueado}>
       {pending
         ? "Importando…"
-        : `Importar ${count} ${count === 1 ? "item" : "itens"}`}
+        : bloqueado
+          ? "Não cabe no plano"
+          : `Importar ${count} ${count === 1 ? "item" : "itens"}`}
     </Button>
   );
 }
@@ -40,7 +47,7 @@ function Submit({ count }: { count: number }) {
  * isso que torna aceitável adivinhar o formato do texto: quando a adivinhação
  * erra, ele vê na hora, e não o cliente três dias depois.
  */
-export function ImportForm() {
+export function ImportForm({ espaco }: { espaco: EspacoNoCardapio }) {
   const [state, formAction] = useActionState(importMenu, emptyFormState);
   const [text, setText] = useState(state.values?.menu ?? "");
 
@@ -65,6 +72,8 @@ export function ImportForm() {
         </span>
       </label>
 
+      <MenuSpace espaco={espaco} entrando={menu.total} />
+
       <FormError message={state.error} />
 
       {text.trim() === "" ? null : erro ? (
@@ -85,7 +94,7 @@ export function ImportForm() {
       </p>
 
       <div className="flex gap-2">
-        <Submit count={menu.total} />
+        <Submit count={menu.total} bloqueado={!cabe(espaco, menu.total)} />
         <Link href="/gerente/cardapio">
           <Button type="button" variant="secondary">
             Cancelar
