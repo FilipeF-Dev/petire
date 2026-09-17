@@ -4,6 +4,11 @@ import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { MenuPreview } from "@/components/menu-preview";
+import {
+  cabe,
+  MenuSpace,
+  type EspacoNoCardapio,
+} from "@/components/menu-space";
 import { Button, FormError, inputClass } from "@/components/ui";
 import { parseMenuInput } from "@/lib/menu-import";
 import { PROMPT_DA_IA } from "@/lib/menu-import-prompt";
@@ -11,13 +16,15 @@ import { emptyFormState } from "@/lib/validation";
 
 import { importStoreMenu } from "../../actions";
 
-function Submit({ count }: { count: number }) {
+function Submit({ count, bloqueado }: { count: number; bloqueado: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending || count === 0}>
+    <Button type="submit" disabled={pending || count === 0 || bloqueado}>
       {pending
         ? "Importando…"
-        : `Importar ${count} ${count === 1 ? "item" : "itens"}`}
+        : bloqueado
+          ? "Não cabe no plano"
+          : `Importar ${count} ${count === 1 ? "item" : "itens"}`}
     </Button>
   );
 }
@@ -76,7 +83,13 @@ function FormatoParaIA() {
  * estruturado, que é o que carrega grupo de opção. A escolha é de quem cola —
  * nenhuma tela a mais para manter.
  */
-export function MenuImport({ storeId }: { storeId: string }) {
+export function MenuImport({
+  storeId,
+  espaco,
+}: {
+  storeId: string;
+  espaco: EspacoNoCardapio;
+}) {
   const [state, formAction] = useActionState(importStoreMenu, emptyFormState);
   const [text, setText] = useState("");
 
@@ -117,6 +130,8 @@ export function MenuImport({ storeId }: { storeId: string }) {
           />
         </label>
 
+        <MenuSpace espaco={espaco} entrando={menu.total} />
+
         <FormError message={state.error} />
 
         {state.savedAt ? (
@@ -145,7 +160,7 @@ export function MenuImport({ storeId }: { storeId: string }) {
           </>
         )}
 
-        <Submit count={menu.total} />
+        <Submit count={menu.total} bloqueado={!cabe(espaco, menu.total)} />
       </form>
     </section>
   );
