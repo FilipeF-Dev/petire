@@ -84,7 +84,45 @@ insert into public.stores (
   now(),
   'active',
   current_date + 60
+),
+(
+  -- A loja dos testes que apagam.
+  --
+  -- Existe porque substituir um cardápio é destrutivo por definição, e um teste
+  -- desses rodando na Lanchonete do Zé derruba todos os outros que contam com o
+  -- cardápio do seed — foi exatamente o que aconteceu quando ele nasceu.
+  --
+  -- Ninguém mais deve usar esta loja. Em compensação, quem escrever um teste
+  -- destrutivo daqui em diante tem para onde apontar.
+  '44444444-4444-4444-8444-444444444444',
+  'cantina-de-teste',
+  'Cantina de Teste',
+  'Loja usada pelos testes que apagam o cardápio inteiro.',
+  '5511900000000',
+  'Rua do Teste, 1',
+  '05433000', 'SP', '3550308',
+  'São Paulo',
+  'Vila Madalena',
+  -23.5550, -46.6900,
+  array['lanches'],
+  'food',
+  0,
+  null,
+  0,
+  true,
+  now(),
+  'active',
+  current_date + 60
 );
+
+-- Um item, para a loja não nascer com o cardápio vazio: o teste de substituir
+-- precisa ter o que substituir.
+insert into public.menu_categories (id, store_id, name, sort_order) values
+  ('a2222222-2222-4222-8222-222222222222', '44444444-4444-4444-8444-444444444444', 'Cardápio antigo', 0);
+
+insert into public.products (id, store_id, category_id, name, price_cents, sort_order) values
+  ('b3333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444',
+   'a2222222-2222-4222-8222-222222222222', 'Item que vai ser substituído', 1000, 0);
 
 -- ----------------------------------------------------------------------------
 -- Como cada uma atende

@@ -21,6 +21,17 @@ import { entrarComoLojista, linhaDo } from "./lojista";
 const LOJA = "lanchonete-do-ze";
 const ID_DA_LOJA = "11111111-1111-4111-8111-111111111111";
 
+/*
+  A loja dos testes que apagam.
+
+  Substituir um cardápio é destrutivo por definição, e este teste rodando na
+  Lanchonete do Zé derrubou os outros que contam com o cardápio do seed — o do
+  painel perdeu a categoria "Lanches" no meio da execução. Uma loja só para
+  isso é mais barato que combinar ordem entre arquivos de teste.
+*/
+const CANTINA = "cantina-de-teste";
+const ID_DA_CANTINA = "44444444-4444-4444-8444-444444444444";
+
 async function entrarComoAdmin(page: Page) {
   await page.goto("/entrar");
   await page
@@ -208,4 +219,69 @@ test("grupo citado por dois itens vira um grupo só, e não dois", async ({
   ).toHaveCount(0);
 
   await painel.close();
+});
+
+test("substituir o cardápio troca o antigo pelo novo, e exige o apelido", async ({
+  page,
+}) => {
+  /*
+    O fluxo de montar cardápio é iterativo: gera o JSON, cola, olha, melhora,
+    cola de novo. Como o importador só adiciona — e só adicionar é o que impede
+    uma colagem repetida de levar junto o cardápio da loja —, a segunda
+    tentativa dobrava os itens e batia no teto do plano. Sem uma forma de
+    recomeçar, o fluxo não fecha.
+  */
+  const sufixo = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const antigo = `Versão velha ${sufixo}`;
+  const novo = `Versão nova ${sufixo}`;
+
+  const cardapio = (item: string) =>
+    JSON.stringify({
+      secoes: [{ nome: `Seção ${sufixo}`, itens: [{ nome: item, preco: 12 }] }],
+    });
+
+  await entrarComoAdmin(page);
+  await page.goto(`/admin/loja/${ID_DA_CANTINA}`);
+
+  const campo = page.getByRole("textbox", { name: "Cardápio", exact: true });
+
+  await campo.fill(cardapio(antigo));
+  await page.getByRole("button", { name: /^Importar 1 item$/ }).click();
+  await expect(page.getByText("Cardápio importado.")).toBeVisible();
+
+  // Agora a segunda versão, substituindo.
+  await page.reload();
+  await campo.fill(cardapio(novo));
+  await page.getByRole("checkbox", { name: /Substituir o cardápio atual/ }).check();
+
+  /*
+    O botão fica travado até o apelido da loja ser digitado. A fricção não é
+    contra o clique distraído: é contra o clique na **loja errada**, com meia
+    dúzia de abas abertas.
+  */
+  await expect(
+    page.getByRole("button", { name: /^Substituir pelo 1 item$/ }),
+  ).toBeDisabled();
+
+  await page
+    .getByRole("textbox", { name: `Digite ${CANTINA} para substituir o cardápio` })
+    .fill(CANTINA);
+
+  await page.getByRole("button", { name: /^Substituir pelo 1 item$/ }).click();
+  await expect(page.getByText("Cardápio importado.")).toBeVisible();
+
+  // O novo está no ar e o antigo não existe mais.
+  await expect
+    .poll(
+      async () => {
+        await page.goto(`/loja/${CANTINA}`);
+        return page.getByRole("button", { name: new RegExp(novo) }).count();
+      },
+      { timeout: 20_000, intervals: [400, 600, 1000, 2000] },
+    )
+    .toBeGreaterThan(0);
+
+  await expect(
+    page.getByRole("button", { name: new RegExp(antigo) }),
+  ).toHaveCount(0);
 });

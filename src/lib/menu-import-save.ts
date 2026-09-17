@@ -280,3 +280,78 @@ export async function salvarCardapio(
     grupos: gruposCriados.length,
   };
 }
+
+export type Limpeza = {
+  itens: number;
+  categorias: number;
+  grupos: number;
+};
+
+/**
+ * Apaga o cardápio da loja, para uma importação começar do zero.
+ *
+ * Existe por causa do jeito como o cardápio é montado hoje: gera o JSON, cola,
+ * olha o resultado, melhora, cola de novo. Como o importador **só adiciona** —
+ * e só adicionar é o que impede uma colagem repetida de levar junto o cardápio
+ * inteiro da loja —, a segunda tentativa dobrava os itens e batia no teto do
+ * plano. Sem uma forma de recomeçar, o fluxo iterativo não fecha.
+ *
+ * Fica só no admin, e atrás da confirmação por digitação. Não é uma operação
+ * que um lojista deva ter à mão no meio do expediente.
+ *
+ * O que morre junto, e por quê:
+ *
+ * - **Promoções dos itens apagados**, por cascata. Promoção de item que não
+ *   existe mais não tem o que descontar.
+ * - **Grupos e opções**, porque são do cardápio. Um grupo órfão continuaria na
+ *   lista de "usar um grupo que já existe" para sempre.
+ *
+ * O que **não** morre: os eventos da loja. A referência ao item vira nula
+ * (`on delete set null`), e o histórico de quantas vezes alguém clicou em pedir
+ * continua lá. É o número que justifica a mensalidade — ele não pode depender
+ * de o cardápio ter sido recolado uma vez.
+ */
+export async function limparCardapio(
+  supabase: Client,
+  storeId: string,
+): Promise<{ erro: string | null; apagado: Limpeza }> {
+  const vazio: Limpeza = { itens: 0, categorias: 0, grupos: 0 };
+
+  // Produtos primeiro: as ligações com os grupos e as promoções saem por
+  // cascata, e nenhuma delas faz sentido sem o item.
+  const { data: itens, error: erroItens } = await supabase
+    .from("products")
+    .delete()
+    .eq("store_id", storeId)
+    .select("id");
+
+  if (erroItens) {
+    return { erro: "Não foi possível apagar os itens.", apagado: vazio };
+  }
+
+  const [grupos, categorias] = await Promise.all([
+    supabase.from("option_groups").delete().eq("store_id", storeId).select("id"),
+    supabase
+      .from("menu_categories")
+      .delete()
+      .eq("store_id", storeId)
+      .select("id"),
+  ]);
+
+  if (grupos.error || categorias.error) {
+    return {
+      erro:
+        "Os itens foram apagados, mas sobraram categorias ou grupos. Confira o cardápio.",
+      apagado: { itens: itens?.length ?? 0, categorias: 0, grupos: 0 },
+    };
+  }
+
+  return {
+    erro: null,
+    apagado: {
+      itens: itens?.length ?? 0,
+      categorias: categorias.data?.length ?? 0,
+      grupos: grupos.data?.length ?? 0,
+    },
+  };
+}

@@ -88,7 +88,7 @@ const anon = anonClient();
   vencida passou a aparecer na vitrine — e essa é a falha que este arquivo
   existe para pegar. Acompanha supabase/seed.sql.
 */
-const LOJAS_PUBLICAS = 3;
+const LOJAS_PUBLICAS = 4;
 
 await check("lê o catálogo de lojas ativas", async () => {
   const { data, error } = await anon.from("stores").select("id, name");

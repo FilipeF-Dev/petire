@@ -16,15 +16,44 @@ import { emptyFormState } from "@/lib/validation";
 
 import { importStoreMenu } from "../../actions";
 
-function Submit({ count, bloqueado }: { count: number; bloqueado: boolean }) {
+/**
+ * O botão diz o que vai fazer, e o rótulo não mente sobre o motivo de estar
+ * travado.
+ *
+ * São dois motivos diferentes, e confundi-los custou um teste: "não cabe no
+ * plano" é uma coisa, "falta digitar o apelido" é outra — e quem lê o primeiro
+ * quando o problema é o segundo vai procurar erro no lugar errado. Faltando a
+ * confirmação, o rótulo continua dizendo o que o botão faria, porque a
+ * explicação está no campo logo acima dele.
+ */
+function Submit({
+  count,
+  substituindo,
+  naoCabe,
+  faltaConfirmar,
+}: {
+  count: number;
+  substituindo: boolean;
+  naoCabe: boolean;
+  faltaConfirmar: boolean;
+}) {
   const { pending } = useFormStatus();
+  const quantos = `${count} ${count === 1 ? "item" : "itens"}`;
+  // "Substituir pelos 1 item" não é português. O artigo concorda com a conta.
+  const pelo = count === 1 ? "pelo" : "pelos";
+
   return (
-    <Button type="submit" disabled={pending || count === 0 || bloqueado}>
+    <Button
+      type="submit"
+      disabled={pending || count === 0 || naoCabe || faltaConfirmar}
+    >
       {pending
         ? "Importando…"
-        : bloqueado
+        : naoCabe
           ? "Não cabe no plano"
-          : `Importar ${count} ${count === 1 ? "item" : "itens"}`}
+          : substituindo
+            ? `Substituir ${pelo} ${quantos}`
+            : `Importar ${quantos}`}
     </Button>
   );
 }
@@ -83,20 +112,100 @@ function FormatoParaIA() {
  * estruturado, que é o que carrega grupo de opção. A escolha é de quem cola —
  * nenhuma tela a mais para manter.
  */
+/**
+ * Apagar o que está lá antes de colar.
+ *
+ * Fricção deliberada, no mesmo formato da exclusão de loja: o campo só libera
+ * quando o apelido é digitado exatamente. O risco aqui não é o clique
+ * distraído no botão — é o clique na **loja errada**, com meia dúzia de abas
+ * abertas. Digitar o apelido é justamente o que defende disso.
+ */
+function Substituir({
+  slug,
+  espaco,
+  marcado,
+  onMarcar,
+  confirmacao,
+  onConfirmar,
+}: {
+  slug: string;
+  espaco: EspacoNoCardapio;
+  marcado: boolean;
+  onMarcar: (valor: boolean) => void;
+  confirmacao: string;
+  onConfirmar: (valor: string) => void;
+}) {
+  if (espaco.usados === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="substituir"
+          checked={marcado}
+          onChange={(event) => onMarcar(event.target.checked)}
+          className="mt-0.5 size-4"
+        />
+        <span>
+          Substituir o cardápio atual
+          <span className="block text-xs text-neutral-500 dark:text-neutral-400">
+            Apaga os {espaco.usados} itens que já estão lá, com as categorias,
+            os grupos de opção e as promoções deles. Os números de acesso da
+            loja não são afetados.
+          </span>
+        </span>
+      </label>
+
+      {marcado ? (
+        <label className="flex flex-col gap-1.5">
+          {/*
+            O rótulo diz o que está sendo confirmado, e não só "confirmar".
+            A mesma página tem o campo de apagar a loja, com o mesmo apelido no
+            rótulo — dois campos idênticos numa tela é confusão para quem lê e
+            armadilha para quem usa leitor de tela.
+          */}
+          <span className="text-sm font-medium">
+            Digite {slug} para substituir o cardápio
+          </span>
+          <input
+            name="confirmar"
+            value={confirmacao}
+            onChange={(event) => onConfirmar(event.target.value)}
+            autoComplete="off"
+            className={inputClass}
+          />
+        </label>
+      ) : null}
+    </div>
+  );
+}
+
 export function MenuImport({
   storeId,
+  slug,
   espaco,
 }: {
   storeId: string;
+  slug: string;
   espaco: EspacoNoCardapio;
 }) {
   const [state, formAction] = useActionState(importStoreMenu, emptyFormState);
   const [text, setText] = useState("");
+  const [substituir, setSubstituir] = useState(false);
+  const [confirmacao, setConfirmacao] = useState("");
 
   const { menu, erro, estruturado } = useMemo(
     () => parseMenuInput(text),
     [text],
   );
+
+  // Substituindo, a loja fica vazia antes da colagem — então o que cabe é o
+  // teto inteiro. Sem isto o botão continuaria bloqueado por itens que estão
+  // prestes a deixar de existir.
+  const espacoValendo = substituir ? { ...espaco, usados: 0 } : espaco;
+
+  const podeSubstituir = !substituir || confirmacao === slug;
 
   return (
     <section className="flex flex-col gap-3 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
@@ -130,7 +239,16 @@ export function MenuImport({
           />
         </label>
 
-        <MenuSpace espaco={espaco} entrando={menu.total} />
+        <Substituir
+          slug={slug}
+          espaco={espaco}
+          marcado={substituir}
+          onMarcar={setSubstituir}
+          confirmacao={confirmacao}
+          onConfirmar={setConfirmacao}
+        />
+
+        <MenuSpace espaco={espacoValendo} entrando={menu.total} />
 
         <FormError message={state.error} />
 
@@ -160,7 +278,12 @@ export function MenuImport({
           </>
         )}
 
-        <Submit count={menu.total} bloqueado={!cabe(espaco, menu.total)} />
+        <Submit
+          count={menu.total}
+          substituindo={substituir}
+          naoCabe={!cabe(espacoValendo, menu.total)}
+          faltaConfirmar={!podeSubstituir}
+        />
       </form>
     </section>
   );

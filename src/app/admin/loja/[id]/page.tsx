@@ -197,6 +197,7 @@ export default async function EditarLojaPage({
       */}
       <MenuImport
         storeId={store.id}
+        slug={store.slug}
         espaco={{
           usados: productsResult.count ?? 0,
           teto: limitResult.data ?? 0,
