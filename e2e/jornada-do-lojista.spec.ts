@@ -194,3 +194,64 @@ test("item sem preço não anuncia R$ 0,00 a ninguém", async ({ page }) => {
   );
   expect(dados.priceRange ?? "").not.toContain("R$ 0,00");
 });
+
+test("apagar uma categoria volta para o cardápio, e não para um 404", async ({
+  page,
+}) => {
+  /*
+    Relatado por quem estava organizando o cardápio: apagou uma categoria e
+    recebeu 404.
+
+    A causa é o formulário de apagar morar na página **da própria categoria**.
+    A ação apagava e terminava sem redirecionar; o Next redesenhava a rota onde
+    o lojista estava, a página procurava a categoria que acabou de deixar de
+    existir, e respondia 404. Ele apagou com sucesso e levou uma tela de erro.
+
+    É o único apagar do painel com esse formato: os outros são disparados de
+    uma tela que continua existindo depois.
+  */
+  const nome = nomeUnico("Para apagar");
+
+  await entrarComoLojista(page);
+  await page.goto("/gerente/cardapio/categoria/nova");
+  await page.getByRole("textbox", { name: "Nome da categoria" }).fill(nome);
+  await page.getByRole("button", { name: "Criar categoria" }).click();
+  await page.waitForURL(/[/]gerente[/]cardapio$/);
+
+  /*
+    A espera recarrega a cada tentativa. Sem isso ela relê o mesmo desenho: uma
+    revalidação de /gerente/cardapio disparada por outro teste pode deixar a
+    página sem a categoria recém-criada, e insistir na mesma tela nunca a
+    traria de volta. Mesma instabilidade que já apareceu na reordenação.
+  */
+  const secao = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: nome, exact: true }) });
+
+  await expect
+    .poll(
+      async () => {
+        await page.reload();
+        return secao.count();
+      },
+      { timeout: 15_000, intervals: [300, 700, 1500] },
+    )
+    .toBeGreaterThan(0);
+
+  // O "editar" da seção — é por ele que se chega à tela de apagar.
+  await secao.getByRole("link", { name: "editar" }).click();
+  await page.waitForURL(/[/]gerente[/]cardapio[/]categoria[/]/);
+
+  await page.getByRole("button", { name: "Apagar categoria" }).click();
+
+  /*
+    Quinze segundos, e não os cinco do padrão: apagar é uma ida ao servidor, e
+    com a bateria inteira rodando em paralelo ela passa dos cinco. O que se
+    afirma aqui é o **destino**, não a velocidade — e um teto apertado transforma
+    servidor ocupado em falha de teste.
+  */
+  await expect(page).toHaveURL(/[/]gerente[/]cardapio$/, { timeout: 15_000 });
+  await expect(
+    page.getByRole("heading", { name: nome, exact: true }),
+  ).toHaveCount(0);
+});
