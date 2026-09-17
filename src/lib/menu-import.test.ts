@@ -265,3 +265,140 @@ describe("cardápio estruturado", () => {
     });
   });
 });
+
+describe("grupos reusados entre itens", () => {
+  /*
+    A razão de o formato ter um dicionário no topo, e não só grupos dentro do
+    item: "Adicionais" nos doze hambúrgueres da casa tem de virar UM grupo
+    ligado a doze produtos. Repetido dentro de cada item viraria doze grupos
+    iguais, e o lojista mudaria o preço do bacon num deles e continuaria errado
+    nos outros onze.
+  */
+  const doisLanches = {
+    grupos: {
+      adicionais: {
+        nome: "Adicionais",
+        min: 0,
+        max: 4,
+        opcoes: [{ nome: "Bacon", mais: 5 }],
+      },
+    },
+    secoes: [
+      {
+        nome: "Lanches",
+        itens: [
+          { nome: "X-Salada", preco: 24.9, usa: ["adicionais"] },
+          { nome: "X-Bacon", preco: 28.9, usa: ["adicionais"] },
+        ],
+      },
+    ],
+  };
+
+  it("declara o grupo uma vez e os itens apenas o citam", () => {
+    const { menu, erro } = parseMenuInput(JSON.stringify(doisLanches));
+
+    expect(erro).toBeNull();
+    expect(menu.shared?.adicionais).toEqual({
+      name: "Adicionais",
+      min: 0,
+      max: 4,
+      options: [{ name: "Bacon", plusCents: 500 }],
+    });
+
+    const [salada, bacon] = menu.sections[0].items;
+    expect(salada.uses).toEqual(["adicionais"]);
+    expect(bacon.uses).toEqual(["adicionais"]);
+    // Nenhum dos dois carrega uma cópia do grupo.
+    expect(salada.groups).toBeUndefined();
+  });
+
+  it("um item pode ter grupo próprio e citado ao mesmo tempo", () => {
+    const { menu, erro } = parseMenuInput(
+      JSON.stringify({
+        grupos: doisLanches.grupos,
+        secoes: [
+          {
+            nome: "Lanches",
+            itens: [
+              {
+                nome: "X-Salada",
+                preco: 24.9,
+                usa: ["adicionais"],
+                grupos: [
+                  {
+                    nome: "Ponto da carne",
+                    min: 1,
+                    max: 1,
+                    opcoes: [{ nome: "Ao ponto" }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(erro).toBeNull();
+    const item = menu.sections[0].items[0];
+    expect(item.groups?.[0].name).toBe("Ponto da carne");
+    expect(item.uses).toEqual(["adicionais"]);
+  });
+
+  it("apelido que ninguém declarou é erro, e diz qual é", () => {
+    /*
+      O engano mais provável de uma transcrição feita por IA: ela cita o grupo
+      e esquece de declarar. Sem esta checagem o item chegaria ao cardápio sem
+      as opções, e ninguém saberia até um cliente pedir.
+    */
+    const { erro } = parseMenuInput(
+      JSON.stringify({
+        secoes: [
+          {
+            nome: "Lanches",
+            itens: [{ nome: "X-Salada", preco: 24.9, usa: ["adicionais"] }],
+          },
+        ],
+      }),
+    );
+
+    expect(erro).toContain("adicionais");
+    expect(erro).toContain("X-Salada");
+  });
+});
+
+describe("teto de itens", () => {
+  const muitos = (quantos: number) => ({
+    secoes: [
+      {
+        nome: "Tudo",
+        itens: Array.from({ length: quantos }, (_, i) => ({
+          nome: `Item ${i}`,
+          preco: 10,
+        })),
+      },
+    ],
+  });
+
+  it("o JSON acima do teto é recusado, e não cortado em silêncio", () => {
+    /*
+      Diferente do texto colado, que manda o excedente para "fora da
+      importação": aqui o JSON foi construído de propósito, e sumir com os
+      últimos em silêncio entregaria um cardápio pela metade a quem acha que
+      entregou inteiro.
+    */
+    const { erro, menu } = parseMenuInput(JSON.stringify(muitos(201)));
+
+    expect(erro).toContain("mais de 200 itens");
+    // E a mensagem aponta a saída, que é agrupar — não colar em duas partes.
+    expect(erro).toContain("Agrupe as variações");
+    expect(menu.total).toBe(0);
+  });
+
+  it("exatamente no teto passa", () => {
+    const { erro, menu } = parseMenuInput(JSON.stringify(muitos(200)));
+
+    expect(erro).toBeNull();
+    expect(menu.total).toBe(200);
+  });
+});

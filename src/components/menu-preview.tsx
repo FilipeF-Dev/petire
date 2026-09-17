@@ -1,4 +1,8 @@
-import type { ParsedMenu } from "@/lib/menu-import";
+import type {
+  ParsedGroup,
+  ParsedItem,
+  ParsedMenu,
+} from "@/lib/menu-import";
 import { formatCents } from "@/lib/money";
 
 /**
@@ -14,6 +18,23 @@ import { formatCents } from "@/lib/money";
  * receber, e uma conferência errada é pior do que nenhuma — ela dá confiança
  * no que não foi conferido.
  */
+/**
+ * Todos os grupos que este item vai ter — os dele e os que ele reusa.
+ *
+ * A conferência tem de mostrar o que o **cliente** vai ver, e o cliente não
+ * sabe se o grupo foi declarado dentro do item ou no topo do cardápio. Mostrar
+ * só os próprios faria um hambúrguer com "Adicionais" reusado aparecer aqui
+ * sem adicional nenhum — uma conferência que engana é pior do que nenhuma,
+ * porque dá confiança no que não foi conferido.
+ */
+function gruposDo(item: ParsedItem, menu: ParsedMenu): ParsedGroup[] {
+  const citados = (item.uses ?? [])
+    .map((apelido) => menu.shared?.[apelido])
+    .filter((grupo): grupo is ParsedGroup => grupo !== undefined);
+
+  return [...(item.groups ?? []), ...citados];
+}
+
 export function MenuPreview({ menu }: { menu: ParsedMenu }) {
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-surface p-4 dark:border-neutral-800">
@@ -56,7 +77,7 @@ export function MenuPreview({ menu }: { menu: ParsedMenu }) {
                   adicional passa despercebido no texto e sai caro em todo
                   pedido que o usar.
                 */}
-                {item.groups?.map((group, groupIndex) => (
+                {gruposDo(item, menu).map((group, groupIndex) => (
                   <div
                     key={`${group.name}-${groupIndex}`}
                     className="mt-1 ml-3 border-l border-neutral-200 pl-3 dark:border-neutral-800"

@@ -34,9 +34,15 @@ export type ParsedGroup = {
 export type ParsedItem = {
   name: string;
   priceCents: number;
-  /** Só o formato estruturado carrega estes dois. */
+  /** Só o formato estruturado carrega estes três. */
   description?: string | null;
+  /** Grupos próprios deste item. */
   groups?: ParsedGroup[];
+  /**
+   * Apelidos de grupos declarados no topo do cardápio e usados por vários
+   * itens — "Adicionais" nos doze hambúrgueres da casa.
+   */
+  uses?: string[];
 };
 
 export type ParsedSection = {
@@ -47,6 +53,15 @@ export type ParsedSection = {
 
 export type ParsedMenu = {
   sections: ParsedSection[];
+  /**
+   * Os grupos declarados uma vez e usados por vários itens, por apelido.
+   *
+   * Existe porque repetir o grupo dentro de cada item criaria um grupo por
+   * item: o lojista mudaria o preço do bacon num hambúrguer e continuaria
+   * errado nos outros onze. É a mesma razão de o grupo ter deixado de
+   * pertencer ao produto no banco — ver product_option_groups.
+   */
+  shared?: Record<string, ParsedGroup>;
   /** Linhas que não viraram nada, para a tela poder mostrar o que ignorou. */
   ignored: string[];
   total: number;
@@ -202,10 +217,21 @@ const itemSchema = z.object({
    */
   preco: z.number().min(0).max(REAIS_MAX).default(0),
   descricao: z.string().trim().max(500).optional(),
+  /** Grupos só deste item. */
   grupos: z.array(grupoSchema).max(10).optional(),
+  /** Apelidos de grupos declarados no topo. */
+  usa: z.array(z.string().trim().min(1)).max(10).optional(),
 });
 
 const cardapioSchema = z.object({
+  /**
+   * Grupos que vários itens usam, cada um com um apelido.
+   *
+   * O apelido é só para o texto se referir a ele; o que vai para o cardápio é
+   * o `nome`. Declarar aqui e citar com `usa` é o que faz "Adicionais" ser
+   * **um** grupo em doze hambúrgueres, e não doze.
+   */
+  grupos: z.record(z.string(), grupoSchema).optional(),
   secoes: z
     .array(
       z.object({
@@ -262,6 +288,28 @@ function lerJson(text: string): ParsedMenuResult {
     };
   }
 
+  const converter = (grupo: {
+    nome: string;
+    min: number;
+    max: number;
+    opcoes: { nome: string; mais: number }[];
+  }): ParsedGroup => ({
+    name: grupo.nome,
+    min: grupo.min,
+    // Um grupo que obriga escolher duas e só permite uma é um item que ninguém
+    // consegue pedir. O schema já recusa; isto é cinto e suspensório.
+    max: Math.max(grupo.max, grupo.min),
+    options: grupo.opcoes.map((opcao) => ({
+      name: opcao.nome,
+      plusCents: reaisParaCentavos(opcao.mais),
+    })),
+  });
+
+  const shared: Record<string, ParsedGroup> = {};
+  for (const [apelido, grupo] of Object.entries(parsed.data.grupos ?? {})) {
+    shared[apelido] = converter(grupo);
+  }
+
   const sections: ParsedSection[] = [];
   let total = 0;
   const ignored: string[] = [];
@@ -270,26 +318,54 @@ function lerJson(text: string): ParsedMenuResult {
     const items: ParsedItem[] = [];
 
     for (const item of secao.itens) {
-      // O mesmo teto do formato de linhas, pelo mesmo motivo: uma importação
-      // não deve virar um livro.
+      /*
+        O mesmo teto do formato de linhas, mas aqui ele **recusa** em vez de
+        cortar o excedente.
+
+        No texto colado, jogar o resto para "fora da importação" é razoável:
+        quem colou não escreveu aquilo linha a linha e vai conferir a lista de
+        qualquer jeito. Aqui o JSON foi construído de propósito, e sumir com os
+        últimos itens em silêncio seria entregar um cardápio pela metade a quem
+        acha que entregou inteiro.
+
+        E o caminho certo quase nunca é colar em duas partes: um cardápio que
+        passa de 200 costuma ser um cardápio com cinquenta sabores listados um
+        a um. A regra de agrupar variações, que está no pedido à IA, levou um
+        cardápio real de 221 itens para 85 sem perder um sabor sequer.
+      */
       if (total >= MAX_ITEMS) {
-        ignored.push(item.nome);
-        continue;
+        return {
+          menu: VAZIO,
+          erro: `O cardápio tem mais de ${MAX_ITEMS} itens. Agrupe as variações do mesmo produto (tamanho, sabor, recheio) num item com grupo de opção, como pede o formato.`,
+          estruturado: true,
+        };
+      }
+
+      /*
+        Apelido citado que ninguém declarou é erro, e não um grupo a menos em
+        silêncio. É o engano mais provável de uma transcrição feita por IA — ela
+        escreve "usa": ["adicionais"] e esquece de declarar "adicionais" no topo
+        — e o sintoma sem esta checagem seria um item chegando ao cardápio sem
+        as opções, sem nada avisando.
+      */
+      const desconhecido = (item.usa ?? []).find(
+        (apelido) => !(apelido in shared),
+      );
+
+      if (desconhecido) {
+        return {
+          menu: VAZIO,
+          erro: `O item "${item.nome}" usa o grupo "${desconhecido}", que não foi declarado em "grupos".`,
+          estruturado: true,
+        };
       }
 
       items.push({
         name: item.nome,
         priceCents: reaisParaCentavos(item.preco),
         description: item.descricao ?? null,
-        groups: item.grupos?.map((grupo) => ({
-          name: grupo.nome,
-          min: grupo.min,
-          max: Math.max(grupo.max, grupo.min),
-          options: grupo.opcoes.map((opcao) => ({
-            name: opcao.nome,
-            plusCents: reaisParaCentavos(opcao.mais),
-          })),
-        })),
+        groups: item.grupos?.map(converter),
+        uses: item.usa,
       });
       total += 1;
     }
@@ -307,7 +383,11 @@ function lerJson(text: string): ParsedMenuResult {
     };
   }
 
-  return { menu: { sections, ignored, total }, erro: null, estruturado: true };
+  return {
+    menu: { sections, ignored, total, shared },
+    erro: null,
+    estruturado: true,
+  };
 }
 
 /**
