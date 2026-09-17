@@ -153,12 +153,39 @@ export async function salvarCardapio(
     };
   }
 
-  const comGrupos = itens.filter((item) => (item.lido.groups?.length ?? 0) > 0);
-  if (comGrupos.length === 0) {
+  /*
+    Os grupos vêm de dois lugares, e a diferença é o ponto da coisa.
+
+    Os **reusados** são declarados uma vez no topo do cardápio e citados por
+    vários itens: "Adicionais" nos doze hambúrgueres da casa. Eles viram **uma**
+    linha em option_groups, ligada a doze produtos — que é para isso que a
+    tabela do meio existe. Repetir o grupo dentro de cada item criaria doze
+    grupos iguais, e o lojista mudaria o preço do bacon num deles e continuaria
+    errado nos outros onze.
+
+    Os **próprios** são do item e só dele: o "Sabor" da Fanta não é o "Sabor" do
+    suco, ainda que os dois se chamem Sabor.
+  */
+  const apelidos = Object.keys(menu.shared ?? {});
+
+  const proprios = itens.flatMap((item, itemIndex) =>
+    (item.lido.groups ?? []).map((lido, posicao) => ({
+      itemIndex,
+      posicao,
+      lido,
+    })),
+  );
+
+  if (apelidos.length === 0 && proprios.length === 0) {
     return { erro: null, itens: criados.length, grupos: 0 };
   }
 
-  if (!mesmaOrdem(criados, itens.map((item) => item.linha))) {
+  if (
+    !mesmaOrdem(
+      criados,
+      itens.map((item) => item.linha),
+    )
+  ) {
     return {
       erro:
         "Os itens entraram, mas não consegui ligar os grupos a eles com segurança. Adicione as opções pelo cardápio.",
@@ -167,41 +194,26 @@ export async function salvarCardapio(
     };
   }
 
-  /*
-    Grupos, opções e ligações: três escritas, e não três por grupo.
+  // Reusados primeiro, próprios depois: é a ordem que o mapeamento de ids
+  // abaixo assume, e ela precisa valer nos dois lados.
+  const paraCriar = [
+    ...apelidos.map((apelido) => (menu.shared ?? {})[apelido]),
+    ...proprios.map((grupo) => grupo.lido),
+  ];
 
-    A alternativa seria criar um grupo, ler o id, criar as opções dele, e
-    repetir — dezenas de idas ao servidor num cardápio de porte. Foi exatamente
-    esse desenho que fez a reordenação do cardápio travar, e não há motivo para
-    repeti-lo aqui. Os ids saem da mesma garantia de ordem já conferida acima.
-  */
-  const gruposParaCriar = comGrupos.flatMap((item, itemIndex) =>
-    (item.lido.groups ?? []).map((grupo, grupoIndex) => ({
-      itemIndex,
-      grupoIndex,
-      lido: grupo,
-      linha: {
+  const { data: gruposCriados, error: erroGrupos } = await supabase
+    .from("option_groups")
+    .insert(
+      paraCriar.map((grupo) => ({
         store_id: storeId,
         name: grupo.name,
         min_select: grupo.min,
         max_select: grupo.max,
-      },
-    })),
-  );
-
-  const { data: gruposCriados, error: erroGrupos } = await supabase
-    .from("option_groups")
-    .insert(gruposParaCriar.map((grupo) => grupo.linha))
+      })),
+    )
     .select("id, name");
 
-  if (
-    erroGrupos ||
-    !gruposCriados ||
-    !mesmaOrdem(
-      gruposCriados,
-      gruposParaCriar.map((grupo) => grupo.linha),
-    )
-  ) {
+  if (erroGrupos || !gruposCriados || !mesmaOrdem(gruposCriados, paraCriar)) {
     return {
       erro: "Os itens entraram, mas os grupos de opção não.",
       itens: criados.length,
@@ -209,13 +221,12 @@ export async function salvarCardapio(
     };
   }
 
-  // O índice do item dentro da lista achatada, para achar o id dele.
-  const idDoItem = new Map(
-    comGrupos.map((item) => [item, criados[itens.indexOf(item)].id]),
+  const idPorApelido = new Map(
+    apelidos.map((apelido, i) => [apelido, gruposCriados[i].id]),
   );
 
-  const opcoes = gruposParaCriar.flatMap((grupo, i) =>
-    grupo.lido.options.map((opcao, ordem) => ({
+  const opcoes = paraCriar.flatMap((grupo, i) =>
+    grupo.options.map((opcao, ordem) => ({
       store_id: storeId,
       group_id: gruposCriados[i].id,
       name: opcao.name,
@@ -224,12 +235,31 @@ export async function salvarCardapio(
     })),
   );
 
-  const ligacoes = gruposParaCriar.map((grupo, i) => ({
-    store_id: storeId,
-    product_id: idDoItem.get(comGrupos[grupo.itemIndex]) as string,
-    group_id: gruposCriados[i].id,
-    sort_order: grupo.grupoIndex,
-  }));
+  /*
+    A ordem em que os grupos aparecem no item: os próprios e depois os
+    reusados. Na prática é a ordem que o cliente espera — primeiro a escolha
+    que o item obriga (o ponto da carne), depois os adicionais.
+  */
+  const ligacoes = itens.flatMap((item, itemIndex) => {
+    const meus = proprios
+      .map((grupo, i) => ({ grupo, i }))
+      .filter(({ grupo }) => grupo.itemIndex === itemIndex)
+      .map(({ grupo, i }) => ({
+        store_id: storeId,
+        product_id: criados[itemIndex].id,
+        group_id: gruposCriados[apelidos.length + i].id,
+        sort_order: grupo.posicao,
+      }));
+
+    const citados = (item.lido.uses ?? []).map((apelido, ordem) => ({
+      store_id: storeId,
+      product_id: criados[itemIndex].id,
+      group_id: idPorApelido.get(apelido) as string,
+      sort_order: meus.length + ordem,
+    }));
+
+    return [...meus, ...citados];
+  });
 
   const [opcoesResult, ligacoesResult] = await Promise.all([
     supabase.from("options").insert(opcoes),
