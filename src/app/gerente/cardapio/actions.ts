@@ -111,6 +111,19 @@ export async function deleteCategory(formData: FormData): Promise<void> {
     .eq("store_id", session.storeId);
 
   refreshMenu(session.storeSlug);
+
+  /*
+    Sair da página é parte de apagar, e não um detalhe de navegação.
+
+    O formulário de apagar mora na página **da própria categoria**. Sem esta
+    linha, a ação termina, o Next redesenha a rota onde o lojista está, a
+    página procura a categoria que acabou de deixar de existir e responde 404.
+    Ele apagou com sucesso e recebeu uma tela de erro.
+
+    É o único apagar do painel com esse formato — os outros são disparados de
+    uma tela que continua existindo depois, e por isso não precisam disto.
+  */
+  redirect("/gerente/cardapio");
 }
 
 // -----------------------------------------------------------------------------
