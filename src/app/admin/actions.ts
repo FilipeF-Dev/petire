@@ -8,7 +8,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { initialPassword } from "@/lib/initial-password";
 import { parseMenuInput } from "@/lib/menu-import";
-import { salvarCardapio } from "@/lib/menu-import-save";
+import { limparCardapio, salvarCardapio } from "@/lib/menu-import-save";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   editStoreSchema,
@@ -845,6 +845,39 @@ export async function importStoreMenu(
   }
 
   const admin = createAdminClient();
+
+  /*
+    Substituir apaga o cardápio antes de colar o novo.
+
+    A leitura do texto vem **antes** da limpeza, de propósito: um JSON com erro
+    de formato não pode deixar a loja sem cardápio nenhum. Depois de apagar, a
+    única coisa que ainda pode falhar é a escrita, e aí a mensagem diz o que
+    aconteceu em vez de sumir com o cardápio em silêncio.
+
+    A confirmação por digitação é conferida aqui, e não só na tela: o botão
+    desabilitado é fricção para quem está distraído, não uma tranca. Quem
+    chamar esta ação direto passa pelo mesmo teste.
+  */
+  if (formData.get("substituir") === "on") {
+    const { data: loja } = await admin
+      .from("stores")
+      .select("slug")
+      .eq("id", storeId.data)
+      .maybeSingle();
+
+    if (!loja || formData.get("confirmar") !== loja.slug) {
+      return {
+        error: `Para substituir, digite ${loja?.slug ?? "o apelido da loja"} no campo de confirmação.`,
+        values: formValues(formData),
+      };
+    }
+
+    const limpeza = await limparCardapio(admin, storeId.data);
+    if (limpeza.erro) {
+      return { error: limpeza.erro, values: formValues(formData) };
+    }
+  }
+
   const resultado = await salvarCardapio(admin, storeId.data, menu);
 
   if (resultado.erro) {
